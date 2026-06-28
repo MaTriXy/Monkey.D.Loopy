@@ -1,0 +1,113 @@
+# LoopSpec v0.1 — reference
+
+A `LoopSpec` is one typed YAML document that declares a single **bounded** agent loop.
+Every input (a blueprint, a hand-written file, an NL draft) normalizes to this shape before
+any code is emitted. Canonical types live in
+[`packages/core/src/types.ts`](../packages/core/src/types.ts); the compact LLM-facing guide is
+[`LOOPSPEC_GUIDE`](../packages/core/src/toon.ts).
+
+> **The load-bearing rule:** the compiler refuses to emit an unbounded loop. `terminate` is
+> required and `caps` are mandatory (auto-injected if omitted).
+
+## Top-level fields
+
+| Field | Required | Description |
+|---|---|---|
+| `loopspec` | ✓ | Format version — `"0.1"`. |
+| `id` | ✓ | Identifier; matches `[A-Za-z0-9_.:-]+` (lowered into code/comments). |
+| `pattern` | ✓ | `react` · `plan-execute-reflect` · `evaluator-optimizer` · `loop-until-dry` · `map-reduce` · `poll-until` · `cron`. |
+| `body` | ✓ | The iteration: a non-empty list of steps. |
+| `terminate` | ✓ | Exit predicate + signal tier (see below). |
+| `caps` | auto | Limits. Auto-injected per-pattern if omitted; set them explicitly. |
+| `meta` | | `{ name, version, description }`. |
+| `inputs` | | `{ <name>: { type, required?, default?, description? } }`. |
+| `state` | | `{ store: journal, vars: { <name>: { type, init } } }`. Only `journal` is supported in 0.1 (`memory` is reserved). |
+| `schedule` | | `{ mode: manual\|cron\|watch\|forever, cron? }`. |
+| `retry` | | `{ max, backoff_ms }` — transient http/shell/agent failures retry with exponential backoff (default no retry). |
+| `gates` | | Durable human-approval gates `{ after?, when?, ask, strategy?, auto_approve_in? }` — lowered to an inline, fail-closed `ctx.breakpoint()` after the named step (standalone + babysitter). |
+| `observe` | | `{ trace: journal\|none, hooks?, notify? }`. |
+| `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|n8n, emit: [cli, skill, doctor] }`. |
+| `provenance` | | `{ factory_version, source, run_id }` (baked into the artifact). |
+
+## Types
+
+`string` · `int` · `number` · `boolean` · `json` · `list` · `enum[a,b,c]`
+
+## Step kinds (closed set — no raw code)
+
+```yaml
+- { id, kind: agent, harness, prompt, allowed-tools?, save?, on_done? }   # harness: llm | claude-code | codex | opencode | antigravity | cursor-agent | cli | internal
+- { id, kind: shell, cmd, save?, on_done? }                               # runs a shell command
+- { id, kind: http,  request: { method, url, headers?, body? }, envelope?, save?, on_done? }
+- { id, kind: breakpoint, ask, strategy?, auto_approve_in? }              # durable human gate
+- { id, kind: sleep, for: "5m" | until: "${...}" }                        # exactly one of for/until; durable
+- { id, kind: reduce, over: "${...}", as?, body: [...] }                  # fan out over a collection
+```
+
+Each step may carry a `when: "${...}"` guard. `agent`/`shell`/`http` steps may `save` json-path
+extractions into state; `agent` `save` reads the harness's structured result envelope.
+
+- **`save`**: `{ <stateVar>: "$.path.into.result" }`
+- **`envelope`** (http only, opt-in): when `true`, the step result is `{ status, ok, headers, body }`
+  instead of the bare parsed body — so `save: { code: "$.status", payload: "$.body.field" }` can read
+  the HTTP status of a JSON response. Default (omitted) keeps the body-direct shape.
+- **`on_done`**: `{ incr: <var> }` | `{ set: { <var>: value-or-${expr} } }` | `{ append: { <listVar>: value-or-${expr} } }`
+  (`append` into a `list` var is how `reduce` accumulates per-item results.)
+
+## Expression language (`${...}`)
+
+A small, safe subset — **no function calls, no arbitrary identifiers**:
+
+- Roots: `state.x`, `inputs.y`, `env.Z`, `meta.m`, `iteration`, `item` (inside `reduce`).
+- Operators: `== != < <= > >=`, `&& || !` (and `and` / `or` / `not`), `+ - * / %`, `in`.
+- Literals: numbers, `'strings'`/`"strings"`, `true` / `false` / `null`.
+
+`&&`/`||` return operands (JS semantics), so `${a || b}` works as a fallback. The same AST is
+used by the validator (reference + safety checks), the runtime (evaluation), and the emitter
+(lowered to JS) — so all three agree.
+
+## terminate
+
+```yaml
+terminate:
+  signal: state-predicate   # oracle > state-predicate > llm-judge > self-assess
+  until: "${state.status == 'green'}"
+  on_exit: { kind: shell, cmd: "./notify.sh ${state.status}" }   # optional action on exit
+```
+
+Rank your signal by trustworthiness: an **oracle** (tests/compiler/schema) is strongest; a
+model's **self-assessment** is weakest (and requires explicit caps).
+
+## caps (mandatory)
+
+```yaml
+caps:
+  max_iterations: 288
+  no_progress: { fingerprint: "${state.status}", max_repeats: 12 }   # anti-thrash
+  budget: { tokens: 200000, usd: 5.0, wallclock: "24h" }
+  on_cap_exceeded: breakpoint    # fail | breakpoint | exit-clean
+```
+
+Per-pattern defaults (when omitted) are in
+[`normalize.ts`](../packages/core/src/normalize.ts).
+
+## Validation — hard gates
+
+`loopc validate` blocks compilation on any of these:
+
+1. `terminate` present, with a `signal` and a parseable `until`.
+2. **Exit reachable** — `until` reads a state var some step writes, or `iteration`.
+3. `self-assess` termination requires **explicit** caps.
+4. Every `state`/`inputs` reference is declared; every `save`/`on_done` target is declared.
+5. Exactly one of `sleep.for` / `sleep.until`.
+6. Names (ids, vars, inputs, reduce aliases) are safe identifiers; expressions are in the safe
+   subset; `schedule: cron` has a `cron`; gate `after` references a real step.
+
+Soft warnings (non-blocking, downgrade the score): weak signal, auto-injected caps, missing
+`no_progress` on poll/loop-until-dry, missing budget, `trace: none`.
+
+## Worked example
+
+See [`examples/deploy-watch.yaml`](../examples/deploy-watch.yaml) — a `poll-until` loop that
+checks a deploy, lets an agent fix it when red, sleeps between checks, and exits when green.
+Scaffold any pattern with `loopc new <id> --blueprint <name>`.
