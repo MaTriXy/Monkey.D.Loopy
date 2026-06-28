@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    # Skipped while the repository is PRIVATE — a private repo with no Actions budget fails the
+    # job before any step runs (runner never starts), which just spams red. The condition is
+    # evaluated by GitHub's control plane (no runner, no minutes used), so the run shows as
+    # "skipped", not failed. This turns ON automatically the moment the repo is made public.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Test (unit + golden + fidelity + evals gate)
+        run: pnpm -r test
+      - name: Evals (deterministic — hard gate)
+        run: pnpm eval
+      - name: Build (dist for all packages)
+        run: pnpm build

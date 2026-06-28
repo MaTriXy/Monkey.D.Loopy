@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.loopy/
+.DS_Store
+coverage/
+*.log
+.fidtmp-*/
+evals-report.json
+skill-eval-report.json
+
+# HyperFrames showcase project (compositions + personal avatar/voice media) — kept local for now
+showcase/

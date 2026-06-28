@@ -1,0 +1,37 @@
+name: Nightly skill-eval
+
+# Live NL→spec authoring quality, graded by the real validate/verify/score. Runs nightly
+# (and on demand). PROVIDER-AGNOSTIC: set LOOPY_LLM_API_KEY (+ LOOPY_LLM_BASE_URL,
+# LOOPY_LLM_MODEL) — or any provider key — as repo secrets/vars. Without them the eval grades
+# the golden fallback. Kept off the per-PR path (cost + model flakiness).
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  skill-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Skill-eval (live, provider-agnostic)
+        env:
+          LOOPY_LLM_API_KEY: ${{ secrets.LOOPY_LLM_API_KEY }}
+          LOOPY_LLM_BASE_URL: ${{ vars.LOOPY_LLM_BASE_URL }}
+          LOOPY_LLM_MODEL: ${{ vars.LOOPY_LLM_MODEL }}
+        run: pnpm eval:skill
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-eval-report
+          path: packages/evals/skill-eval-report.json

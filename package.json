@@ -1,0 +1,32 @@
+{
+  "name": "monkey-d-loopy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
+  "author": "MaTriXy <elkriefy@gmail.com>",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git" },
+  "type": "module",
+  "packageManager": "pnpm@10.33.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "eval": "pnpm --filter @loopy/evals eval",
+    "eval:skill": "pnpm --filter @loopy/evals eval:skill",
+    "loopc": "pnpm --filter @loopy/cli exec loopc"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

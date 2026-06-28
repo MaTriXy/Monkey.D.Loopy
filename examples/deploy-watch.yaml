@@ -1,0 +1,45 @@
+loopspec: "0.1"
+id: deploy-watch
+meta:
+  name: deploy-watch
+  description: Poll a deploy status; if red, let an agent push a fix; exit when green.
+pattern: poll-until
+
+inputs:
+  status_url: { type: string, required: true }
+
+state:
+  store: journal
+  vars:
+    status: { type: "enum[pending,green,red]", init: pending }
+    attempt: { type: int, init: 0 }
+
+body:
+  - id: check
+    kind: http
+    request: { method: GET, url: "${inputs.status_url}" }
+    save: { status: "$.state" }
+  - id: triage
+    when: "${state.status == 'red'}"
+    kind: agent
+    harness: claude-code
+    allowed-tools: [Bash, Edit, Read]
+    prompt: "Deploy failed (attempt ${state.attempt}). Diagnose and push a minimal fix."
+    on_done: { incr: attempt }
+  - id: wait
+    when: "${state.status == 'pending'}"
+    kind: sleep
+    for: 5m
+
+terminate:
+  signal: state-predicate
+  until: "${state.status == 'green'}"
+  on_exit: { kind: shell, cmd: "echo deploy ${state.status}" }
+
+caps:
+  max_iterations: 288
+  no_progress: { fingerprint: "${state.status}", max_repeats: 12 }
+  budget: { tokens: 200000, usd: 5.0, wallclock: "24h" }
+  on_cap_exceeded: breakpoint
+
+schedule: { mode: forever }
