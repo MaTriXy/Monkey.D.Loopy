@@ -1,0 +1,39 @@
+{
+  "name": "@loopy/runtime",
+  "version": "0.1.0",
+  "description": "The durable execution engine for Monkey D Loopy standalone loop artifacts: event-sourced journal, deterministic replay, idempotent effects, hard caps, durable sleep + breakpoints.",
+  "author": "MaTriXy <elkriefy@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git",
+    "directory": "packages/runtime"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {}
+}
