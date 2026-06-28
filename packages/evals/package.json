@@ -1,0 +1,27 @@
+{
+  "name": "@loopy/evals",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Eval harness for the Monkey D Loopy factory — property-based pipeline, capability-matrix honesty, and a validator negative corpus, graded by the real code.",
+  "author": "MaTriXy <elkriefy@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git",
+    "directory": "packages/evals"
+  },
+  "type": "module",
+  "scripts": {
+    "eval": "tsx src/run.ts",
+    "eval:skill": "tsx src/run-skill.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@loopy/core": "workspace:*",
+    "@loopy/runtime": "workspace:*",
+    "@loopy/verify": "workspace:*",
+    "fast-check": "^3.23.1",
+    "yaml": "^2.6.1"
+  }
+}

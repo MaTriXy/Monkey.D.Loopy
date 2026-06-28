@@ -1,0 +1,31 @@
+{
+  "name": "@loopy/cli",
+  "version": "0.1.0",
+  "description": "loopc — the Monkey D Loopy command-line factory.",
+  "author": "MaTriXy <elkriefy@gmail.com>",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git", "directory": "packages/cli" },
+  "type": "module",
+  "bin": {
+    "loopc": "./src/index.ts"
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "bin": { "loopc": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "loopc": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@loopy/core": "workspace:*",
+    "@loopy/infer": "workspace:*",
+    "@loopy/runtime": "workspace:*",
+    "@loopy/verify": "workspace:*",
+    "esbuild": "^0.27.7",
+    "yaml": "^2.6.1"
+  }
+}
