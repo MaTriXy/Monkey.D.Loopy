@@ -1,12 +1,16 @@
 # Monkey D Loopy
 
+<p align="center">
+  <img src="docs/images/monkey-d-loopy-logo-256.png" alt="Monkey D Loopy logo" width="160" />
+</p>
+
 **A factory for runnable, crash-resumable agent loops.**
 
 Describe a loop once in a declarative **LoopSpec**; compile it to something that actually runs —
 journaling every step, resuming after a crash, and stopping when it should. You bring the agent
 and the model; Loopy handles the hard parts.
 
-https://github.com/user-attachments/assets/58e23cc9-7d6f-47cd-9314-d1855b6eec13
+https://github.com/user-attachments/assets/ad1b2379-f545-4257-9abc-b2f727b11526
 
 > **The load-bearing rule:** the compiler will not emit an unbounded loop. Every loop must
 > declare a termination signal and carries mandatory caps — iterations, a no-progress
