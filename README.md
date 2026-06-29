@@ -1,6 +1,5 @@
 <h1 align="center">
-  <img src="docs/images/monkey-d-loopy-logo-256.png" alt="Monkey D Loopy logo" width="56" />
-  Monkey D Loopy
+  <img src="docs/images/monkey-d-loopy-logo-512.png" alt="Monkey D Loopy logo" width="512" />
 </h1>
 
 **A factory for runnable, crash-resumable agent loops.**
