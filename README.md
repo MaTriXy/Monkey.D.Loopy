@@ -1,8 +1,7 @@
-# Monkey D Loopy
-
-<p align="center">
-  <img src="docs/images/monkey-d-loopy-logo-256.png" alt="Monkey D Loopy logo" width="160" />
-</p>
+<h1 align="center">
+  <img src="docs/images/monkey-d-loopy-logo-256.png" alt="Monkey D Loopy logo" width="56" />
+  Monkey D Loopy
+</h1>
 
 **A factory for runnable, crash-resumable agent loops.**
 
