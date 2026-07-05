@@ -19,6 +19,7 @@ import {
   type RefScope,
 } from "./expr.js";
 import { isValidDuration } from "./duration.js";
+import { terminationGrounding } from "./grounding.js";
 import type { NormalizedSpec } from "./normalize.js";
 import type { Step } from "./types.js";
 
@@ -380,6 +381,27 @@ export function validate(normalized: NormalizedSpec): ValidationResult {
       warn("weak-signal", "self-assess is the weakest exit signal; prefer an oracle, state predicate, or judged rubric.", "terminate.signal");
     } else if (t.signal === "llm-judge") {
       warn("weak-signal", "llm-judge exit signals can loop on an unsatisfiable rubric; cap judge iterations and prefer an objective oracle where possible.", "terminate.signal");
+    }
+
+    // grounding honesty: a strong declared signal must be fed by evidence that matches.
+    // (terminationGrounding classifies who writes the exit vars: http/shell saves are
+    // external evidence, agent saves are the model's own report, on_done mutations are
+    // structural and inherit the taints of their guards/values.)
+    if ((t.signal === "oracle" || t.signal === "state-predicate") && untilAst) {
+      const g = terminationGrounding({ body: spec.body as Step[], terminate: { until: t.until } });
+      if (g.class === "agent") {
+        warn(
+          "ungrounded-exit",
+          `terminate.signal is '${t.signal}' but every value feeding the exit predicate comes from agent output (var(s) [${g.agentFed.join(", ")}]); this is effectively self-assessment. Ground the exit in an http/shell check, or declare the signal honestly as llm-judge/self-assess.`,
+          "terminate.signal"
+        );
+      } else if (g.class === "mixed") {
+        info(
+          "partially-grounded-exit",
+          `exit var(s) [${g.agentFed.join(", ")}] are fed by agent output while [${g.externalFed.join(", ")}] carry http/shell evidence; the predicate is only partially grounded.`,
+          "terminate.signal"
+        );
+      }
     }
 
     // exit reachability: the predicate must read a signal that can actually change.

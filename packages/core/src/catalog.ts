@@ -89,7 +89,10 @@ body:
     on_done: { set: { dry_passes: 0 } }
 
 terminate:
-  signal: state-predicate
+  # self-assess is the honest label here: dry_passes is fed by the agent's own
+  # "nothing new" report. To upgrade this to an oracle, count with a shell/http
+  # check instead of trusting the hunt step's save (see examples/link-sweep.yaml).
+  signal: self-assess
   until: "\${state.dry_passes >= 2}"
 
 caps:

@@ -25,7 +25,7 @@ import {
   SUPPORTED_TARGETS,
   usedCapabilities,
 } from "@loopy/core";
-import { verifyLoop } from "@loopy/verify";
+import { scoreLoop, verifyLoop } from "@loopy/verify";
 
 export interface EvalResult {
   name: string;
@@ -186,8 +186,51 @@ function negativeEval(): EvalResult {
   return { name: "validator-negative-corpus", total: corpus.length, failed: failures.length, failures };
 }
 
+/**
+ * grounding-honesty: a spec whose exit predicate is fed only by agent output must
+ * (a) trip the ungrounded-exit warning when it wears a strong signal label, and
+ * (b) score strictly below its externally-grounded twin — same loop, but a shell
+ * check feeds the exit var. Guards the judge-quality measurement end to end.
+ */
+async function groundingEval(): Promise<EvalResult> {
+  const failures: string[] = [];
+  let total = 0;
+  const mk = (exitWriter: Record<string, unknown>) => ({
+    loopspec: "0.1",
+    id: "g",
+    pattern: "react",
+    state: { vars: { status: { type: "string", init: "" } } },
+    body: [exitWriter],
+    terminate: { signal: "state-predicate", until: "${state.status == 'ok'}" },
+    caps: { max_iterations: 5, budget: { tokens: 1000, usd: 1, wallclock: "1h" } },
+  });
+  const dishonest = processRaw(mk({ id: "a", kind: "agent", harness: "cli", prompt: "p", save: { status: "$.status" } }));
+  const honest = processRaw(mk({ id: "s", kind: "shell", cmd: "./check.sh", save: { status: "$.stdout" } }));
+
+  total++;
+  if (!dishonest.validation?.warnings.some((w) => w.code === "ungrounded-exit")) {
+    failures.push("agent-fed state-predicate did not trip ungrounded-exit");
+  }
+  total++;
+  if (honest.validation?.warnings.some((w) => w.code === "ungrounded-exit")) {
+    failures.push("externally-grounded exit tripped ungrounded-exit (false positive)");
+  }
+  total++;
+  if (dishonest.spec && honest.spec) {
+    const dCard = scoreLoop(dishonest.spec, await verifyLoop(dishonest.spec, false));
+    const hCard = scoreLoop(honest.spec, await verifyLoop(honest.spec, false));
+    if (!(dCard.total < hCard.total)) {
+      failures.push(`agent-fed twin must score below grounded twin (got ${dCard.total} vs ${hCard.total})`);
+    }
+  } else {
+    failures.push("grounding twins failed to build");
+  }
+  return { name: "grounding-honesty", total, failed: failures.length, failures };
+}
+
 export const ALL_EVALS: { name: string; run: () => Promise<EvalResult> }[] = [
   { name: "prop-pipeline", run: pipelineEval },
   { name: "capability-honesty", run: async () => capabilityEval() },
   { name: "validator-negative-corpus", run: async () => negativeEval() },
+  { name: "grounding-honesty", run: groundingEval },
 ];

@@ -37,6 +37,7 @@ export {
   type ExprNode,
   type EvalContext,
 } from "./expr.js";
+export { terminationGrounding, type GroundingClass, type GroundingInput, type TerminationGrounding } from "./grounding.js";
 export { parseDuration, isValidDuration } from "./duration.js";
 export { toToon, LOOPSPEC_GUIDE } from "./toon.js";
 export { listBlueprints, getBlueprint, type Blueprint } from "./catalog.js";

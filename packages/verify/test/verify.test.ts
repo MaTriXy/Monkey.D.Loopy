@@ -74,6 +74,56 @@ describe("scorecard", () => {
     expect(card.dimensions.length).toBe(5);
   });
 
+  it("downgrades a state-predicate label fed only by agent output to the agent ceiling", async () => {
+    const dishonest = `loopspec: "0.1"
+id: dishonest
+pattern: react
+state: { vars: { status: { type: string, init: "" } } }
+body:
+  - id: a
+    kind: agent
+    harness: cli
+    prompt: "do the thing and report status"
+    save: { status: "$.status" }
+terminate: { signal: state-predicate, until: "\${state.status == 'ok'}" }
+caps: { max_iterations: 5, budget: { tokens: 1000, usd: 1, wallclock: "1h" } }
+`;
+    // identical loop, but a shell check feeds the exit var instead of the agent's own report
+    const honest = dishonest
+      .replace("id: dishonest", "id: honest")
+      .replace(/- id: a[\s\S]*?save: \{ status: "\$\.status" \}/, '- id: a\n    kind: shell\n    cmd: "./check.sh"\n    save: { status: "$.stdout" }');
+
+    const d = loadSpecFromYaml(dishonest);
+    const h = loadSpecFromYaml(honest);
+    const dCard = scoreLoop(d.spec!, await verifyLoop(d.spec!, false));
+    const hCard = scoreLoop(h.spec!, await verifyLoop(h.spec!, false));
+    const dim = (c: typeof dCard) => c.dimensions.find((x) => x.name === "termination safety")!;
+    expect(dim(dCard).score).toBe(0.4); // agent-fed ceiling
+    expect(dim(hCard).score).toBe(0.85); // externally grounded keeps the declared strength
+    expect(dCard.total).toBeLessThan(hCard.total);
+    expect(dim(dCard).note).toContain("grounding: agent");
+    expect(dim(hCard).note).toContain("grounding: external");
+  });
+
+  it("does not punish an honestly-declared llm-judge below its label", async () => {
+    const judged = `loopspec: "0.1"
+id: judged
+pattern: evaluator-optimizer
+state: { vars: { score: { type: int, init: 0 } } }
+body:
+  - id: grade
+    kind: agent
+    harness: llm
+    prompt: "grade it"
+    save: { score: "$.score" }
+terminate: { signal: llm-judge, until: "\${state.score >= 90}" }
+caps: { max_iterations: 5, budget: { tokens: 1000, usd: 1, wallclock: "1h" } }
+`;
+    const r = loadSpecFromYaml(judged);
+    const card = scoreLoop(r.spec!, await verifyLoop(r.spec!, false));
+    expect(card.dimensions.find((x) => x.name === "termination safety")!.score).toBe(0.55);
+  });
+
   it("rewards explicit caps over auto-injected", async () => {
     const explicit = loadSpecFromYaml(getBlueprint("poll-until")!.yaml);
     const explicitReport = await verifyLoop(explicit.spec!, explicit.capsInjected ?? false);

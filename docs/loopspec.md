@@ -78,6 +78,26 @@ terminate:
 Rank your signal by trustworthiness: an **oracle** (tests/compiler/schema) is strongest; a
 model's **self-assessment** is weakest (and requires explicit caps).
 
+### Termination grounding — the label is checked, not trusted
+
+A declared signal is only as strong as the steps that *feed* the exit predicate. The
+factory classifies the evidence chain behind every `until` (`terminationGrounding` in
+`@loopy/core`):
+
+| Grounding | Meaning |
+|---|---|
+| `external` | The exit var(s) are `save`d by **http/shell** steps — real-world evidence decides. |
+| `structural` | Only `on_done` mutations (e.g. an unconditional `done` flag) — deterministic sequencing. |
+| `mixed` | Some evidence, some agent self-report. |
+| `agent` | Only **agent** `save`s feed the exit — the model grades its own work. |
+
+Taints propagate: a `done` flag set only `when` an agent-reported score clears a bar is
+still agent-fed. Declaring `oracle` or `state-predicate` over an agent-fed predicate
+trips the `ungrounded-exit` warning and the scorecard caps the termination dimension at
+the self-assessment ceiling — an honest `llm-judge`/`self-assess` label scores *higher*
+than an inflated one. To upgrade a loop's grade, ground the exit: let a shell exit code,
+an http status, or a scan count decide, not the agent's own report.
+
 ## caps (mandatory)
 
 ```yaml
@@ -103,7 +123,8 @@ Per-pattern defaults (when omitted) are in
 6. Names (ids, vars, inputs, reduce aliases) are safe identifiers; expressions are in the safe
    subset; `schedule: cron` has a `cron`; gate `after` references a real step.
 
-Soft warnings (non-blocking, downgrade the score): weak signal, auto-injected caps, missing
+Soft warnings (non-blocking, downgrade the score): weak signal, **ungrounded exit** (a
+strong signal label over an agent-fed predicate), auto-injected caps, missing
 `no_progress` on poll/loop-until-dry, missing budget, `trace: none`.
 
 ## Worked example

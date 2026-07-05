@@ -7,7 +7,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRuntime, BUILTIN_HARNESS_NAMES, type AgentHarness, type RunResult, type RuntimeOptions } from "@loopy/runtime";
-import type { LoopSpec, Step } from "@loopy/core";
+import { terminationGrounding, type GroundingClass, type LoopSpec, type Step } from "@loopy/core";
 import { interpretLoop, sampleInputs } from "./interpret.js";
 
 export interface VerifyReport {
@@ -166,11 +166,32 @@ const SIGNAL_SCORE: Record<string, number> = {
   "self-assess": 0.35,
 };
 
+/** A declared signal can't score above what its evidence chain supports: an exit
+ *  predicate fed only by agent output is self-assessment regardless of its label. */
+const GROUNDING_CEILING: Record<GroundingClass, number> = {
+  external: 1.0, // http/shell evidence backs the exit
+  structural: 0.9, // deterministic sequencing (e.g. an unconditional done flag)
+  mixed: 0.7, // some evidence, some agent self-report
+  agent: 0.4, // only the model's own report feeds the exit
+  none: 1.0, // unwritten exit vars are a hard validator error, not a scoring concern
+};
+
 export function scoreLoop(spec: LoopSpec, report: VerifyReport): Scorecard {
   const dims: Scorecard["dimensions"] = [];
 
-  const sig = SIGNAL_SCORE[spec.terminate.signal] ?? 0.3;
-  dims.push({ name: "termination safety", score: sig, weight: 30, note: `signal: ${spec.terminate.signal}` });
+  const declared = SIGNAL_SCORE[spec.terminate.signal] ?? 0.3;
+  // llm-judge/self-assess already price in un-grounded judgment; the ceiling applies
+  // only to signals that claim external strength.
+  const claimsStrength = spec.terminate.signal === "oracle" || spec.terminate.signal === "state-predicate";
+  const grounding = terminationGrounding(spec);
+  const sig = claimsStrength ? Math.min(declared, GROUNDING_CEILING[grounding.class]) : declared;
+  const downgraded = sig < declared ? ` (downgraded: exit fed by agent output [${grounding.agentFed.join(", ")}])` : "";
+  dims.push({
+    name: "termination safety",
+    score: sig,
+    weight: 30,
+    note: `signal: ${spec.terminate.signal} · grounding: ${grounding.class}${downgraded}`,
+  });
 
   let caps = 0;
   if (!report.capsInjected) caps += 0.5;
