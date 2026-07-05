@@ -27,7 +27,8 @@
         "import": "./dist/index.js",
         "default": "./dist/index.js"
       }
-    }
+    },
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
@@ -35,5 +36,20 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "agent",
+    "agent-loop",
+    "llm",
+    "loopspec",
+    "durable-execution",
+    "bounded",
+    "crash-resumable",
+    "automation"
+  ],
+  "homepage": "https://github.com/MaTriXy/Monkey.D.Loopy#readme",
+  "bugs": "https://github.com/MaTriXy/Monkey.D.Loopy/issues"
 }

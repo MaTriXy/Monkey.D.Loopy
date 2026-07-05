@@ -4,14 +4,23 @@
   "description": "loopc — the Monkey D Loopy command-line factory.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git", "directory": "packages/cli" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MaTriXy/Monkey.D.Loopy.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "loopc": "./src/index.ts"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
-    "bin": { "loopc": "./dist/index.js" }
+    "bin": {
+      "loopc": "./dist/index.js"
+    },
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
@@ -27,5 +36,20 @@
     "@loopy/verify": "workspace:*",
     "esbuild": "^0.27.7",
     "yaml": "^2.6.1"
-  }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "agent",
+    "agent-loop",
+    "llm",
+    "loopspec",
+    "durable-execution",
+    "bounded",
+    "crash-resumable",
+    "automation"
+  ],
+  "homepage": "https://github.com/MaTriXy/Monkey.D.Loopy#readme",
+  "bugs": "https://github.com/MaTriXy/Monkey.D.Loopy/issues"
 }
