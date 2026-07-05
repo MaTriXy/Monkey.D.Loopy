@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { getBlueprint } from "@loopy/core";
+import { getBlueprint } from "@loopyc/core";
 import { createServer } from "../src/server.js";
 
 async function connected(): Promise<Client> {

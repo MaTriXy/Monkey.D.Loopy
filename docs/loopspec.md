@@ -82,7 +82,7 @@ model's **self-assessment** is weakest (and requires explicit caps).
 
 A declared signal is only as strong as the steps that *feed* the exit predicate. The
 factory classifies the evidence chain behind every `until` (`terminationGrounding` in
-`@loopy/core`):
+`@loopyc/core`):
 
 | Grounding | Meaning |
 |---|---|

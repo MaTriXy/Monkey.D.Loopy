@@ -1,4 +1,4 @@
-/** Public API of @loopy/core — the pure, zero-I/O brain of Monkey D Loopy. */
+/** Public API of @loopyc/core — the pure, zero-I/O brain of Monkey D Loopy. */
 
 export * from "./types.js";
 export { LoopSpecSchema, parseLoopSpec, type RawLoopSpec, type ParseOk, type ParseErr } from "./schema.js";

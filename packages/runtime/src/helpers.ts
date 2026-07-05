@@ -29,7 +29,7 @@ export function jsonpath(obj: unknown, path: string): unknown {
 
 const UNIT_MS: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
 
-/** Parse "5m" / "24h" / "500ms" → milliseconds (mirrors @loopy/core duration). */
+/** Parse "5m" / "24h" / "500ms" → milliseconds (mirrors @loopyc/core duration). */
 export function parseDuration(input: string): number {
   const m = /^(\d+(?:\.\d+)?)(ms|s|m|h|d)$/.exec(String(input).trim());
   if (!m) throw new Error(`invalid duration '${input}'`);

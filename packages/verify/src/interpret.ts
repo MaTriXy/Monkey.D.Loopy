@@ -1,13 +1,13 @@
 /**
- * Spec interpreter: turn a validated LoopSpec into a @loopy/runtime RuntimeConfig
+ * Spec interpreter: turn a validated LoopSpec into a @loopyc/runtime RuntimeConfig
  * WITHOUT codegen, by closing over core's expression engine. This is the execution
  * path `verify` drives (against mocked effects) — it mirrors the adapters' lowering
  * 1:1 (same expr engine, same runtime), so a loop that verifies behaves like the
  * compiled artifact.
  */
-import { evaluate, parseGuard, parseInterpolations, type EvalContext } from "@loopy/core";
-import type { ExitAction, Gate, LoopSpec, OnDone, Step } from "@loopy/core";
-import type { LoopCtx, RuntimeConfig } from "@loopy/runtime";
+import { evaluate, parseGuard, parseInterpolations, type EvalContext } from "@loopyc/core";
+import type { ExitAction, Gate, LoopSpec, OnDone, Step } from "@loopyc/core";
+import type { LoopCtx, RuntimeConfig } from "@loopyc/runtime";
 
 /** Group gates by the step id they fire after; gates with no `after` run once at the body end.
  *  Mirrors the standalone/babysitter emitters so `loopc run`/verify/MCP enforce gates identically. */

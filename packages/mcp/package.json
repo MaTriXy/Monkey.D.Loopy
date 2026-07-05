@@ -1,5 +1,5 @@
 {
-  "name": "@loopy/mcp",
+  "name": "@loopyc/mcp",
   "version": "0.1.0",
   "description": "loopc-mcp — Model Context Protocol server exposing the Monkey D Loopy factory to agents (schema, scaffold, validate, verify, compile, run, inspect).",
   "author": "MaTriXy <elkriefy@gmail.com>",
@@ -30,10 +30,10 @@
     "loopc-mcp": "tsx src/index.ts"
   },
   "dependencies": {
-    "@loopy/core": "workspace:*",
-    "@loopy/infer": "workspace:*",
-    "@loopy/runtime": "workspace:*",
-    "@loopy/verify": "workspace:*",
+    "@loopyc/core": "workspace:*",
+    "@loopyc/infer": "workspace:*",
+    "@loopyc/runtime": "workspace:*",
+    "@loopyc/verify": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1"
   },

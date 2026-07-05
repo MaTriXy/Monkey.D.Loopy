@@ -1,5 +1,5 @@
 /**
- * loopc — the Monkey D Loopy CLI. The only byte-writer / I/O layer over @loopy/core.
+ * loopc — the Monkey D Loopy CLI. The only byte-writer / I/O layer over @loopyc/core.
  * Dev runs via tsx; the published bin is the compiled ./dist/index.js (shebang added at build).
  *
  * Commands:
@@ -23,12 +23,12 @@ import {
   SUPPORTED_TARGETS,
   type PlannedFile,
   type RuntimeTarget,
-} from "@loopy/core";
-import { createRuntime, Journal } from "@loopy/runtime";
+} from "@loopyc/core";
+import { createRuntime, Journal } from "@loopyc/runtime";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { flagString, parseArgs } from "./args.js";
-import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopy/verify";
-import { inferScaffold } from "@loopy/infer";
+import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
+import { inferScaffold } from "@loopyc/infer";
 
 const USAGE = `loopc — factory for runnable agent loops
 
@@ -308,7 +308,7 @@ async function cmdCompile(file: string | undefined, flags: Record<string, string
   const targets = resolveTargets(flags, spec.target?.runtime);
   const outDir = flagString(flags, "out") ?? join("out", spec.id);
 
-  // --vendor bundles @loopy/runtime into the standalone artifact so it runs with plain `node`
+  // --vendor bundles @loopyc/runtime into the standalone artifact so it runs with plain `node`
   // (no install). It only makes sense for the standalone target — refuse it for anything else.
   const vendor = Boolean(flags.vendor);
   if (vendor && (targets.length !== 1 || targets[0] !== "standalone")) {
@@ -337,14 +337,14 @@ async function cmdCompile(file: string | undefined, flags: Record<string, string
 }
 
 /**
- * Bundle @loopy/runtime into a single self-contained ESM file (text) with esbuild. node built-ins
- * stay external under platform:"node"; any @loopy/* deps of the runtime are inlined. The entry is
- * resolved through Node's own resolution so it follows the same `@loopy/runtime` the CLI loads.
+ * Bundle @loopyc/runtime into a single self-contained ESM file (text) with esbuild. node built-ins
+ * stay external under platform:"node"; any @loopyc/* deps of the runtime are inlined. The entry is
+ * resolved through Node's own resolution so it follows the same `@loopyc/runtime` the CLI loads.
  */
 async function bundleRuntime(): Promise<string> {
   const { build } = await import("esbuild");
   // Resolve via the ESM `import` condition (same one the CLI's own top-level
-  // `import { createRuntime } from "@loopy/runtime"` uses). createRequire(...).resolve uses the
+  // `import { createRuntime } from "@loopyc/runtime"` uses). createRequire(...).resolve uses the
   // CJS `require` condition, which the runtime's PUBLISHED exports map (publishConfig: types+import
   // only) does NOT define — so it threw ERR_PACKAGE_PATH_NOT_EXPORTED in any packed/published CLI,
   // exactly the zero-install distribution path --vendor exists for. import.meta.resolve handles the
@@ -354,8 +354,8 @@ async function bundleRuntime(): Promise<string> {
   const metaResolve = (import.meta as unknown as { resolve?: (s: string) => string }).resolve;
   const entry =
     typeof metaResolve === "function"
-      ? fileURLToPath(metaResolve("@loopy/runtime"))
-      : createRequire(import.meta.url).resolve("@loopy/runtime");
+      ? fileURLToPath(metaResolve("@loopyc/runtime"))
+      : createRequire(import.meta.url).resolve("@loopyc/runtime");
   const result = await build({
     entryPoints: [entry],
     bundle: true,
@@ -468,7 +468,7 @@ async function cmdReprint(dirArg: string | undefined, flags: Record<string, stri
   const outDir = flagString(flags, "out") ?? dir; // overwrite in place by default
   // Preserve the zero-install property: a vendored artifact (per loop.lock, or a stray
   // runtime.bundle.mjs from an older lock-less build) must stay vendored, else reprint would
-  // rewrite the import back to a bare @loopy/runtime with no install path and break the loop.
+  // rewrite the import back to a bare @loopyc/runtime with no install path and break the loop.
   const vendor =
     resolved === "standalone" && (lockVendor || existsSync(join(dir, "runtime.bundle.mjs")));
   const plan = planLoopExport(result.spec!, resolved, vendor ? { vendor: true } : undefined);

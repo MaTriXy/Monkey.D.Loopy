@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createRuntime, type AgentHarness, type HttpRequestSpec, type RuntimeConfig, type RunResult } from "@loopy/runtime";
-import { getBlueprint, listBlueprints, loadSpecFromYaml, planLoopExport, processRaw, type LoopSpec, type Step } from "@loopy/core";
+import { createRuntime, type AgentHarness, type HttpRequestSpec, type RuntimeConfig, type RunResult } from "@loopyc/runtime";
+import { getBlueprint, listBlueprints, loadSpecFromYaml, planLoopExport, processRaw, type LoopSpec, type Step } from "@loopyc/core";
 import { interpretLoop, sampleInputs } from "../src/interpret.js";
 
 /**
@@ -52,7 +52,7 @@ const stable = (v: unknown): string =>
   );
 
 // Create temp dirs INSIDE the package (next to this test) so Vitest/Vite transforms the
-// emitted loop.mjs and resolves @loopy/runtime to source (.js→.ts). A temp under
+// emitted loop.mjs and resolves @loopyc/runtime to source (.js→.ts). A temp under
 // node_modules or /tmp would be externalized and fail under Node's native loader.
 const TMP_PREFIX = join(fileURLToPath(new URL(".", import.meta.url)), ".fidtmp-");
 

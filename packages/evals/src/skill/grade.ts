@@ -3,8 +3,8 @@
  * fixture when it validates, verifies (bounded/deterministic/resumable), uses an allowed
  * pattern, picks a termination signal at least as strong as required, and scores above the bar.
  */
-import { loadSpecFromYaml } from "@loopy/core";
-import { scoreLoop, verifyLoop } from "@loopy/verify";
+import { loadSpecFromYaml } from "@loopyc/core";
+import { scoreLoop, verifyLoop } from "@loopyc/verify";
 
 export const SIGNAL_TIER: Record<string, number> = {
   oracle: 4,

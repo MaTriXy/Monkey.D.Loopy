@@ -1,4 +1,4 @@
-# `@loopy/runtime` — durable execution engine
+# `@loopyc/runtime` — durable execution engine
 
 The runtime that compiled **standalone** artifacts depend on. It owns the **outer** loop:
 journaling, replay, caps, durable sleep, and breakpoints. The **inner** ReAct turn is never
@@ -8,7 +8,7 @@ owned by the runtime — `agent` steps delegate to a harness. Source:
 ## API
 
 ```ts
-import { createRuntime } from "@loopy/runtime";
+import { createRuntime } from "@loopyc/runtime";
 
 const runtime = createRuntime(config, options?);
 await runtime.run();    // loop until terminate() or a cap; resumable

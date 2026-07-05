@@ -1,4 +1,4 @@
-# @loopy/infer
+# @loopyc/infer
 
 Start from what you have: deterministic **FactPack extraction** for
 [Monkey D Loopy](https://github.com/MaTriXy/Monkey.D.Loopy).
@@ -8,7 +8,7 @@ journal, and it extracts the loop-shaped facts — commands, conditions, sleeps,
 into a draft LoopSpec scaffold to refine with `loopc` or the `/loopy` authoring skill.
 
 ```bash
-loopc infer-scaffold ./my-poll-script.sh     # via @loopy/cli
+loopc infer-scaffold ./my-poll-script.sh     # via @loopyc/cli
 ```
 
 See the [project README](https://github.com/MaTriXy/Monkey.D.Loopy#readme) for the full factory.

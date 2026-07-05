@@ -28,7 +28,7 @@ export interface PlanResult {
 /** Optional, target-specific knobs threaded from `planLoopExport`. All purely affect codegen. */
 export interface PlanOptions {
   /**
-   * Standalone only: vendor `@loopy/runtime` into a local `runtime.bundle.mjs` so the artifact
+   * Standalone only: vendor `@loopyc/runtime` into a local `runtime.bundle.mjs` so the artifact
    * runs with plain `node` (no install). The planner rewrites the import + drops the dependency;
    * the CLI is responsible for actually generating the bundle file. Ignored by other targets.
    */

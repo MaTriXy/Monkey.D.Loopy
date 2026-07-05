@@ -24,8 +24,8 @@ import {
   processRaw,
   SUPPORTED_TARGETS,
   usedCapabilities,
-} from "@loopy/core";
-import { scoreLoop, verifyLoop } from "@loopy/verify";
+} from "@loopyc/core";
+import { scoreLoop, verifyLoop } from "@loopyc/verify";
 
 export interface EvalResult {
   name: string;

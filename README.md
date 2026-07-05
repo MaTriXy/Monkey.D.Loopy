@@ -128,7 +128,7 @@ One spec, `compile --target all`, four runnable forms:
 
 | Target | What it emits |
 |---|---|
-| **standalone** | A self-contained Node project running on `@loopy/runtime` — the durable engine (journal, replay, caps, sleep, breakpoints). Add `--vendor` for a zero-install bundle. |
+| **standalone** | A self-contained Node project running on `@loopyc/runtime` — the durable engine (journal, replay, caps, sleep, breakpoints). Add `--vendor` for a zero-install bundle. |
 | **supervised process** | A durable long-running process for a process-supervisor runtime. |
 | **coding-agent guide** | A prose execution guide any coding agent follows step by step. |
 | **workflow** | An importable workflow JSON for a visual automation tool. |
@@ -172,17 +172,17 @@ Agent steps are **provider- and tool-agnostic** — choose at runtime, nothing i
 
 | Package | Role |
 |---|---|
-| [`@loopy/core`](packages/core) | Pure, zero-I/O brain: the LoopSpec IR, expression engine, two-tier validator, planner + target adapters, blueprint catalog. |
-| [`@loopy/runtime`](packages/runtime) | Durable execution engine the standalone artifact runs on (journal, replay, caps, sleep, breakpoints, cost metering). |
-| [`@loopy/verify`](packages/verify) | Dry-run verification (bounded + deterministic + resume-stable) + scorecard, via a codegen-free interpreter. |
-| [`@loopy/cli`](packages/cli) | `loopc` — `new · validate · verify · score · compile · run · inspect · schedule · reprint · targets · infer-scaffold · blueprints`. |
-| [`@loopy/mcp`](packages/mcp) | `loopc-mcp` — the factory as MCP tools for agents. |
-| [`@loopy/evals`](packages/evals) | Eval harness graded by the real code: property-based pipeline, capability honesty, validator corpus. `pnpm eval`. |
-| [`@loopy/infer`](packages/infer) | Deterministic FactPack extraction from scripts (JS/TS AST, bash) + `.loopy` journals → a draft LoopSpec for the skill to complete. |
+| [`@loopyc/core`](packages/core) | Pure, zero-I/O brain: the LoopSpec IR, expression engine, two-tier validator, planner + target adapters, blueprint catalog. |
+| [`@loopyc/runtime`](packages/runtime) | Durable execution engine the standalone artifact runs on (journal, replay, caps, sleep, breakpoints, cost metering). |
+| [`@loopyc/verify`](packages/verify) | Dry-run verification (bounded + deterministic + resume-stable) + scorecard, via a codegen-free interpreter. |
+| [`@loopyc/cli`](packages/cli) | `loopc` — `new · validate · verify · score · compile · run · inspect · schedule · reprint · targets · infer-scaffold · blueprints`. |
+| [`@loopyc/mcp`](packages/mcp) | `loopc-mcp` — the factory as MCP tools for agents. |
+| [`@loopyc/evals`](packages/evals) | Eval harness graded by the real code: property-based pipeline, capability honesty, validator corpus. `pnpm eval`. |
+| [`@loopyc/infer`](packages/infer) | Deterministic FactPack extraction from scripts (JS/TS AST, bash) + `.loopy` journals → a draft LoopSpec for the skill to complete. |
 
 ## Zero-install artifacts (`compile --vendor`)
 
-A normal `standalone` artifact `import`s `@loopy/runtime`, so it needs `npm install`. For a
+A normal `standalone` artifact `import`s `@loopyc/runtime`, so it needs `npm install`. For a
 **truly self-contained** loop, compile the standalone target with `--vendor`:
 
 ```bash
@@ -191,7 +191,7 @@ cd out/deploy-watch/standalone
 node loop.mjs run        # no npm install, empty node_modules — just runs
 ```
 
-`--vendor` bundles `@loopy/runtime` (with esbuild) into a single local `runtime.bundle.mjs`,
+`--vendor` bundles `@loopyc/runtime` (with esbuild) into a single local `runtime.bundle.mjs`,
 points `loop.mjs` at it, and drops the dependency from the emitted `package.json`. The artifact
 runs with **plain `node` on any machine with Node ≥ 22** — no install, nothing from this monorepo.
 
@@ -199,7 +199,7 @@ runs with **plain `node` on any machine with Node ≥ 22** — no install, nothi
 
 - [LoopSpec reference](docs/loopspec.md) — the IR, step kinds, expression language, validation rules.
 - [`loopc` CLI](docs/cli.md) — every command and flag.
-- [`@loopy/runtime`](docs/runtime.md) — runtime API, journal format, resume semantics, guarantees.
+- [`@loopyc/runtime`](docs/runtime.md) — runtime API, journal format, resume semantics, guarantees.
 - [`loopc-mcp`](docs/mcp.md) — MCP tools and how to register the server.
 - [SPEC.md](SPEC.md) — full design and tracked decisions.
 - The [`/loopy`](.claude/skills/loopy/SKILL.md) skill — the authoring judgment layer over `loopc`.

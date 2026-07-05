@@ -1,13 +1,13 @@
 /**
- * verify + scorecard. `verify` dry-runs the loop through the real @loopy/runtime with
+ * verify + scorecard. `verify` dry-runs the loop through the real @loopyc/runtime with
  * MOCKED effects to prove two hard guarantees — it is BOUNDED under caps and
  * DETERMINISTIC on replay — without any real side effects. `score` grades the loop.
  */
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRuntime, BUILTIN_HARNESS_NAMES, type AgentHarness, type RunResult, type RuntimeOptions } from "@loopy/runtime";
-import { terminationGrounding, type GroundingClass, type LoopSpec, type Step } from "@loopy/core";
+import { createRuntime, BUILTIN_HARNESS_NAMES, type AgentHarness, type RunResult, type RuntimeOptions } from "@loopyc/runtime";
+import { terminationGrounding, type GroundingClass, type LoopSpec, type Step } from "@loopyc/core";
 import { interpretLoop, sampleInputs } from "./interpret.js";
 
 export interface VerifyReport {

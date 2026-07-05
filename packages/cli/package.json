@@ -1,5 +1,5 @@
 {
-  "name": "@loopy/cli",
+  "name": "@loopyc/cli",
   "version": "0.1.0",
   "description": "loopc — the Monkey D Loopy command-line factory.",
   "author": "MaTriXy <elkriefy@gmail.com>",
@@ -30,10 +30,10 @@
     "loopc": "tsx src/index.ts"
   },
   "dependencies": {
-    "@loopy/core": "workspace:*",
-    "@loopy/infer": "workspace:*",
-    "@loopy/runtime": "workspace:*",
-    "@loopy/verify": "workspace:*",
+    "@loopyc/core": "workspace:*",
+    "@loopyc/infer": "workspace:*",
+    "@loopyc/runtime": "workspace:*",
+    "@loopyc/verify": "workspace:*",
     "esbuild": "^0.27.7",
     "yaml": "^2.6.1"
   },

@@ -61,15 +61,15 @@ target. Output goes to `<out>/<target>/` (default `out/<id>/<target>/`). Prints 
 warnings (e.g. soft budget enforcement / `http→curl` on the babysitter target).
 
 `--vendor` (standalone target only) makes the artifact **zero-install**: it bundles
-`@loopy/runtime` into a single local `runtime.bundle.mjs` (via esbuild), rewrites `loop.mjs` to
-import from that bundle, and drops the `@loopy/runtime` dependency from the emitted
+`@loopyc/runtime` into a single local `runtime.bundle.mjs` (via esbuild), rewrites `loop.mjs` to
+import from that bundle, and drops the `@loopyc/runtime` dependency from the emitted
 `package.json`. The result runs with **plain `node loop.mjs run` — no `npm install`, empty
 `node_modules`** — so a compiled loop is portable to any machine with Node, even one that has
 never seen this monorepo. Using `--vendor` with any non-standalone target (or `--target all`) is
 an error.
 
 Targets:
-- **standalone** — a complete Node project on `@loopy/runtime` (hard caps, journal, resume).
+- **standalone** — a complete Node project on `@loopyc/runtime` (hard caps, journal, resume).
 - **babysitter** — a durable `@a5c-ai/babysitter-sdk` process (proven on a live run).
 - **claude-code** — a markdown **prose execution guide** (`<id>.loop.md`) + Mermaid flow for an
   agent to follow. No runtime; caps are agent-honored (capability warnings make this explicit).
@@ -82,7 +82,7 @@ loopc compile deploy-watch.yaml --target all --out ./out/deploy-watch
 
 **Standalone output** is a complete Node project (`loop.mjs`, `package.json`, `README.md`,
 `loop.lock`, `.gitignore`, plus `SKILL.md` when `target.emit` includes `skill`) that depends
-only on `@loopy/runtime`. Run it:
+only on `@loopyc/runtime`. Run it:
 
 ```bash
 cd out/deploy-watch/standalone && npm install

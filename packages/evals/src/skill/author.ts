@@ -4,8 +4,8 @@
  * (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / OPENROUTER_API_KEY /
  * AI_GATEWAY_API_KEY). With nothing configured, the runner falls back to the golden specs.
  */
-import { LOOPSPEC_GUIDE } from "@loopy/core";
-import { chatComplete, resolveLlm } from "@loopy/runtime";
+import { LOOPSPEC_GUIDE } from "@loopyc/core";
+import { chatComplete, resolveLlm } from "@loopyc/runtime";
 
 export function llmAuthorAvailable(): boolean {
   return resolveLlm() !== null;

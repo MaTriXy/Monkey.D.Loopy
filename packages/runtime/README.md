@@ -1,4 +1,4 @@
-# @loopy/runtime
+# @loopyc/runtime
 
 The durable execution engine that compiled [Monkey D Loopy](https://github.com/MaTriXy/Monkey.D.Loopy)
 loops run on. Zero dependencies.

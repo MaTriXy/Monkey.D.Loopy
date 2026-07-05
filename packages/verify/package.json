@@ -1,5 +1,5 @@
 {
-  "name": "@loopy/verify",
+  "name": "@loopyc/verify",
   "version": "0.1.0",
   "description": "Dry-run verification (bounded-under-caps + replay-determinism) and scorecard grading for LoopSpecs, plus a codegen-free spec interpreter.",
   "author": "MaTriXy <elkriefy@gmail.com>",
@@ -36,8 +36,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@loopy/core": "workspace:*",
-    "@loopy/runtime": "workspace:*"
+    "@loopyc/core": "workspace:*",
+    "@loopyc/runtime": "workspace:*"
   },
   "engines": {
     "node": ">=22"

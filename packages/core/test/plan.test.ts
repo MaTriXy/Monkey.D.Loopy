@@ -35,7 +35,7 @@ describe("standalone adapter", () => {
 
   it("lowers termination, steps, caps and durable sleep into the entry", () => {
     const loop = fileMap.get("loop.mjs")!;
-    expect(loop).toContain('import { createRuntime, __in } from "@loopy/runtime";');
+    expect(loop).toContain('import { createRuntime, __in } from "@loopyc/runtime";');
     expect(loop).toContain("return ((state?.status === \"green\"));"); // terminate (null-safe nav)
     expect(loop).toContain("await ctx.http("); // http step
     expect(loop).toContain('await ctx.sleep("5m");'); // durable sleep
@@ -61,20 +61,20 @@ describe("standalone adapter", () => {
 describe("standalone vendor mode (zero-install bundle)", () => {
   const spec = deployWatchSpec();
 
-  it("default (no opts) imports @loopy/runtime and keeps the dependency", () => {
+  it("default (no opts) imports @loopyc/runtime and keeps the dependency", () => {
     const files = new Map(planLoopExport(spec, "standalone").files.map((f) => [f.relativePath, f.contents]));
-    expect(files.get("loop.mjs")).toContain('import { createRuntime, __in } from "@loopy/runtime";');
+    expect(files.get("loop.mjs")).toContain('import { createRuntime, __in } from "@loopyc/runtime";');
     expect(files.get("loop.mjs")).not.toContain("runtime.bundle.mjs");
     const pkg = JSON.parse(files.get("package.json")!);
-    expect(pkg.dependencies["@loopy/runtime"]).toBeDefined();
+    expect(pkg.dependencies["@loopyc/runtime"]).toBeDefined();
   });
 
-  it("vendor:true imports the local bundle and drops the @loopy/runtime dependency", () => {
+  it("vendor:true imports the local bundle and drops the @loopyc/runtime dependency", () => {
     const files = new Map(planLoopExport(spec, "standalone", { vendor: true }).files.map((f) => [f.relativePath, f.contents]));
     expect(files.get("loop.mjs")).toContain('import { createRuntime, __in } from "./runtime.bundle.mjs";');
-    expect(files.get("loop.mjs")).not.toContain("@loopy/runtime");
+    expect(files.get("loop.mjs")).not.toContain("@loopyc/runtime");
     const pkg = JSON.parse(files.get("package.json")!);
-    expect(pkg.dependencies["@loopy/runtime"]).toBeUndefined();
+    expect(pkg.dependencies["@loopyc/runtime"]).toBeUndefined();
     expect(pkg.dependencies).toEqual({});
     // The planner is pure: it rewrites the import + drops the dep but cannot emit the bundle itself.
     expect(files.has("runtime.bundle.mjs")).toBe(false);

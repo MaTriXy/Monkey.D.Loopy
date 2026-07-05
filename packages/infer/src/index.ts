@@ -1,4 +1,4 @@
-/** @loopy/infer — deterministic FactPack extraction + draft LoopSpec scaffolding. */
+/** @loopyc/infer — deterministic FactPack extraction + draft LoopSpec scaffolding. */
 import { basename } from "node:path";
 import { detectKind, extractFactPack, type FactPack, type SourceKind } from "./factpack.js";
 import { scaffoldYaml } from "./scaffold.js";

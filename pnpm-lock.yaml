@@ -26,16 +26,16 @@ importers:
 
   packages/cli:
     dependencies:
-      '@loopy/core':
+      '@loopyc/core':
         specifier: workspace:*
         version: link:../core
-      '@loopy/infer':
+      '@loopyc/infer':
         specifier: workspace:*
         version: link:../infer
-      '@loopy/runtime':
+      '@loopyc/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@loopy/verify':
+      '@loopyc/verify':
         specifier: workspace:*
         version: link:../verify
       esbuild:
@@ -56,13 +56,13 @@ importers:
 
   packages/evals:
     dependencies:
-      '@loopy/core':
+      '@loopyc/core':
         specifier: workspace:*
         version: link:../core
-      '@loopy/runtime':
+      '@loopyc/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@loopy/verify':
+      '@loopyc/verify':
         specifier: workspace:*
         version: link:../verify
       fast-check:
@@ -74,7 +74,7 @@ importers:
 
   packages/infer:
     dependencies:
-      '@loopy/core':
+      '@loopyc/core':
         specifier: workspace:*
         version: link:../core
       typescript:
@@ -83,16 +83,16 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@loopy/core':
+      '@loopyc/core':
         specifier: workspace:*
         version: link:../core
-      '@loopy/infer':
+      '@loopyc/infer':
         specifier: workspace:*
         version: link:../infer
-      '@loopy/runtime':
+      '@loopyc/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@loopy/verify':
+      '@loopyc/verify':
         specifier: workspace:*
         version: link:../verify
       '@modelcontextprotocol/sdk':
@@ -106,10 +106,10 @@ importers:
 
   packages/verify:
     dependencies:
-      '@loopy/core':
+      '@loopyc/core':
         specifier: workspace:*
         version: link:../core
-      '@loopy/runtime':
+      '@loopyc/runtime':
         specifier: workspace:*
         version: link:../runtime
 

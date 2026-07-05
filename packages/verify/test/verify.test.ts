@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBlueprint, listBlueprints, loadSpecFromYaml } from "@loopy/core";
+import { getBlueprint, listBlueprints, loadSpecFromYaml } from "@loopyc/core";
 import { scoreLoop, verifyLoop } from "../src/verify.js";
 
 describe("verify (dry-run guarantees)", () => {

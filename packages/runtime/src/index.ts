@@ -1,5 +1,5 @@
 /**
- * @loopy/runtime — the durable execution engine that compiled standalone loop
+ * @loopyc/runtime — the durable execution engine that compiled standalone loop
  * artifacts depend on. Generated `loop.mjs` files import `createRuntime` and `__in`
  * from here.
  */

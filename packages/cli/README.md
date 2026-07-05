@@ -1,10 +1,10 @@
-# @loopy/cli
+# @loopyc/cli
 
 `loopc` — the [Monkey D Loopy](https://github.com/MaTriXy/Monkey.D.Loopy) command-line factory
 for runnable, crash-resumable agent loops.
 
 ```bash
-npm i -g @loopy/cli
+npm i -g @loopyc/cli
 
 loopc blueprints                    # starting points, one per loop pattern
 loopc new my-watch --blueprint poll-until

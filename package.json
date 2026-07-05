@@ -15,9 +15,9 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "eval": "pnpm --filter @loopy/evals eval",
-    "eval:skill": "pnpm --filter @loopy/evals eval:skill",
-    "loopc": "pnpm --filter @loopy/cli exec loopc"
+    "eval": "pnpm --filter @loopyc/evals eval",
+    "eval:skill": "pnpm --filter @loopyc/evals eval:skill",
+    "loopc": "pnpm --filter @loopyc/cli exec loopc"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

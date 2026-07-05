@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getBlueprint } from "@loopy/core";
+import { getBlueprint } from "@loopyc/core";
 import { run } from "../src/index.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "loopc-"));
@@ -175,9 +175,9 @@ describe("loopc compile --vendor — zero-install standalone artifact", () => {
     expect(existsSync(join(std, "runtime.bundle.mjs"))).toBe(true);
     expect(readFileSync(join(std, "loop.mjs"), "utf8")).toContain('from "./runtime.bundle.mjs"');
 
-    // package.json carries NO @loopy/runtime dependency (it's vendored).
+    // package.json carries NO @loopyc/runtime dependency (it's vendored).
     const pkg = JSON.parse(readFileSync(join(std, "package.json"), "utf8"));
-    expect(pkg.dependencies["@loopy/runtime"]).toBeUndefined();
+    expect(pkg.dependencies["@loopyc/runtime"]).toBeUndefined();
 
     // Nothing was installed — there is no node_modules to lean on.
     expect(existsSync(join(std, "node_modules"))).toBe(false);
@@ -204,8 +204,8 @@ describe("loopc compile --vendor — zero-install standalone artifact", () => {
     // reprint in place — must keep the local bundle import + dropped dep + regenerate the bundle.
     expect(await run(["reprint", std])).toBe(0);
     expect(readFileSync(join(std, "loop.mjs"), "utf8")).toContain('from "./runtime.bundle.mjs"');
-    expect(readFileSync(join(std, "loop.mjs"), "utf8")).not.toContain('"@loopy/runtime"');
-    expect(JSON.parse(readFileSync(join(std, "package.json"), "utf8")).dependencies["@loopy/runtime"]).toBeUndefined();
+    expect(readFileSync(join(std, "loop.mjs"), "utf8")).not.toContain('"@loopyc/runtime"');
+    expect(JSON.parse(readFileSync(join(std, "package.json"), "utf8")).dependencies["@loopyc/runtime"]).toBeUndefined();
     expect(existsSync(join(std, "runtime.bundle.mjs"))).toBe(true);
     expect(JSON.parse(readFileSync(join(std, "loop.lock"), "utf8")).vendor).toBe(true);
 

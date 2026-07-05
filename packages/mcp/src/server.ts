@@ -20,10 +20,10 @@ import {
   SUPPORTED_TARGETS,
   type PlannedFile,
   type RuntimeTarget,
-} from "@loopy/core";
-import { createRuntime, Journal } from "@loopy/runtime";
-import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopy/verify";
-import { inferScaffold } from "@loopy/infer";
+} from "@loopyc/core";
+import { createRuntime, Journal } from "@loopyc/runtime";
+import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
+import { inferScaffold } from "@loopyc/infer";
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 

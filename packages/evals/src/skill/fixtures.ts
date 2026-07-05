@@ -1,5 +1,5 @@
 /** Skill-eval fixtures: NL goal → expected spec properties + a hand-authored golden spec. */
-import { getBlueprint } from "@loopy/core";
+import { getBlueprint } from "@loopyc/core";
 import type { SkillFixture } from "./grade.js";
 
 const RETRY_GOLDEN = `loopspec: "0.1"

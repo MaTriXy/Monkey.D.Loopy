@@ -32,13 +32,13 @@ Every loop must declare a termination predicate and carries mandatory caps.
 TypeScript pnpm monorepo with a strict dependency direction (pure core → I/O at the edges).
 
 ```
-packages/core      @loopy/core    pure, ZERO-I/O brain — IR, validator, planner
-packages/runtime   @loopy/runtime durable engine — journal, replay, caps, iterate, breakpoints, sleep
-packages/verify    @loopy/verify  codegen-free interpreter + dry-run verify + scorecard
+packages/core      @loopyc/core    pure, ZERO-I/O brain — IR, validator, planner
+packages/runtime   @loopyc/runtime durable engine — journal, replay, caps, iterate, breakpoints, sleep
+packages/verify    @loopyc/verify  codegen-free interpreter + dry-run verify + scorecard
 packages/cli       loopc          byte-writer / driver: new | validate | verify | score | run | inspect | compile | schedule | reprint | targets | infer-scaffold | blueprints
 packages/mcp       loopc-mcp      agent surface: get_loop_schema, list_blueprints, new_loop, validate/verify/compile/run/inspect, infer_loop_scaffold
-packages/infer     @loopy/infer   deterministic FactPack extraction (scripts + journals) → draft LoopSpec
-packages/evals     @loopy/evals   eval harness graded by the real code
+packages/infer     @loopyc/infer   deterministic FactPack extraction (scripts + journals) → draft LoopSpec
+packages/evals     @loopyc/evals   eval harness graded by the real code
 .claude/skills/loopy  the authoring judgment layer over loopc (NL → spec)
 ```
 
@@ -46,7 +46,7 @@ packages/evals     @loopy/evals   eval harness graded by the real code
 two-tier validator (hard gates) → pure planner → target adapter → `PlannedFile[]` →
 CLI materializes a complete project → verify (M2) → scorecard (M2) → run.
 
-**Engine decision (locked):** `@loopy/runtime` is the **canonical** engine — one small
+**Engine decision (locked):** `@loopyc/runtime` is the **canonical** engine — one small
 published package distilled from babysitter's proven model. The **babysitter adapter
 ships in the MVP** as a first-class second target (not deferred). The adapter seam and
 capability matrix are real from day one.
@@ -156,7 +156,7 @@ coding-agent execution guide (prose + flow an agent follows) and a workflow expo
 are soft for journal/caps/state — you wire enforcement in the host — and are heavily
 caveated in their generated output.
 
-## 6. The `@loopy/runtime` contract (built in M1)
+## 6. The `@loopyc/runtime` contract (built in M1)
 
 The standalone artifact imports `createRuntime` and calls into it. Implemented in
 [`packages/runtime`](packages/runtime):
@@ -199,7 +199,7 @@ Deliberately deferred (documented, tracked for M2+):
 
 ## 7. Milestones
 
-- **M0 — IR + planner foundation (this commit).** `@loopy/core` (LoopSpec schema +
+- **M0 — IR + planner foundation (this commit).** `@loopyc/core` (LoopSpec schema +
   TOON, two-tier validator, pure planner → `PlannedFile[]` for both targets) + `loopc`
   (`new` / `validate` / `compile` / `blueprints`) + a 7-pattern blueprint catalog + golden
   tests. `loopc validate` refuses any spec missing termination/caps. No execution yet.
@@ -208,7 +208,7 @@ Deliberately deferred (documented, tracked for M2+):
   targets agree on `&&`/`||` semantics, 0-based `iteration`, cap reasons, and body
   interpolation. (Tracked for M1: the standalone runtime's `ctx.jsonpath` must implement
   the same minimal subset as the babysitter `__jsonpath` helper, or share one impl.)
-- **M1 — Durable runtime + standalone artifact (the spine).** `@loopy/runtime`:
+- **M1 — Durable runtime + standalone artifact (the spine).** `@loopyc/runtime`:
   event-sourced journal (chained sha256) + derived state cache, deterministic replay with
   **idempotent effects** (a killed run resumes without re-running completed effects),
   durable sleep (park + resume), breakpoints, and hard cap enforcement (max_iterations,
@@ -216,7 +216,7 @@ Deliberately deferred (documented, tracked for M2+):
   (harnesses: `internal`, `claude-code`), `sleep`/`sleepUntil`, `breakpoint`. Verified by
   10 runtime tests + an end-to-end run of a compiled artifact (3 iterations, journaled,
   idempotent on re-run). _Still open: drive a generated artifact under a real babysitter;
-  cost-accounting source for $ budgets; a published/linked `@loopy/runtime` so
+  cost-accounting source for $ budgets; a published/linked `@loopyc/runtime` so
   `npm install` resolves it (today the artifact resolves it via the workspace)._
 - **M2 — Validation + authoring loop (verify + scorecard).** `loopc verify` dry-runs the
   loop through the real runtime with mocked effects (via a spec interpreter that reuses
@@ -225,14 +225,14 @@ Deliberately deferred (documented, tracked for M2+):
   explicit caps. `loopc score` grades five weighted dimensions (termination safety, caps,
   observability, resumability, determinism) → a 0–100 letter grade. The **`/loopy` skill**
   ([.claude/skills/loopy](.claude/skills/loopy/SKILL.md)) is the NL→spec authoring judgment
-  layer over `loopc`, and **`loopc-mcp`** (`@loopy/mcp`) exposes the whole factory as MCP tools
+  layer over `loopc`, and **`loopc-mcp`** (`@loopyc/mcp`) exposes the whole factory as MCP tools
   (`get_loop_schema`, `list_blueprints`, `new_loop`, `validate_loop`, `verify_loop`,
   `compile_loop`, `run_loop`, `inspect_run`) — validated by an in-process test and a stdio smoke.
 - **M3.1 — Packaging.** `pnpm build` (tsup) emits ESM `dist` + `.d.ts` for every package;
   bins get a plain-node shebang. Each package publishes its compiled `dist` via
   `publishConfig` (dev still runs from `src` via tsx). Verified end-to-end by packing all
   packages and, from a throwaway consumer, running the `loopc`/`loopc-mcp` bins **and a
-  generated artifact** with plain `node` (no tsx). Also migrated `@loopy/mcp` off the
+  generated artifact** with plain `node` (no tsx). Also migrated `@loopyc/mcp` off the
   deprecated `server.tool` is still pending (tracked).
 - **M3.2 — Babysitter target proven.** The adapter was reconciled to the **real
   `@a5c-ai/babysitter-sdk` (0.0.x)** API: effects go through `defineTask()` + `ctx.task(def, args)`
@@ -299,7 +299,7 @@ Deliberately deferred (documented, tracked for M2+):
     systemd service+timer, launchd plist, GitHub Actions) and `loopc schedule install` prints the
     platform-appropriate snippet. Install-only (host fires it) — answers the scheduler-ownership
     decision.
-  - **Zero-install artifacts** — `loopc compile --vendor` bundles `@loopy/runtime` (esbuild) into
+  - **Zero-install artifacts** — `loopc compile --vendor` bundles `@loopyc/runtime` (esbuild) into
     a single `runtime.bundle.mjs` and drops the dependency, so the standalone artifact runs with
     plain `node` and empty `node_modules` (proven by a spawn smoke test). Answers the vendor
     decision.
@@ -344,7 +344,7 @@ Deliberately deferred (documented, tracked for M2+):
   and pluggable coding-agent CLIs remain — none is a default). The skill-eval author was rewritten
   onto the same client (pure `fetch`, no SDK), and `nightly.yml` uses generic `LOOPY_LLM_*`
   secrets/vars. No single provider is privileged or required. (124 tests.)
-- **M6 — from-script / from-trace inference.** New **`@loopy/infer`**: a deterministic
+- **M6 — from-script / from-trace inference.** New **`@loopyc/infer`**: a deterministic
   FactPack extractor (JS/TS via the TypeScript compiler AST; bash heuristics; `.loopy` journal
   round-trip) → candidate pattern + steps + a loop-condition hint + flagged secrets → a **draft**
   LoopSpec. Exposed as `loopc infer-scaffold <file>` and the `infer_loop_scaffold` MCP tool (no
@@ -355,7 +355,7 @@ Deliberately deferred (documented, tracked for M2+):
 - **M5 — `/loopy` depth + skill-eval.** Deepened the skill into a judgment layer (the
   conversational protocol for eliciting termination signal / caps / state / pattern; the
   reachability proof verify can't do; a pattern→signal table; worked NL→spec examples;
-  scorecard math; anti-patterns). Added a **skill-eval** in \`@loopy/evals\`: 8 NL fixtures →
+  scorecard math; anti-patterns). Added a **skill-eval** in \`@loopyc/evals\`: 8 NL fixtures →
   authored spec → graded by the real \`validate/verify/score\` + pattern-match + signal-tier
   thresholds. The grader is gated per-PR (golden specs); **live LLM authoring runs nightly**
   (\`pnpm eval:skill\` + nightly.yml; provider-agnostic since M7 — any \`LOOPY_LLM_*\`/provider key)
@@ -363,7 +363,7 @@ Deliberately deferred (documented, tracked for M2+):
 - **M4 — Coverage + eval harness (trust substrate).** Fixed the agent save-envelope trap at
   the source (claude-code harness unwraps \`.result\`); made the CLI importable+tested; added the
   interpreter≡generated-code **fidelity** test (the load-bearing M2 claim); broadened expr,
-  validator-negative, runtime, and MCP-security coverage (74→114 tests). New **\`@loopy/evals\`**
+  validator-negative, runtime, and MCP-security coverage (74→114 tests). New **\`@loopyc/evals\`**
   (\`pnpm eval\`): a property-based pipeline (40 fuzzed valid specs → validate→verify→compile→
   \`node --check\`→round-trip→determinism), capability-matrix honesty, and a validator negative
   corpus — all graded by the real code. CI (\`.github/workflows/ci.yml\`) gates typecheck + tests
@@ -376,10 +376,10 @@ Deliberately deferred (documented, tracked for M2+):
 
 ## 8. Open product decisions (carried forward)
 
-1. **Two engines or one canonical?** `@loopy/runtime` is canonical; babysitter is a
+1. **Two engines or one canonical?** `@loopyc/runtime` is canonical; babysitter is a
    first-class richer target. Confirm positioning in docs.
 2. **Vendor vs depend.** RESOLVED in M9: BOTH are offered. Default standalone depends on
-   `@loopy/runtime` (small install); `loopc compile --vendor` bundles the runtime into the
+   `@loopyc/runtime` (small install); `loopc compile --vendor` bundles the runtime into the
    artifact (esbuild → `runtime.bundle.mjs`) for a true zero-install loop. The skew tradeoff is
    the user's per-compile choice.
 3. **Weak-signal policy.** Current stance: `self-assess` hard-requires explicit caps;

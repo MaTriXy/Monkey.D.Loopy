@@ -1,5 +1,5 @@
 {
-  "name": "@loopy/infer",
+  "name": "@loopyc/infer",
   "version": "0.1.0",
   "description": "Deterministic FactPack extraction from existing scripts (JS/TS AST, bash) and .loopy journals → a draft LoopSpec for the /loopy skill to complete.",
   "author": "MaTriXy <elkriefy@gmail.com>",
@@ -36,7 +36,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@loopy/core": "workspace:*",
+    "@loopyc/core": "workspace:*",
     "typescript": "^5.7.2"
   },
   "engines": {
