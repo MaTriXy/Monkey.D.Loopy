@@ -11,3 +11,6 @@ skill-eval-report.json
 
 # HyperFrames showcase project (compositions + personal avatar/voice media) — kept local for now
 showcase/
+
+# babysitter run artifacts
+.a5c/
