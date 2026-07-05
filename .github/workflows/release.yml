@@ -1,0 +1,53 @@
+name: Release
+
+# Publish all public packages to npm when a version tag is pushed (e.g. v0.1.1).
+#
+# Uses npm OIDC trusted publishing — no token stored in the repo. One-time setup on
+# npmjs.com for EACH package: Package → Settings → Trusted Publisher → GitHub Actions,
+# repository MaTriXy/Monkey.D.Loopy, workflow release.yml. Until that's configured,
+# this workflow fails at the publish step with an auth error (nothing partial ships:
+# versions already published are skipped, so re-running after fixing setup is safe).
+#
+# `pnpm pack` (not npm) writes the tarballs so workspace:* deps are rewritten to real
+# versions; `npm publish <tarball>` then attaches --provenance via OIDC.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # OIDC for npm trusted publishing + provenance
+
+jobs:
+  publish:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Gate — typecheck, tests, evals
+        run: |
+          pnpm -r typecheck
+          pnpm -r test
+          pnpm eval
+      - name: Pack (pnpm rewrites workspace:* to real versions)
+        run: |
+          mkdir -p /tmp/tarballs
+          for p in core runtime verify infer cli mcp; do
+            (cd packages/$p && pnpm pack --pack-destination /tmp/tarballs)
+          done
+      - name: Publish with provenance (skips already-published versions)
+        run: |
+          for t in /tmp/tarballs/*.tgz; do
+            npm publish "$t" --access public --provenance \
+              || npm view "$(tar -xzOf "$t" package/package.json | jq -r '.name + "@" + .version')" version
+          done

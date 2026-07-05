@@ -56,19 +56,20 @@ designed out or made visible instead of debugged later.
 ## Quickstart
 
 ```bash
-pnpm install                                       # Node ≥ 22, pnpm
-loopc() { pnpm exec tsx packages/cli/src/index.ts "$@"; }   # convenience alias
+npm i -g @loopyc/cli                               # Node ≥ 22
 
 loopc blueprints                                   # list starting points (one per pattern)
 loopc new my-watch --blueprint poll-until          # scaffold a LoopSpec
-loopc validate examples/deploy-watch.yaml          # rejects unbounded / unreachable loops
-loopc verify   examples/deploy-watch.yaml          # dry-run: bounded + deterministic, no side effects
-loopc score    examples/deploy-watch.yaml          # graded 0–100 scorecard
-loopc compile  examples/deploy-watch.yaml --target all --out ./out/deploy-watch
+loopc validate my-watch.loop.yaml                  # rejects unbounded / unreachable loops
+loopc verify   my-watch.loop.yaml                  # dry-run: bounded + deterministic, no side effects
+loopc score    my-watch.loop.yaml                  # graded 0–100 scorecard
+loopc compile  my-watch.loop.yaml --target all --out ./out/my-watch
 
-cd out/deploy-watch/standalone && npm install
+cd out/my-watch/standalone && npm install
 node loop.mjs run        # run · step · resume · doctor   (journals to .loopy/, crash-resumable)
 ```
+
+(Working from a clone instead? See [Develop](#develop) — everything runs from source via `tsx`.)
 
 ## Prove it before you run it
 
