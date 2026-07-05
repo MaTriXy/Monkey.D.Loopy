@@ -1,0 +1,53 @@
+# cron — a one-shot run fired on a host schedule.
+# Every morning: pull yesterday's metrics, write a short digest, deliver it to a webhook.
+loopspec: "0.1"
+id: nightly-digest
+meta:
+  name: nightly-digest
+  description: Fetch yesterday's metrics each morning, summarize, and post the digest.
+pattern: cron
+
+inputs:
+  metrics_url: { type: string, required: true }
+  webhook_url: { type: string, required: true }
+
+state:
+  store: journal
+  vars:
+    fetch_status: { type: int, init: 0 }
+    digest: { type: string, init: "" }
+    sent: { type: boolean, init: false }
+
+body:
+  - id: fetch
+    kind: http
+    request: { method: GET, url: "${inputs.metrics_url}" }
+    envelope: true
+    save: { fetch_status: "$.status" }
+  - id: digest
+    kind: agent
+    harness: llm # any OpenAI-compatible provider via LOOPY_LLM_*
+    prompt: >-
+      Summarize yesterday's metrics into a 5-line digest for the team: biggest mover,
+      anything anomalous, one suggested follow-up. Fetch returned HTTP
+      ${state.fetch_status}. Return JSON: {"digest": "<text>"}.
+    save: { digest: "$.digest" }
+  - id: deliver
+    kind: http
+    request:
+      method: POST
+      url: "${inputs.webhook_url}"
+      headers: { content-type: application/json }
+      body: { text: "${state.digest}" }
+    on_done: { set: { sent: true } }
+
+terminate:
+  signal: state-predicate
+  until: "${state.sent}"
+
+caps:
+  max_iterations: 2
+  budget: { tokens: 60000, usd: 1.0, wallclock: "15m" }
+  on_cap_exceeded: fail
+
+schedule: { mode: cron, cron: "0 7 * * *" }

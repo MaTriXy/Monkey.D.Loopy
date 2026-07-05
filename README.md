@@ -19,9 +19,12 @@ https://github.com/user-attachments/assets/ad1b2379-f545-4257-9abc-b2f727b11526
 
 Hand-rolled agent loops fail in predictable ways: no termination criteria, context blow-up,
 unbounded cost, no resumability, no observability, goal drift, weak self-judging. A *factory*
-prevents these **structurally**. You describe the loop; Loopy emits something that runs
-standalone *or* plugs into your harness, journals every step, resumes after a crash, and stops
-when it should — so the failure modes are designed out instead of debugged later.
+prevents most of these **structurally** — and the one it can't design out (a model grading its
+own work) it **measures and prices**: the validator traces who actually feeds every exit
+predicate, and the scorecard caps any loop whose "done" signal is only the agent's own report.
+You describe the loop; Loopy emits something that runs standalone *or* plugs into your harness,
+journals every step, resumes after a crash, and stops when it should — so the failure modes are
+designed out or made visible instead of debugged later.
 
 ## What's inside
 
@@ -31,7 +34,9 @@ when it should — so the failure modes are designed out instead of debugged lat
   validator refuses unbounded or unreachable loops before anything runs.
 - **Verify before you run.** A codegen-free interpreter dry-runs the loop with mocked effects
   (no side effects) and proves it's **bounded · deterministic · resume-stable**, then a 0–100
-  scorecard grades termination strength, caps, observability, and resumability.
+  scorecard grades termination strength, caps, observability, and resumability — including
+  **termination grounding**: whether real evidence (a shell exit code, an http status) decides
+  when the loop stops, or just the agent's own claim. (See [Prove it before you run it](#prove-it-before-you-run-it).)
 - **A durable runtime.** Event-sourced journal with a chained checksum, deterministic replay,
   write-ahead **idempotent effects**, **durable sleep** (park the run and resume past the wake
   time), human **breakpoints**, and **real USD cost metering** against the budget cap. Crash →
@@ -65,6 +70,38 @@ cd out/deploy-watch/standalone && npm install
 node loop.mjs run        # run · step · resume · doctor   (journals to .loopy/, crash-resumable)
 ```
 
+## Prove it before you run it
+
+The differentiator in one command. `loopc verify` executes your loop through the real runtime
+with **mocked effects** — no network, no shell, no model calls — restarting the process between
+every iteration to prove resume actually works. Then `loopc score` grades what the dry-run
+proved:
+
+```
+✓ verify PASSED
+  bounded: ✓  deterministic: ✓  resume-stable: ✓
+
+Scorecard: 96/100  (A)
+  ██████████ termination safety   30/30  — signal: oracle · grounding: external
+  ██████████ caps                 25/25  — explicit, no_progress, budget
+  ██████████ observability        15/15  — trace: journal
+  ██████████ resumability         15/15  — stable
+  ██████████ determinism          15/15  — deterministic
+```
+
+**Grounding is checked, not trusted.** The factory traces which steps write the state your
+exit predicate reads. `grounding: external` means an http/shell fact decides when the loop
+stops; `grounding: agent` means the model grades its own work — and the score is capped
+accordingly, no matter what the signal label claims. Relabeling a judge as a `state-predicate`
+makes the score go *down*, not up.
+
+## Examples
+
+One runnable spec per pattern in [`examples/`](examples/README.md) — fix-tests-until-green,
+API migration, doc-link sweep, deploy watch, issue triage, nightly digest, judged release
+notes. Each passes validate + verify, with its score and grounding in the
+[gallery table](examples/README.md).
+
 ## A LoopSpec at a glance
 
 ```yaml
@@ -95,6 +132,30 @@ One spec, `compile --target all`, four runnable forms:
 | **supervised process** | A durable long-running process for a process-supervisor runtime. |
 | **coding-agent guide** | A prose execution guide any coding agent follows step by step. |
 | **workflow** | An importable workflow JSON for a visual automation tool. |
+
+## Why not a workflow engine?
+
+Temporal, Inngest, and Restate give you durable execution; LangGraph gives you agent graphs.
+Loopy overlaps with neither's core bet:
+
+- **Bounded by construction, not by discipline.** Engines will happily run a workflow forever;
+  that's a feature. Loopy's compiler *refuses to emit* a loop without a termination signal and
+  caps, and `verify` proves boundedness before the first real side effect. No framework we know
+  of makes unboundedness unrepresentable.
+- **A compiled artifact, not hosted infra.** The output is a self-contained Node project (or a
+  prose guide, or a workflow JSON) that journals to a local `.loopy/` directory and runs with
+  plain `node`. No cluster, no service, no account — you can `scp` a compiled loop to a box.
+- **Agent-native semantics.** Termination-signal trust tiers (oracle > state-predicate >
+  llm-judge > self-assess), grounding analysis, token/USD budget caps metered against real
+  usage, and no-progress fingerprints are loop-safety concepts for *agents*, not generic retry
+  policies.
+- **Declarative data, not framework code.** A LoopSpec is one YAML document — diffable,
+  lintable, generatable by an LLM, and portable across four compile targets. There is no SDK
+  your loop logic has to marry.
+
+If you need fan-out across a fleet, multi-service orchestration, or exactly-once across
+distributed workers, use a workflow engine — that's their home turf. If you need one agent
+loop that provably stops, survives crashes, and can't blow your budget, that's this.
 
 ## No vendor lock
 

@@ -1,0 +1,42 @@
+# react — reason-act-observe until the goal is met.
+# A coding agent fixes the build until the test suite exits 0. The exit signal is an
+# ORACLE: the shell exit code decides, never the agent's own claim of success.
+loopspec: "0.1"
+id: test-green
+meta:
+  name: test-green
+  description: Let a coding agent fix failing tests until the suite exits 0.
+pattern: react
+
+state:
+  store: journal
+  vars:
+    exit_code: { type: int, init: 1 }
+    attempt: { type: int, init: 0 }
+
+body:
+  - id: run-tests
+    kind: shell
+    cmd: "npm test"
+    save: { exit_code: "$.code" }
+  - id: fix
+    when: "${state.exit_code != 0}"
+    kind: agent
+    harness: cli # any coding agent via LOOPY_AGENT_CMD
+    prompt: >-
+      The test suite is failing (attempt ${state.attempt}). Read the failures, make the
+      minimal fix, and do not touch unrelated code.
+    on_done: { incr: attempt }
+
+terminate:
+  signal: oracle
+  until: "${state.exit_code == 0}"
+  on_exit: { kind: shell, cmd: "echo tests green after ${state.attempt} fix attempt(s)" }
+
+caps:
+  max_iterations: 12
+  no_progress: { fingerprint: "${state.exit_code}", max_repeats: 6 }
+  budget: { tokens: 400000, usd: 8.0, wallclock: "2h" }
+  on_cap_exceeded: breakpoint
+
+schedule: { mode: manual }

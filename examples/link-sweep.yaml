@@ -1,0 +1,51 @@
+# loop-until-dry — repeat discovery until N consecutive passes find nothing new.
+# Sweep the docs tree for broken internal links until two consecutive scans come back
+# clean. The agent fixes; a SHELL check counts what's still broken — the agent never
+# grades its own homework.
+loopspec: "0.1"
+id: link-sweep
+meta:
+  name: link-sweep
+  description: Fix broken doc links until two consecutive scans find nothing.
+pattern: loop-until-dry
+
+state:
+  store: journal
+  vars:
+    broken: { type: int, init: -1 } # -1 = not yet scanned
+    dry: { type: int, init: 0 }
+
+body:
+  - id: fix
+    when: "${state.broken != 0}"
+    kind: agent
+    harness: cli # any coding agent via LOOPY_AGENT_CMD
+    prompt: >-
+      Scan docs/ for broken internal links and fix up to 5 of them
+      (last scan counted ${state.broken}). Only repair links — no rewrites.
+  - id: scan
+    kind: shell
+    cmd: "node scripts/check-links.mjs --json" # emits {"broken": <int>}
+    save: { broken: "$.broken" }
+  - id: mark-dry
+    when: "${state.broken == 0}"
+    kind: shell
+    cmd: "true"
+    on_done: { incr: dry }
+  - id: reset-dry
+    when: "${state.broken > 0}"
+    kind: shell
+    cmd: "true"
+    on_done: { set: { dry: 0 } }
+
+terminate:
+  signal: oracle
+  until: "${state.dry >= 2}"
+
+caps:
+  max_iterations: 10
+  no_progress: { fingerprint: "${state.broken}", max_repeats: 4 }
+  budget: { tokens: 300000, usd: 5.0, wallclock: "2h" }
+  on_cap_exceeded: exit-clean
+
+schedule: { mode: manual }

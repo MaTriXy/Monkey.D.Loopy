@@ -1,0 +1,54 @@
+# map-reduce — fan out over items, collect per-item results, then combine once.
+# Label each open issue, accumulate the labels, then write one triage summary.
+loopspec: "0.1"
+id: issue-triage
+meta:
+  name: issue-triage
+  description: Label each issue in a batch, then combine the results into one triage summary.
+pattern: map-reduce
+
+inputs:
+  issues: { type: list, required: true, description: "Issue titles/bodies to triage." }
+
+state:
+  store: journal
+  vars:
+    last_label: { type: string, init: "" }
+    labels: { type: list, init: [] }
+    done: { type: boolean, init: false }
+
+body:
+  - id: triage-each
+    kind: reduce
+    over: "${inputs.issues}"
+    as: issue
+    body:
+      - id: label-one
+        kind: agent
+        harness: llm # any OpenAI-compatible provider via LOOPY_LLM_*
+        prompt: >-
+          Classify this issue as exactly one of bug | feature | question | docs:
+          ${issue}. Return JSON: {"label": "<one word>"}.
+        save: { last_label: "$.label" }
+      - id: collect
+        kind: shell
+        cmd: "true"
+        on_done: { append: { labels: "${state.last_label}" } }
+  - id: summarize
+    kind: agent
+    harness: llm
+    prompt: >-
+      Write a one-paragraph triage summary of this label distribution: ${state.labels}.
+      Call out anything that looks urgent.
+    on_done: { set: { done: true } }
+
+terminate:
+  signal: state-predicate
+  until: "${state.done}"
+
+caps:
+  max_iterations: 3
+  budget: { tokens: 250000, usd: 4.0, wallclock: "1h" }
+  on_cap_exceeded: fail
+
+schedule: { mode: manual }

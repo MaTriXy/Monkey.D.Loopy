@@ -1,0 +1,51 @@
+# plan-execute-reflect — plan, execute the next step, reflect, until complete.
+# Migrate a codebase off a deprecated API one file at a time. The plan (how many files
+# remain) and the reflection (does it still typecheck?) are both SHELL facts — the agent
+# only does the work; it never grades it.
+loopspec: "0.1"
+id: migrate-deprecations
+meta:
+  name: migrate-deprecations
+  description: Migrate off a deprecated API file-by-file until none remain and typecheck passes.
+pattern: plan-execute-reflect
+
+inputs:
+  pattern: { type: string, required: true, description: "The deprecated call to migrate away from, e.g. oldClient." }
+
+state:
+  store: journal
+  vars:
+    remaining: { type: int, init: -1 } # -1 = not yet counted
+    typecheck: { type: int, init: 1 }
+    round: { type: int, init: 0 }
+
+body:
+  - id: plan
+    kind: shell
+    cmd: "echo {\\\"remaining\\\": $(grep -rl -F -- \"${inputs.pattern}\" src | wc -l | tr -d ' ')}"
+    save: { remaining: "$.remaining" }
+  - id: execute
+    when: "${state.remaining > 0}"
+    kind: agent
+    harness: cli # any coding agent via LOOPY_AGENT_CMD
+    prompt: >-
+      Migrate exactly one more file off the deprecated API "${inputs.pattern}"
+      (${state.remaining} file(s) remain, round ${state.round}). Keep the change minimal
+      and behavior-preserving.
+    on_done: { incr: round }
+  - id: reflect
+    kind: shell
+    cmd: "npx tsc --noEmit"
+    save: { typecheck: "$.code" }
+
+terminate:
+  signal: oracle
+  until: "${state.remaining == 0 && state.typecheck == 0}"
+
+caps:
+  max_iterations: 60
+  no_progress: { fingerprint: "${state.remaining}", max_repeats: 5 }
+  budget: { tokens: 900000, usd: 15.0, wallclock: "6h" }
+  on_cap_exceeded: breakpoint
+
+schedule: { mode: manual }

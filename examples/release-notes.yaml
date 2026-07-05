@@ -1,0 +1,52 @@
+# evaluator-optimizer — generate, score against a rubric, refine until the bar clears.
+# Draft release notes, have a judge grade them 0-100 against a rubric, and refine until
+# the score clears 90. An llm-judge exit is honest about its weakness: explicit caps are
+# REQUIRED, and the round budget is deliberately tight.
+loopspec: "0.1"
+id: release-notes
+meta:
+  name: release-notes
+  description: Draft release notes and refine them until a rubric judge scores them 90+.
+pattern: evaluator-optimizer
+
+inputs:
+  changelog: { type: string, required: true, description: "Raw commit log / change list to write from." }
+
+state:
+  store: journal
+  vars:
+    draft: { type: string, init: "" }
+    score: { type: int, init: 0 }
+    feedback: { type: string, init: "" }
+    rounds: { type: int, init: 0 }
+
+body:
+  - id: draft
+    kind: agent
+    harness: llm # any OpenAI-compatible provider via LOOPY_LLM_*
+    prompt: >-
+      Write user-facing release notes from this change list: ${inputs.changelog}.
+      Previous draft (may be empty): ${state.draft}. Judge feedback to address
+      (may be empty): ${state.feedback}. Return JSON: {"draft": "<the notes>"}.
+    save: { draft: "$.draft" }
+  - id: grade
+    kind: agent
+    harness: llm
+    prompt: >-
+      Grade these release notes 0-100 against the rubric — clarity for non-developers,
+      every breaking change called out, no internal jargon, under 300 words:
+      ${state.draft}. Return JSON: {"score": <int>, "feedback": "<one sentence>"}.
+    save: { score: "$.score", feedback: "$.feedback" }
+    on_done: { incr: rounds }
+
+terminate:
+  signal: llm-judge
+  until: "${state.score >= 90}"
+
+caps: # explicit caps are mandatory for llm-judge exits — the rubric may be unsatisfiable
+  max_iterations: 6
+  no_progress: { fingerprint: "${state.score}", max_repeats: 2 }
+  budget: { tokens: 120000, usd: 2.0, wallclock: "30m" }
+  on_cap_exceeded: breakpoint
+
+schedule: { mode: manual }
