@@ -14,6 +14,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: # manual re-run (e.g. to verify trusted-publisher setup; republishing an existing version is a safe no-op)
 
 permissions:
   contents: read
@@ -32,7 +33,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+          # no registry-url: it writes a token line into .npmrc that shadows OIDC auth
+      - name: Upgrade npm (OIDC trusted publishing needs npm >= 11.5; Node 22 bundles 10.x)
+        run: npm install -g npm@11
       - run: pnpm install --frozen-lockfile
       - name: Gate — typecheck, tests, evals
         run: |
