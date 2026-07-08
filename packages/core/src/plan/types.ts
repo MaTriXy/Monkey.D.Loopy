@@ -106,6 +106,22 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-cron": "soft",
     "http-native": "enforced",
   },
+  // Claude Code project skill: slash-command native UX. It can delegate to a sibling
+  // standalone artifact for hard guarantees, but the Claude skill itself is still prompt-driven.
+  "claude-native": {
+    journal: "soft",
+    replay: "soft",
+    breakpoints: "soft",
+    "durable-sleep": "soft",
+    "max-iterations": "soft",
+    "no-progress": "soft",
+    "token-budget": "soft",
+    "usd-budget": "soft",
+    "wallclock-budget": "soft",
+    "schedule-forever": "soft",
+    "schedule-cron": "soft",
+    "http-native": "soft",
+  },
   // n8n workflow export — a best-effort node graph. n8n has its own execution model
   // (item-passing, its own history), so our journal/caps/shared-state guarantees don't map.
   n8n: {

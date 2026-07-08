@@ -153,7 +153,7 @@ export function createServer(): McpServer {
     "Compile a validated LoopSpec to runnable artifact(s). With `out`, writes files to disk; otherwise returns the planned files inline. Target defaults to the spec's runtime (or standalone); use 'all' for both.",
     {
       yaml: z.string(),
-      target: z.enum(["standalone", "babysitter", "claude-code", "n8n", "all"]).optional(),
+      target: z.enum(["standalone", "babysitter", "claude-code", "claude-native", "n8n", "all"]).optional(),
       out: z.string().optional().describe("output directory; if omitted, files are returned inline"),
     },
     async ({ yaml, target, out }) => {

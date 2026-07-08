@@ -26,7 +26,7 @@ any code is emitted. Canonical types live in
 | `retry` | | `{ max, backoff_ms }` — transient http/shell/agent failures retry with exponential backoff (default no retry). |
 | `gates` | | Durable human-approval gates `{ after?, when?, ask, strategy?, auto_approve_in? }` — lowered to an inline, fail-closed `ctx.breakpoint()` after the named step (standalone + babysitter). |
 | `observe` | | `{ trace: journal\|none, hooks?, notify? }`. |
-| `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|n8n, emit: [cli, skill, doctor] }`. |
+| `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|claude-native\|n8n, emit: [cli, skill, doctor] }`. |
 | `provenance` | | `{ factory_version, source, run_id }` (baked into the artifact). |
 
 ## Types

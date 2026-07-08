@@ -5,7 +5,7 @@
  * Commands:
  *   loopc new <id> [--blueprint <name>] [--pattern <p>] [--out <file>]
  *   loopc validate <spec.yaml>
- *   loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,n8n|all] [--out <dir>]
+ *   loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>]
  *   loopc blueprints
  */
 import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
@@ -40,7 +40,7 @@ Usage:
   loopc score <spec.yaml>
   loopc run <spec.yaml> [--out <dir>] [--inputs <file.json>] [--approve] [--yes] [--run-id <id>]
   loopc inspect <dir> [--tail <n>] [--run-id <id>]
-  loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,n8n|all] [--out <dir>] [--vendor]
+  loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>] [--vendor]
   loopc schedule install <dir>   (print the host trigger to fire a scheduled loop on a cadence)
   loopc reprint <artifact-dir> [--target <t>] [--out <dir>]   (recompile under this factory)
   loopc infer-scaffold <script-or-journal> [--out <draft.yaml>]   (draft a spec from a script/trace)
@@ -509,10 +509,11 @@ function cmdTargets(): number {
   const caps = Object.keys(CAPABILITY_MATRIX[targets[0]!]);
   const icon = { enforced: "✓", soft: "~", unsupported: "✗" } as const;
   const w = Math.max(...caps.map((c) => c.length));
+  const tw = Math.max(12, ...targets.map((t) => t.length + 2));
   console.log("Capability matrix  (✓ enforced · ~ soft · ✗ unsupported)\n");
-  console.log(`  ${"capability".padEnd(w)}  ${targets.map((t) => t.padEnd(12)).join("")}`);
+  console.log(`  ${"capability".padEnd(w)}  ${targets.map((t) => t.padEnd(tw)).join("")}`);
   for (const cap of caps) {
-    const cells = targets.map((t) => icon[CAPABILITY_MATRIX[t][cap as keyof (typeof CAPABILITY_MATRIX)[typeof t]]].padEnd(12)).join("");
+    const cells = targets.map((t) => icon[CAPABILITY_MATRIX[t][cap as keyof (typeof CAPABILITY_MATRIX)[typeof t]]].padEnd(tw)).join("");
     console.log(`  ${cap.padEnd(w)}  ${cells}`);
   }
   return 0;

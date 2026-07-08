@@ -18,6 +18,7 @@ loopc run      my-watch.yaml -i status_url=https://...
 The load-bearing rule: **the compiler will not emit an unbounded loop.** Termination is
 required, caps are mandatory, and the dry-run proves both before anything real executes.
 Compile targets: a standalone Node project (add `--vendor` for a zero-install bundle), a
-supervised process, a coding-agent execution guide, or a workflow JSON.
+supervised process, a coding-agent execution guide, a Claude Code-native slash skill, or a
+workflow JSON.
 
 Full command reference: [docs/cli.md](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/cli.md).

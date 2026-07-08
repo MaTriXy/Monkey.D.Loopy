@@ -23,7 +23,7 @@ export type LoopPattern =
   | "cron";
 
 /** Runtime targets a LoopSpec can be lowered to. */
-export type RuntimeTarget = "standalone" | "babysitter" | "claude-code" | "n8n";
+export type RuntimeTarget = "standalone" | "babysitter" | "claude-code" | "claude-native" | "n8n";
 
 /** Closed enum of step kinds. No raw code — keeps emitted loops auditable. */
 export type StepKind = "agent" | "shell" | "http" | "breakpoint" | "sleep" | "reduce";

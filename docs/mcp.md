@@ -50,7 +50,7 @@ also embeddable in-process via the SDK's `InMemoryTransport` (see
 | `new_loop` | `id`, `blueprint?`, `pattern?` | A scaffolded LoopSpec YAML. |
 | `validate_loop` | `yaml` | Validator diagnostics; `isError` when invalid. |
 | `verify_loop` | `yaml` | Dry-run report (bounded/deterministic/resume-stable) + scorecard. No side effects. |
-| `compile_loop` | `yaml`, `target?` (a single target or `all`), `out?` | Writes files when `out` is given; otherwise returns the planned files inline. |
+| `compile_loop` | `yaml`, `target?` (`standalone`, `babysitter`, `claude-code`, `claude-native`, `n8n`, or `all`), `out?` | Writes files when `out` is given; otherwise returns the planned files inline. |
 | `run_loop` | `yaml`, `inputs?`, `cwd?` | **Executes the loop with REAL effects** in a journaled run dir; returns the `RunResult`. Use only when side effects are intended. |
 | `inspect_run` | `dir`, `tail?` | A run's status, latest state, and last journal events. |
 | `infer_loop_scaffold` | `source`, `filename?` | A **draft** LoopSpec extracted from a script (JS/TS or bash) or a `.loopy` journal — complete the TODOs, then validate/verify. No LLM, no side effects. |
