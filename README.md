@@ -44,7 +44,8 @@ designed out or made visible instead of debugged later.
 - **Provider- *and* tool-agnostic.** Run `agent` steps on **any** LLM provider and **any** coding
   agent — no vendor lock, no default. (See [No vendor lock](#no-vendor-lock).)
 - **Multiple compile targets.** One spec → a standalone Node project, a durable supervised
-  process, a coding-agent execution guide, or a workflow. (See [Compile targets](#compile-targets).)
+  process, a coding-agent execution guide, a Claude Code-native slash skill, or a workflow.
+  (See [Compile targets](#compile-targets).)
 - **Start from what you have.** Point the inferencer at an existing bash/JS/TS script or a
   `.loopy` run journal to get a draft spec to refine.
 - **Authoring help built in.** The [`/loopy`](.claude/skills/loopy/SKILL.md) skill turns a
@@ -125,13 +126,14 @@ schedule: { mode: forever }
 
 ## Compile targets
 
-One spec, `compile --target all`, four runnable forms:
+One spec, `compile --target all`, five runnable forms:
 
 | Target | What it emits |
 |---|---|
 | **standalone** | A self-contained Node project running on `@loopyc/runtime` — the durable engine (journal, replay, caps, sleep, breakpoints). Add `--vendor` for a zero-install bundle. |
 | **supervised process** | A durable long-running process for a process-supervisor runtime. |
 | **coding-agent guide** | A prose execution guide any coding agent follows step by step. |
+| **Claude Code-native skill** | A project skill under `.claude/skills/<loop>/SKILL.md`, invokable as `/<loop>`, with a hybrid handoff to standalone when available. |
 | **workflow** | An importable workflow JSON for a visual automation tool. |
 
 ## Why not a workflow engine?
@@ -151,7 +153,7 @@ Loopy overlaps with neither's core bet:
   usage, and no-progress fingerprints are loop-safety concepts for *agents*, not generic retry
   policies.
 - **Declarative data, not framework code.** A LoopSpec is one YAML document — diffable,
-  lintable, generatable by an LLM, and portable across four compile targets. There is no SDK
+  lintable, generatable by an LLM, and portable across five compile targets. There is no SDK
   your loop logic has to marry.
 
 If you need fan-out across a fleet, multi-service orchestration, or exactly-once across

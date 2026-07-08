@@ -475,6 +475,55 @@ describe("claude-code (prose) adapter", () => {
   });
 });
 
+describe("claude-native adapter", () => {
+  const spec = deployWatchSpec();
+  const plan = planLoopExport(spec, "claude-native");
+  const fileMap = new Map(plan.files.map((f) => [f.relativePath, f.contents]));
+
+  it("emits an installable Claude Code project skill", () => {
+    expect(fileMap.has(".claude/skills/deploy-watch/SKILL.md")).toBe(true);
+    expect(fileMap.has(".claude/skills/deploy-watch/reference/loopspec.json")).toBe(true);
+    expect(fileMap.has(".claude/skills/deploy-watch/scripts/run-standalone.mjs")).toBe(true);
+    expect(fileMap.has(".claude/skills/deploy-watch/loop.lock")).toBe(true);
+    expect(fileMap.has("README.md")).toBe(true);
+    expect(fileMap.has("loop.lock")).toBe(true);
+  });
+
+  it("makes the slash skill manual-only and embeds the loop contract", () => {
+    const skill = fileMap.get(".claude/skills/deploy-watch/SKILL.md")!;
+    expect(skill).toContain("disable-model-invocation: true");
+    expect(skill).toContain("/deploy-watch");
+    expect(skill).toContain("node \"${CLAUDE_SKILL_DIR}/scripts/run-standalone.mjs\" <command> '<inputs-json>'");
+    expect(skill).toContain("Exit when: `${state.status == 'green'}`");
+    expect(skill).toContain("max_iterations=288");
+    expect(skill).toContain("append a short entry to `.loopy/claude-native/deploy-watch/journal.md`");
+  });
+
+  it("bundles a hybrid runner that finds a sibling standalone artifact", () => {
+    const runner = fileMap.get(".claude/skills/deploy-watch/scripts/run-standalone.mjs")!;
+    expect(runner).toContain("LOOPY_ARTIFACT_DIR");
+    expect(runner).toContain("loop.mjs");
+    expect(runner).toContain("writeFileSync(join(dir, \"inputs.json\")");
+    expect(runner).toContain('command === "inspect"');
+    expect(runner).toContain('command === "approve" ? "resume" : command');
+    expect(plan.files.find((f) => f.relativePath.endsWith("run-standalone.mjs"))!.executable).toBe(true);
+  });
+
+  it("keeps the full normalized LoopSpec available for audit", () => {
+    const embedded = JSON.parse(fileMap.get(".claude/skills/deploy-watch/reference/loopspec.json")!);
+    expect(embedded.id).toBe("deploy-watch");
+    expect(embedded.pattern).toBe("poll-until");
+    expect(embedded.terminate.until).toBe("${state.status == 'green'}");
+  });
+
+  it("warns that guarantees are soft unless delegated to standalone", () => {
+    const joined = plan.warnings.join(" | ");
+    expect(joined).toContain("journal");
+    expect(joined).toContain("token-budget");
+    expect(joined).toContain("http-native");
+  });
+});
+
 describe("n8n adapter", () => {
   const spec = deployWatchSpec();
   const plan = planLoopExport(spec, "n8n");

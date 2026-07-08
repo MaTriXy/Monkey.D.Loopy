@@ -4,16 +4,18 @@ import type { Adapter, PlanOptions, PlanResult } from "./types.js";
 import { standaloneAdapter } from "./standalone.js";
 import { babysitterAdapter } from "./babysitter.js";
 import { claudeCodeAdapter } from "./claude-code.js";
+import { claudeNativeAdapter } from "./claude-native.js";
 import { n8nAdapter } from "./n8n.js";
 
 const ADAPTERS: Record<RuntimeTarget, Adapter> = {
   standalone: standaloneAdapter,
   babysitter: babysitterAdapter,
   "claude-code": claudeCodeAdapter,
+  "claude-native": claudeNativeAdapter,
   n8n: n8nAdapter,
 };
 
-export const SUPPORTED_TARGETS: RuntimeTarget[] = ["standalone", "babysitter", "claude-code", "n8n"];
+export const SUPPORTED_TARGETS: RuntimeTarget[] = ["standalone", "babysitter", "claude-code", "claude-native", "n8n"];
 
 /**
  * Pure: lower a (validated) LoopSpec to a target's runnable file set.

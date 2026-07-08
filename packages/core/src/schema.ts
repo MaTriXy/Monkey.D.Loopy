@@ -164,7 +164,7 @@ export const LoopSpecSchema = z
       .optional(),
     target: z
       .object({
-        runtime: z.enum(["standalone", "babysitter", "claude-code", "n8n"]).optional(),
+        runtime: z.enum(["standalone", "babysitter", "claude-code", "claude-native", "n8n"]).optional(),
         emit: z.array(z.enum(["cli", "skill", "doctor"])).optional(),
       })
       .optional(),

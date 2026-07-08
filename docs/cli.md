@@ -54,7 +54,7 @@ resumability, determinism) into a 0–100 letter grade.
 loopc score deploy-watch.yaml
 ```
 
-### `loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,n8n|all] [--out <dir>] [--vendor]`
+### `loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>] [--vendor]`
 Validate, then lower the spec to runnable artifact(s). Refuses to compile an invalid spec.
 Target defaults to the spec's `target.runtime` (or `standalone`); `--target all` emits every
 target. Output goes to `<out>/<target>/` (default `out/<id>/<target>/`). Prints any capability
@@ -73,6 +73,9 @@ Targets:
 - **babysitter** — a durable `@a5c-ai/babysitter-sdk` process (proven on a live run).
 - **claude-code** — a markdown **prose execution guide** (`<id>.loop.md`) + Mermaid flow for an
   agent to follow. No runtime; caps are agent-honored (capability warnings make this explicit).
+- **claude-native** — a Claude Code project skill at `.claude/skills/<loop>/SKILL.md`, invokable
+  as `/<loop>`. It prefers a sibling standalone artifact for hard guarantees, and otherwise runs
+  from the embedded LoopSpec contract with Claude-honored caps.
 - **n8n** — a best-effort **importable workflow** (`<id>.n8n.json`) scaffold; you wire the exit
   condition/state (n8n's model differs — heavily caveated in the generated README).
 
