@@ -198,6 +198,34 @@ the repository where you want the loop available, then start Claude Code from th
 /${slug} inspect
 \`\`\`
 
+## Files
+
+\`\`\`text
+.claude/skills/${slug}/SKILL.md
+.claude/skills/${slug}/reference/loopspec.json
+.claude/skills/${slug}/loop.lock
+.claude/skills/${slug}/scripts/run-standalone.mjs
+README.md
+loop.lock
+loop.source.yaml        # written by loopc compile
+\`\`\`
+
+Claude Code discovers project skills from \`.claude/skills/<skill-name>/SKILL.md\`. The skill
+directory name becomes the slash command, so this loop is invoked as \`/${slug}\`.
+
+## Inputs
+
+Pass inputs as JSON after the command:
+
+\`\`\`text
+/${slug} run '{"input_name":"value"}'
+\`\`\`
+
+The generated skill supports \`run\`, \`step\`, \`resume\`, \`inspect\`, \`doctor\`, \`approve\`,
+and \`native\`.
+
+## Runtime guarantees
+
 For hard Loopy guarantees, compile a standalone target next to this target:
 
 \`\`\`bash
@@ -205,8 +233,11 @@ loopc compile ${spec.id}.loop.yaml --target all --out ./out/${spec.id}
 \`\`\`
 
 The skill first tries to delegate to the sibling standalone artifact. If none is found, Claude can
-execute the embedded LoopSpec contract directly, but caps and state are then agent-honored rather
-than runtime-enforced.
+execute the embedded LoopSpec contract directly, but caps, state updates, and journal discipline
+are then agent-honored rather than runtime-enforced.
+
+If the standalone artifact lives somewhere else, set \`LOOPY_ARTIFACT_DIR\` to the directory that
+contains \`loop.mjs\`.
 `;
 }
 

@@ -21,4 +21,10 @@ Compile targets: a standalone Node project (add `--vendor` for a zero-install bu
 supervised process, a coding-agent execution guide, a Claude Code-native slash skill, or a
 workflow JSON.
 
+For Claude Code-native loops, `loopc compile --target claude-native` emits
+`.claude/skills/<loop>/SKILL.md` plus the embedded LoopSpec reference. Copy the generated
+`.claude/` directory into a project and invoke the loop as `/<loop> run`; compile with
+`--target all` when you want the skill to delegate to a sibling standalone artifact for hard
+runtime guarantees.
+
 Full command reference: [docs/cli.md](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/cli.md).

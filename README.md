@@ -70,6 +70,10 @@ cd out/my-watch/standalone && npm install
 node loop.mjs run        # run · step · resume · doctor   (journals to .loopy/, crash-resumable)
 ```
 
+Claude Code users also get a native project skill from `--target all`: copy
+`out/my-watch/claude-native/.claude/` into the project where the loop should be available, then
+invoke it as `/my-watch run` from Claude Code.
+
 (Working from a clone instead? See [Develop](#develop) — everything runs from source via `tsx`.)
 
 ## Prove it before you run it
@@ -135,6 +139,32 @@ One spec, `compile --target all`, five runnable forms:
 | **coding-agent guide** | A prose execution guide any coding agent follows step by step. |
 | **Claude Code-native skill** | A project skill under `.claude/skills/<loop>/SKILL.md`, invokable as `/<loop>`, with a hybrid handoff to standalone when available. |
 | **workflow** | An importable workflow JSON for a visual automation tool. |
+
+## Claude Code-native skills
+
+The `claude-native` target emits a Claude Code project skill:
+
+```text
+.claude/skills/<loop>/SKILL.md
+.claude/skills/<loop>/reference/loopspec.json
+.claude/skills/<loop>/scripts/run-standalone.mjs
+```
+
+Install it by copying the generated `.claude/` directory into the target repository. Claude Code
+discovers project skills from `.claude/skills/<skill-name>/SKILL.md`, and the skill directory
+becomes the slash command name, so a `deploy-watch` loop runs as:
+
+```text
+/deploy-watch run '{"status_url":"https://example.com/status"}'
+/deploy-watch step
+/deploy-watch inspect
+```
+
+This target is intentionally hybrid. When a sibling `standalone` artifact exists, the skill
+hands off to `node loop.mjs` so the Loopy runtime enforces journals, replay, caps, durable sleep,
+breakpoints, and budget behavior. Without standalone, Claude can still execute from the embedded
+LoopSpec contract, but those guarantees are Claude-honored rather than runtime-enforced; the
+compiler prints that boundary as capability warnings.
 
 ## Why not a workflow engine?
 
