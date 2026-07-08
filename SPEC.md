@@ -140,21 +140,28 @@ Defined in [`packages/core/src/plan/types.ts`](packages/core/src/plan/types.ts).
 spec uses a feature a target only **soft-enforces** or doesn't support, the compiler
 emits an honest warning rather than silently degrading.
 
-| Capability | standalone | babysitter |
-|---|---|---|
-| journal / replay / breakpoints / durable-sleep | enforced | enforced |
-| max-iterations / no-progress | enforced | enforced (in-loop guard) |
-| token / usd / wallclock budget | **enforced** | **soft** (babysitter does not meter usage) |
-| schedule: forever / watch | enforced | enforced |
-| schedule: cron | soft (host cron fires it) | soft |
-| http (native) | enforced | **unsupported** → lowered to a `shell` curl task |
+| Capability | standalone | babysitter | claude-code | claude-native | n8n |
+|---|---|---|---|---|---|
+| journal | enforced | enforced | unsupported | soft | unsupported |
+| replay | enforced | enforced | unsupported | soft | soft |
+| breakpoints | enforced | enforced | soft | soft | unsupported |
+| durable-sleep | enforced | enforced | soft | soft | enforced |
+| max-iterations | enforced | enforced | soft | soft | soft |
+| no-progress | enforced | enforced | soft | soft | unsupported |
+| token / usd / wallclock budget | **enforced** | **soft** (babysitter does not meter usage) | unsupported | soft | unsupported |
+| schedule: forever / watch | enforced | enforced | soft | soft | soft |
+| schedule: cron | soft (host cron fires it) | soft | soft | soft | enforced |
+| http (native) | enforced | **unsupported** → lowered to a `shell` curl task | enforced | soft | enforced |
 
 > If you need hard cost caps, use the `standalone` target.
 
-Two further compile targets are **guide/scaffold** surfaces rather than runtimes: a
-coding-agent execution guide (prose + flow an agent follows) and a workflow export. Both
-are soft for journal/caps/state — you wire enforcement in the host — and are heavily
-caveated in their generated output.
+The non-runtime compile targets are honest integration surfaces rather than new engines:
+`claude-code` emits a prose execution guide, `claude-native` emits a Claude Code project skill
+under `.claude/skills/<loop>/SKILL.md`, and `n8n` emits an importable workflow scaffold. These
+targets keep the LoopSpec contract visible but soften enforcement unless they can delegate to a
+hard runtime. The `claude-native` skill is intentionally hybrid: when emitted next to
+`standalone` via `--target all`, it can hand off to `node loop.mjs`; otherwise Claude executes
+from the embedded contract and must honor caps itself.
 
 ## 6. The `@loopyc/runtime` contract (built in M1)
 
@@ -254,7 +261,13 @@ Deliberately deferred (documented, tracked for M2+):
   flow for an agent to follow (enforcement is agent-honored — flagged soft/unsupported);
   **n8n** emits a best-effort, importable workflow JSON scaffold (steps → nodes, IF loop-back),
   heavily caveated since n8n's item-passing model doesn't map to our journal/caps/state. Both
-  registered in \`SUPPORTED_TARGETS\` (so \`--target all\` emits all four) with honest warnings.
+  registered in \`SUPPORTED_TARGETS\` with honest warnings.
+- **M3.4b — Claude-native target.** **claude-native** emits a Claude Code project skill at
+  `.claude/skills/<loop>/SKILL.md`, with `reference/loopspec.json`, `loop.lock`, and a
+  `scripts/run-standalone.mjs` handoff helper. `--target all` places it beside standalone so
+  Claude Code gets a native slash command while the runtime can still enforce journal, replay,
+  caps, sleep, breakpoints, and budget behavior. Without standalone, the generated skill remains
+  usable but reports soft capability warnings because Claude must honor the contract directly.
 - **M3.5 — Runtime parity & safety.** **cap-breakpoint resume parity**: a cap-action
   \`breakpoint\` now pauses and is resumable — \`approveCaps\` / \`resume --approve\` approves the
   gate, resets that cap's counter, and continues (babysitter-style approve-and-reset; tracked
