@@ -105,6 +105,38 @@ out of the directory with an empty `node_modules`.
 `task:post`, or `harness:yolo` for a real agent run) — see the generated `README.md`. This target
 has been verified end-to-end against the real SDK.
 
+**Claude-native output** is a Claude Code project skill:
+
+```text
+.claude/skills/<loop>/SKILL.md
+.claude/skills/<loop>/reference/loopspec.json
+.claude/skills/<loop>/loop.lock
+.claude/skills/<loop>/scripts/run-standalone.mjs
+README.md
+loop.lock
+loop.source.yaml
+```
+
+Copy the generated `.claude/` directory into the repository where the loop should be available,
+then start Claude Code from that project and invoke the loop by skill directory name:
+
+```text
+/<loop> run '{"input_name":"value"}'
+/<loop> step
+/<loop> resume
+/<loop> inspect
+/<loop> doctor
+/<loop> approve
+```
+
+The generated skill first tries to hand off to a sibling standalone artifact via
+`scripts/run-standalone.mjs`. That path preserves the runtime-enforced guarantees: journal,
+deterministic replay, caps, durable sleep, breakpoints, and budget metering. If no standalone
+artifact is present, the skill falls back to the embedded LoopSpec contract in
+`reference/loopspec.json`; Claude can still run the loop natively, but caps and state updates are
+agent-honored soft guarantees. `loopc compile` prints those capability warnings so the boundary is
+visible before users ship the artifact.
+
 ### `loopc run <spec.yaml> [--out <dir>] [--inputs <file.json>] [--approve] [--yes] [--run-id <id>]`
 Run a loop directly (validates first — refuses an invalid/unbounded spec). Executes real
 effects through the runtime, journaling to `<out>/.loopy/runs/<run-id>` (default `.loopy`), and

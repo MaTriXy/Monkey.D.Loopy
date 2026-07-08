@@ -70,6 +70,9 @@ side effects** before `run_loop` ever touches the real world.
 - `validate_loop`/`verify_loop` refuse unbounded or unreachable loops (the factory's core
   guarantee).
 - `compile_loop` surfaces capability warnings per target (e.g. the babysitter target soft-
-  enforces budgets and lowers `http` to a `curl` shell task).
+  enforces budgets and lowers `http` to a `curl` shell task). For `target: "claude-native"`,
+  the planned files include a Claude Code project skill under `.claude/skills/<loop>/SKILL.md`;
+  use `target: "all"` when you want that skill to be emitted next to the standalone artifact it
+  can delegate to for runtime-enforced guarantees.
 - `run_loop` is the sharp edge — it runs real `shell`/`http`/`agent` steps. Prefer
   `verify_loop` for validation; reach for `run_loop` only to actually execute.

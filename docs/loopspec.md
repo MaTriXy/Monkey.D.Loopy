@@ -29,6 +29,22 @@ any code is emitted. Canonical types live in
 | `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|claude-native\|n8n, emit: [cli, skill, doctor] }`. |
 | `provenance` | | `{ factory_version, source, run_id }` (baked into the artifact). |
 
+## Compile target notes
+
+`target.runtime` chooses the default compile output when `loopc compile` is run without
+`--target`. It does not weaken validation: every target still starts from the same bounded,
+validated LoopSpec.
+
+- `standalone` is the hard-guarantee runtime target. It emits `loop.mjs`, `loop.lock`, a local
+  journal, and optional vendored runtime bundle.
+- `claude-native` emits a Claude Code project skill under `.claude/skills/<loop>/SKILL.md`.
+  The skill command name comes from the sanitized loop id, and the original LoopSpec is embedded
+  at `.claude/skills/<loop>/reference/loopspec.json`.
+- Use `--target all` when you want the Claude-native skill to sit next to a standalone artifact.
+  In that layout, the generated skill can delegate to standalone for runtime-enforced journals,
+  replay, caps, durable sleep, breakpoints, and budget metering. Without standalone, the skill is
+  still usable from Claude Code, but those guarantees are soft and agent-honored.
+
 ## Types
 
 `string` · `int` · `number` · `boolean` · `json` · `list` · `enum[a,b,c]`

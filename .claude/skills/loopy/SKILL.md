@@ -59,10 +59,22 @@ Human review is the only check for semantic fidelity.
 6. **Score:** `loopc score <spec>` — aim high. Strengthen the termination signal, add
    `no_progress`/budget, and keep `observe.trace: journal` to raise the grade. (Over MCP
    there is no separate score tool — the scorecard is included in `verify_loop`'s output.)
-7. **Compile:** `loopc compile <spec> --target all --out <dir>` (or `standalone` only). Heed
-   any capability warnings on the babysitter target (e.g. soft budget enforcement, http→curl).
+7. **Compile:** `loopc compile <spec> --target all --out <dir>` unless the user asked for one
+   surface only. Use `standalone` for hard runtime guarantees, `claude-native` when the user
+   wants a Claude Code slash command, and `all` when they want both. Heed target capability
+   warnings; non-standalone targets may soften runtime-enforced behavior into agent-honored
+   behavior.
 8. **Run / inspect** the standalone artifact: `node loop.mjs run` (or `step`/`resume`/`doctor`);
    the journal lives in `.loopy/runs/`. It is crash-resumable.
+
+## Target selection
+
+| User wants | compile target | notes |
+|---|---|---|
+| A portable artifact with hard journals, replay, caps, sleep, breakpoints, and budget metering | `standalone` | Add `--vendor` for a zero-install bundle. |
+| A Claude Code-native slash command like `/<loop> run` | `claude-native` | Emits `.claude/skills/<loop>/SKILL.md` plus the embedded LoopSpec contract. |
+| A Claude Code slash command with hard Loopy guarantees when available | `all` | The generated skill delegates to the sibling standalone target before falling back to native execution. |
+| A prose guide any coding agent can follow | `claude-code` | No runtime; caps are agent-honored. |
 
 ## From conversation to spec — elicit the four unknowns
 
