@@ -30,7 +30,7 @@ const publicPackages = manifests.filter(({ manifest }) => manifest.private !== t
 for (const { dir, manifest } of manifests) {
   requireTruthy(manifest.version === version, `packages/${dir} is ${manifest.version}; root is ${version}`);
 }
-requireTruthy(publicPackages.length === 6, `expected 6 public packages, found ${publicPackages.length}`);
+requireTruthy(publicPackages.length === 7, `expected 7 public packages, found ${publicPackages.length}`);
 
 const core = await import(pathToFileURL(join(root, "packages/core/dist/index.js")));
 requireTruthy(core.FACTORY_VERSION === version, `FACTORY_VERSION is ${core.FACTORY_VERSION}; root is ${version}`);

@@ -56,6 +56,8 @@ designed out or made visible instead of debugged later.
   the whole factory to agents as MCP tools.
 - **Zero-install artifacts.** `compile --vendor` bundles the runtime so a compiled loop runs with
   plain `node` — nothing to install.
+- **Optional local operations.** `@loopyc/operator` derives a trustworthy read model from existing
+  journals without rewriting them; standalone and vendored artifacts remain independent.
 
 ## Quickstart
 
