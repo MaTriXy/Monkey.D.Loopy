@@ -74,6 +74,33 @@ describe("loopc run() — dispatch + commands", () => {
     expect(await run(["validate", join(d, "p2.yaml")])).toBe(0);
   });
 
+  it("lists and instantiates verified recipes with provenance in every target lock", async () => {
+    const listed = await capture(["recipes"]);
+    expect(listed.code).toBe(0);
+    expect(listed.out).toContain("repo-health-doctor");
+    expect(listed.out).toContain("market-signal-monitor");
+
+    const d = tmp();
+    const source = join(d, "health.yaml");
+    expect(await run(["new", "health-check", "--recipe", "repo-health-doctor", "--out", source])).toBe(0);
+    expect(await run(["validate", source])).toBe(0);
+    const yaml = readFileSync(source, "utf8");
+    expect(yaml).toContain("name: repo-health-doctor");
+    expect(yaml).toContain('version: "1"');
+
+    const out = join(d, "out");
+    expect(await run(["compile", source, "--target", "all", "--out", out])).toBe(0);
+    for (const target of ["standalone", "babysitter", "claude-code", "claude-native", "n8n"]) {
+      const lock = JSON.parse(readFileSync(join(out, target, "loop.lock"), "utf8"));
+      expect(lock.recipe).toEqual({ name: "repo-health-doctor", version: "1" });
+    }
+  });
+
+  it("rejects unknown and conflicting recipe scaffolds", async () => {
+    expect(await run(["new", "x", "--recipe", "missing"])).toBe(1);
+    expect(await run(["new", "x", "--recipe", "repo-health-doctor", "--blueprint", "react"])).toBe(1);
+  });
+
   it("reprint: recompiles from loop.source.yaml; errors without it", async () => {
     const d = tmp();
     const f = join(d, "s.yaml");

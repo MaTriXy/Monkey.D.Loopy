@@ -3,7 +3,7 @@
  * Dev runs via tsx; the published bin is the compiled ./dist/index.js (shebang added at build).
  *
  * Commands:
- *   loopc new <id> [--blueprint <name>] [--pattern <p>] [--out <file>]
+ *   loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <p>] [--out <file>]
  *   loopc validate <spec.yaml>
  *   loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>]
  *   loopc blueprints
@@ -15,9 +15,11 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import {
   CAPABILITY_MATRIX,
+  BUILTIN_RECIPE_CATALOG,
   FACTORY_VERSION,
   formatValidation,
   getBlueprint,
+  instantiateRecipe,
   listBlueprints,
   loadSpecFromYaml,
   planLoopExport,
@@ -36,7 +38,7 @@ const TARGET_ARG = `${SUPPORTED_TARGETS.join(",")}|all`;
 const USAGE = `loopc v${FACTORY_VERSION} — factory for runnable agent loops
 
 Usage:
-  loopc new <id> [--blueprint <name>] [--pattern <pattern>] [--out <file>]
+  loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--out <file>]
   loopc new <id> --from-shell "<cmd>" --until "<expr>"   (scaffold a loop around a command)
   loopc validate <spec.yaml>
   loopc verify <spec.yaml> [--fix]
@@ -49,6 +51,7 @@ Usage:
   loopc infer-scaffold <script-or-journal> [--out <draft.yaml>]   (draft a spec from a script/trace)
   loopc targets       (show the per-target capability matrix)
   loopc blueprints
+  loopc recipes
 
 Run \`loopc blueprints\` to list starting-point templates.`;
 
@@ -91,6 +94,8 @@ export async function run(argv: string[]): Promise<number> {
       return cmdInferScaffold(positionals[1], flags);
     case "blueprints":
       return cmdBlueprints();
+    case "recipes":
+      return cmdRecipes();
     default:
       console.error(`unknown command '${cmd}'\n\n${USAGE}`);
       return 1;
@@ -106,13 +111,30 @@ function cmdBlueprints(): number {
   return 0;
 }
 
+function cmdRecipes(): number {
+  console.log("Verified recipes:\n");
+  for (const recipe of BUILTIN_RECIPE_CATALOG.list()) {
+    const { manifest } = recipe;
+    console.log(`  ${manifest.name.padEnd(25)} ${manifest.summary}`);
+    console.log(`  ${"".padEnd(25)} schedule=${manifest.schedule.mode} · minimum score=${manifest.minimum_score}`);
+  }
+  console.log("\nScaffold one with: loopc new <id> --recipe <name>");
+  return 0;
+}
+
 async function cmdNew(id: string | undefined, flags: Record<string, string | boolean>): Promise<number> {
   if (!id) {
-    console.error("usage: loopc new <id> [--blueprint <name>] [--pattern <pattern>] [--out <file>]");
+    console.error("usage: loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--out <file>]");
     return 1;
   }
   const blueprintName = flagString(flags, "blueprint");
+  const recipeName = flagString(flags, "recipe");
   const fromShell = flagString(flags, "from-shell");
+  const selected = [blueprintName, recipeName, fromShell].filter(Boolean);
+  if (selected.length > 1) {
+    console.error("choose exactly one of --recipe, --blueprint, or --from-shell");
+    return 1;
+  }
   let yaml: string;
   if (fromShell) {
     const until = flagString(flags, "until");
@@ -121,6 +143,13 @@ async function cmdNew(id: string | undefined, flags: Record<string, string | boo
       return 1;
     }
     yaml = fromShellTemplate(id, fromShell, until, flagString(flags, "pattern") ?? "loop-until-dry");
+  } else if (recipeName) {
+    const recipe = BUILTIN_RECIPE_CATALOG.get(recipeName);
+    if (!recipe) {
+      console.error(`unknown recipe '${recipeName}'. Run \`loopc recipes\` to list.`);
+      return 1;
+    }
+    yaml = instantiateRecipe(recipe, id);
   } else if (blueprintName) {
     const bp = getBlueprint(blueprintName);
     if (!bp) {

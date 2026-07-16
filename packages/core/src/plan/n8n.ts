@@ -288,7 +288,7 @@ export const n8nAdapter: Adapter = {
       {
         relativePath: "loop.lock",
         contents:
-          JSON.stringify({ loop_id: spec.id, loopspec_version: spec.loopspec, target: "n8n", signal: spec.terminate.signal, caps: spec.caps }, null, 2) + "\n",
+          JSON.stringify({ loop_id: spec.id, loopspec_version: spec.loopspec, target: "n8n", recipe: spec.provenance?.recipe, signal: spec.terminate.signal, caps: spec.caps }, null, 2) + "\n",
         kind: "provenance",
       },
     ];

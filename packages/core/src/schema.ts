@@ -160,6 +160,7 @@ export const LoopSpecSchema = z
         factory_version: z.string().optional(),
         source: z.string().optional(),
         run_id: z.string().optional(),
+        recipe: z.object({ name: z.string().min(1), version: z.string().min(1) }).optional(),
       })
       .optional(),
     target: z

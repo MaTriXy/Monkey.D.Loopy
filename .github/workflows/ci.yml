@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm typecheck
       - name: Test (unit + golden + fidelity + evals gate)
         run: pnpm -r test
       - name: Evals (deterministic — hard gate)

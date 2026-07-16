@@ -48,6 +48,9 @@ designed out or made visible instead of debugged later.
   (See [Compile targets](#compile-targets).)
 - **Start from what you have.** Point the inferencer at an existing bash/JS/TS script or a
   `.loopy` run journal to get a draft spec to refine.
+- **Start from an outcome.** Six verified recipes cover repository health, dependency policy,
+  documentation drift, production errors, release follow-up, and market signals. Each ships
+  with external-grounding guidance, safety boundaries, and adversarial runtime fixtures.
 - **Authoring help built in.** The [`/loopy`](.claude/skills/loopy/SKILL.md) skill turns a
   natural-language goal into a validated, verified, graded spec; the `loopc-mcp` server exposes
   the whole factory to agents as MCP tools.
@@ -75,6 +78,20 @@ Claude Code users also get a native project skill from `--target all`: copy
 invoke it as `/my-watch run` from Claude Code.
 
 (Working from a clone instead? See [Develop](#develop) — everything runs from source via `tsx`.)
+
+Prefer an opinionated product workflow over a structural blueprint? This path is ready in under
+five minutes and preserves recipe provenance in every generated `loop.lock`:
+
+```bash
+loopc recipes
+loopc new repo-check --recipe repo-health-doctor
+loopc verify repo-check.loop.yaml
+loopc compile repo-check.loop.yaml --target standalone --out ./out/repo-check
+```
+
+Set the generated `check_command` input to a repository-owned command that emits structured,
+redacted status/evidence JSON. See the [verified recipe guide](docs/recipes.md) and each recipe's
+README for its exact evidence and safety contract.
 
 ## Prove it before you run it
 
@@ -107,6 +124,8 @@ One runnable spec per pattern in [`examples/`](examples/README.md) — fix-tests
 API migration, doc-link sweep, deploy watch, issue triage, nightly digest, judged release
 notes. Each passes validate + verify, with its score and grounding in the
 [gallery table](examples/README.md).
+
+For complete product workflows, browse the [verified recipe catalog](recipes/README.md).
 
 ## A LoopSpec at a glance
 

@@ -47,10 +47,15 @@ const runCli = (args) => {
 const help = runCli(["--help"]);
 const reportedVersion = runCli(["--version"]).trim();
 const targetOutput = runCli(["targets"]);
+const recipeOutput = runCli(["recipes"]);
 requireTruthy(reportedVersion === version, `loopc reports ${reportedVersion}; root is ${version}`);
 requireTruthy(help.includes(`loopc v${version}`), "CLI help does not report the release version");
 requireTruthy(help.includes(`${core.SUPPORTED_TARGETS.join(",")}|all`), "CLI help target list differs from core");
 for (const target of core.SUPPORTED_TARGETS) requireTruthy(targetOutput.includes(target), `loopc targets omits ${target}`);
+requireTruthy(core.BUILTIN_RECIPE_CATALOG.list().length === 6, "embedded recipe catalog does not contain six recipes");
+for (const recipe of core.BUILTIN_RECIPE_CATALOG.list()) {
+  requireTruthy(recipeOutput.includes(recipe.manifest.name), `loopc recipes omits ${recipe.manifest.name}`);
+}
 
 const docPaths = ["README.md", "SPEC.md", "docs/cli.md", "packages/cli/README.md"];
 for (const path of docPaths) {

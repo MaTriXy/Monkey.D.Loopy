@@ -4,8 +4,10 @@
  * contents, and receive a validated package or structured diagnostics.
  */
 import { z } from "zod";
+import { stringify as toYaml } from "yaml";
 import { loadSpecFromYaml } from "./pipeline.js";
 import type { LoopSpec } from "./types.js";
+import { BUILTIN_RECIPE_SOURCES } from "./recipe-catalog.generated.js";
 
 const NAME_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const INPUT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -223,4 +225,23 @@ export function createRecipeCatalog(sources: RecipeSource[]): RecipeCatalogResul
     },
     diagnostics: [],
   };
+}
+
+const builtinResult = createRecipeCatalog([...BUILTIN_RECIPE_SOURCES]);
+if (!builtinResult.ok) {
+  throw new Error(`invalid built-in recipe catalog: ${builtinResult.diagnostics.map((d) => `${d.path}: ${d.message}`).join("; ")}`);
+}
+
+/** The embedded, release-versioned recipe catalog available to CLI and MCP consumers. */
+export const BUILTIN_RECIPE_CATALOG: RecipeCatalog = builtinResult.catalog;
+
+/** Instantiate a canonical recipe under a user-selected loop id and preserve its origin. */
+export function instantiateRecipe(recipe: Recipe, id: string): string {
+  const spec = structuredClone(recipe.spec);
+  spec.id = id;
+  spec.provenance = {
+    ...spec.provenance,
+    recipe: { name: recipe.manifest.name, version: recipe.manifest.recipe },
+  };
+  return toYaml(spec);
 }

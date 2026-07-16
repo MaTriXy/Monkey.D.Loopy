@@ -5,6 +5,8 @@ export {
   RecipeManifestSchema,
   parseRecipeSource,
   createRecipeCatalog,
+  BUILTIN_RECIPE_CATALOG,
+  instantiateRecipe,
   type RecipeManifest,
   type RecipeSource,
   type Recipe,

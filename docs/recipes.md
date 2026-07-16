@@ -26,5 +26,25 @@ recipes/<name>/fixtures/
 
 The pure `@loopyc/core` APIs `parseRecipeSource()` and `createRecipeCatalog()` validate supplied
 file contents. They reject path traversal, invalid LoopSpecs, metadata/spec input or schedule drift,
-missing/aliased fixtures, and duplicate names. Filesystem discovery and CLI materialization stay in
-the I/O layer; execution still uses the recipe's ordinary LoopSpec.
+missing/aliased fixtures, and duplicate names. The release embeds the checked catalog in core so
+the published CLI and MCP server do not depend on a repository checkout; `pnpm recipes:check`
+rejects drift between the canonical packages above and the generated catalog.
+
+## Use a recipe
+
+```bash
+loopc recipes
+loopc new my-health-check --recipe repo-health-doctor
+loopc validate my-health-check.loop.yaml
+loopc verify my-health-check.loop.yaml
+loopc score my-health-check.loop.yaml
+```
+
+The MCP equivalents are `list_recipes` and `new_loop` with a `recipe` argument. Instantiation keeps
+the canonical behavior but changes the loop id and adds `provenance.recipe`; every compile target
+copies that metadata into `loop.lock`. Runtime execution still uses an ordinary LoopSpec and remains
+independent from the catalog.
+
+Before a real run, fill the required input(s) described by `loopc recipes` and the selected recipe's
+README. External checks must emit `pending`, `actionable`, `complete`, or `no-op` plus redacted
+`evidence`. Agent output never decides completion.

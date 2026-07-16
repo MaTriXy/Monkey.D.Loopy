@@ -398,6 +398,7 @@ function emitLockBaby(spec: LoopSpec): string {
         loopspec_version: spec.loopspec,
         factory_version: spec.provenance?.factory_version ?? FACTORY_VERSION,
         target: "babysitter",
+        recipe: spec.provenance?.recipe,
         signal: spec.terminate.signal,
         caps: spec.caps,
       },

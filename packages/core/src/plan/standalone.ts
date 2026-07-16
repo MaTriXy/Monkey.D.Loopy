@@ -329,6 +329,7 @@ function emitLock(spec: LoopSpec, vendor = false): string {
     vendor, // self-install mode — so `reprint` preserves zero-install instead of silently downgrading
     source: spec.provenance?.source,
     run_id: spec.provenance?.run_id,
+    recipe: spec.provenance?.recipe,
     signal: spec.terminate.signal,
     caps: spec.caps,
   };

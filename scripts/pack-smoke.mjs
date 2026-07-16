@@ -44,6 +44,11 @@ try {
   for (const target of ["standalone", "babysitter", "claude-code", "claude-native", "n8n"]) {
     requireTruthy(targets.includes(target), `packed loopc targets omits ${target}`);
   }
+  const recipes = run(loopc, ["recipes"], consumer);
+  requireTruthy(recipes.includes("repo-health-doctor"), "packed loopc omits the verified recipe catalog");
+  const recipeSpec = join(consumer, "packed-health.loop.yaml");
+  run(loopc, ["new", "packed-health", "--recipe", "repo-health-doctor", "--out", recipeSpec], consumer);
+  run(loopc, ["validate", recipeSpec], consumer);
 
   const spec = join(consumer, "release-smoke.yaml");
   writeFileSync(spec, `loopspec: "0.1"
@@ -93,9 +98,15 @@ const client = new Client({ name: "packed-smoke", version: ${JSON.stringify(rele
 const transport = new StdioClientTransport({ command: process.execPath, args: [${JSON.stringify(mcpEntry)}] });
 await client.connect(transport);
 const names = (await client.listTools()).tools.map((tool) => tool.name);
-for (const required of ["get_loop_schema", "compile_loop", "run_loop"]) {
+for (const required of ["get_loop_schema", "list_recipes", "new_loop", "compile_loop", "run_loop"]) {
   if (!names.includes(required)) throw new Error("packed MCP omits " + required);
 }
+const listed = await client.callTool({ name: "list_recipes", arguments: {} });
+const listedText = listed.content?.[0]?.text ?? "";
+if (!listedText.includes("repo-health-doctor")) throw new Error("packed MCP recipe catalog is empty");
+const created = await client.callTool({ name: "new_loop", arguments: { id: "packed-health", recipe: "repo-health-doctor" } });
+const createdText = created.content?.[0]?.text ?? "";
+if (!createdText.includes("name: repo-health-doctor")) throw new Error("packed MCP did not preserve recipe provenance");
 await client.close();
 `);
   run(process.execPath, [mcpSmoke], consumer);

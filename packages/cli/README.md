@@ -7,6 +7,8 @@ for runnable, crash-resumable agent loops.
 npm i -g @loopyc/cli
 
 loopc blueprints                    # starting points, one per loop pattern
+loopc recipes                       # verified product workflows
+loopc new repo-check --recipe repo-health-doctor
 loopc new my-watch --blueprint poll-until
 loopc validate my-watch.yaml        # refuses unbounded / unreachable loops
 loopc verify   my-watch.yaml        # dry-run proof: bounded · deterministic · resume-stable

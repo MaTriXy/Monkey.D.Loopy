@@ -26,6 +26,7 @@ describe("loopc-mcp", () => {
     for (const n of [
       "get_loop_schema",
       "list_blueprints",
+      "list_recipes",
       "new_loop",
       "validate_loop",
       "verify_loop",
@@ -102,6 +103,23 @@ describe("loopc-mcp", () => {
     const client = await connected();
     const res = await client.callTool({ name: "new_loop", arguments: { id: "my-loop", blueprint: "react" } });
     expect(firstText(res)).toContain("id: my-loop");
+  });
+
+  it("lists and instantiates verified recipes with durable provenance", async () => {
+    const client = await connected();
+    const listed = await client.callTool({ name: "list_recipes", arguments: {} });
+    expect(firstText(listed)).toContain("repo-health-doctor");
+    expect(firstText(listed)).toContain("minimum score=90");
+
+    const created = await client.callTool({
+      name: "new_loop",
+      arguments: { id: "my-health-check", recipe: "repo-health-doctor" },
+    });
+    const yaml = firstText(created);
+    expect(yaml).toContain("id: my-health-check");
+    expect(yaml).toContain("name: repo-health-doctor");
+    const validated = await client.callTool({ name: "validate_loop", arguments: { yaml } });
+    expect(validated.isError).toBeFalsy();
   });
 
   it("run_loop refuses to execute without confirm:true", async () => {

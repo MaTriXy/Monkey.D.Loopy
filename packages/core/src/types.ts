@@ -57,6 +57,8 @@ export interface Provenance {
   factory_version?: string;
   source?: string;
   run_id?: string;
+  /** Present when this LoopSpec was instantiated from a verified recipe. */
+  recipe?: { name: string; version: string };
 }
 
 export interface TargetSpec {

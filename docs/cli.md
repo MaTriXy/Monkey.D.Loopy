@@ -20,14 +20,24 @@ List the built-in starting-point templates (one per pattern).
 loopc blueprints
 ```
 
-### `loopc new <id> [--blueprint <name>] [--pattern <pattern>] [--from-shell "<cmd>" --until "<expr>"] [--out <file>]`
+### `loopc recipes`
+List the embedded verified product recipes with their schedule and minimum score.
+
+```bash
+loopc recipes
+```
+
+### `loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--from-shell "<cmd>" --until "<expr>"] [--out <file>]`
 Scaffold a LoopSpec. With `--blueprint`, copies that blueprint with `id` substituted; with
+`--recipe`, instantiates a verified workflow and records its origin in provenance; with
 `--from-shell` (+ required `--until`), scaffolds a loop that runs a command each iteration,
 saves its output to `state.out`, and exits on the condition; otherwise writes a minimal
-template for `--pattern` (default `react`). Writes to `<id>.loop.yaml` unless `--out` is given.
+template for `--pattern` (default `react`). Recipe, blueprint, and shell modes are mutually
+exclusive. Writes to `<id>.loop.yaml` unless `--out` is given.
 
 ```bash
 loopc new deploy-watch --blueprint poll-until --out deploy-watch.yaml
+loopc new repo-check --recipe repo-health-doctor
 loopc new poller --from-shell "curl -s $URL/health" --until '${state.out.ready == true}'
 ```
 

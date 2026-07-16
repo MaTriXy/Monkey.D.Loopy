@@ -11,9 +11,11 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  BUILTIN_RECIPE_CATALOG,
   FACTORY_VERSION,
   formatValidation,
   getBlueprint,
+  instantiateRecipe,
   listBlueprints,
   loadSpecFromYaml,
   LOOPSPEC_GUIDE,
@@ -106,16 +108,39 @@ export function createServer(): McpServer {
   );
 
   server.tool(
+    "list_recipes",
+    "List verified, outcome-oriented recipes with their schedule, safety boundary, required inputs, and minimum score.",
+    {},
+    async () =>
+      text(
+        BUILTIN_RECIPE_CATALOG.list()
+          .map((recipe) => {
+            const m = recipe.manifest;
+            const required = m.inputs.filter((input) => input.required).map((input) => input.name).join(", ") || "none";
+            return `${m.name}\n  ${m.summary}\n  schedule=${m.schedule.mode} · required=${required} · minimum score=${m.minimum_score}\n  safety=${m.safety.rationale}`;
+          })
+          .join("\n\n")
+      )
+  );
+
+  server.tool(
     "new_loop",
     "Scaffold a LoopSpec YAML, either from a named blueprint (id substituted) or as a minimal template for the given pattern.",
     {
       id: z.string().describe("kebab-case loop id"),
       blueprint: z.string().optional(),
+      recipe: z.string().optional().describe("verified recipe name from list_recipes"),
       pattern: z
         .enum(["react", "plan-execute-reflect", "evaluator-optimizer", "loop-until-dry", "map-reduce", "poll-until", "cron"])
         .optional(),
     },
-    async ({ id, blueprint, pattern }) => {
+    async ({ id, blueprint, recipe, pattern }) => {
+      if (blueprint && recipe) return text("choose either recipe or blueprint, not both", true);
+      if (recipe) {
+        const found = BUILTIN_RECIPE_CATALOG.get(recipe);
+        if (!found) return text(`unknown recipe '${recipe}'. Use list_recipes.`, true);
+        return text(instantiateRecipe(found, id));
+      }
       if (blueprint) {
         const bp = getBlueprint(blueprint);
         if (!bp) return text(`unknown blueprint '${blueprint}'. Use list_blueprints.`, true);
