@@ -654,6 +654,13 @@ describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not
     expect((unwrapAgentText("all done") as { result?: string }).result).toBe("all done");
   });
 
+  it("unwrapAgentText drops model-authored usage so text-only CLIs cannot poison budget meters", () => {
+    expect(unwrapAgentText('{"done":true,"usage":{"tokens":0,"usd":0}}')).toEqual({ done: true });
+    expect(
+      unwrapAgentText("```json\n{\"ok\":1,\"usage\":{\"tokens\":999999,\"usd\":999999}}\n```")
+    ).toEqual({ ok: 1 });
+  });
+
   it("a named CLI harness (codex) shells out via execFile, with a per-tool binary override", async () => {
     // point the codex binary at `echo`; AGENT_CLIS.codex builds argv ["exec", prompt].
     process.env.LOOPY_CODEX_BIN = "echo";

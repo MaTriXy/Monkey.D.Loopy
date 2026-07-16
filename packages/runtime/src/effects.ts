@@ -164,7 +164,14 @@ export function unwrapAgentText(stdout: string): AgentResult {
   const t = stripFences(stdout.trim());
   try {
     const parsed = JSON.parse(t);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as AgentResult;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const value = parsed as AgentResult;
+      // Text-only coding-agent CLIs provide no trusted usage envelope. A top-level `usage` here is
+      // model-authored content, and returning it would let prompt-injected output zero or inflate
+      // the runtime's budget meter. Preserve the model result but never treat its usage as trusted.
+      delete (value as Record<string, unknown>).usage;
+      return value;
+    }
   } catch {
     /* not JSON — fall through to plain text */
   }
