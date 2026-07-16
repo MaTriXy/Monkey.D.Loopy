@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "release-follow-up",
+  "title": "Release Follow-up",
+  "summary": "Watch release checks to a terminal state and prepare bounded remediation when external evidence requires action.",
+  "inputs": [
+    { "name": "status_url", "description": "Trusted endpoint returning release status/evidence.", "required": true, "example": "https://ci.example.test/releases/current" },
+    { "name": "report_path", "description": "Repository-relative Markdown report path.", "required": false, "example": "output/release-follow-up.md" }
+  ],
+  "schedule": { "mode": "forever", "cadence": "every 2 minutes", "rationale": "Follow an in-flight release until external checks settle." },
+  "evidence": [{ "name": "release-gates", "source": "release status service", "grounding": "external", "description": "Build, publish, rollout, smoke, and rollback status from authoritative systems." }],
+  "expected_artifacts": [
+    { "name": "release-report", "path": "output/release-follow-up.md", "format": "markdown", "description": "Release timeline, remediation, verification, and unresolved risks." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "The agent can prepare remediation but cannot publish, promote, or roll back without approval.", "destructive_actions": "approval-required", "secrets": "Status responses and reports must omit release credentials and secret values." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}

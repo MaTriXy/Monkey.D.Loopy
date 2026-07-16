@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "market-signal-monitor",
+  "title": "Market Signal Monitor",
+  "summary": "Turn externally collected, source-linked market signals into a bounded daily brief.",
+  "inputs": [
+    { "name": "signal_url", "description": "Trusted endpoint returning source-linked signal status/evidence.", "required": true, "example": "https://research.example.test/signals/daily" },
+    { "name": "report_path", "description": "Repository-relative Markdown brief path.", "required": false, "example": "output/market-signals.md" }
+  ],
+  "schedule": { "mode": "cron", "cadence": "0 9 * * *", "rationale": "Produce one bounded brief each morning." },
+  "evidence": [{ "name": "source-linked-signals", "source": "research collection service", "grounding": "external", "description": "Dated signals with canonical source URLs and collection metadata." }],
+  "expected_artifacts": [
+    { "name": "market-brief", "path": "output/market-signals.md", "format": "markdown", "description": "Claims, source links, confidence, counter-evidence, and open questions." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "The monitor summarizes evidence and must not execute financial or publishing actions.", "destructive_actions": "none", "secrets": "Collection credentials stay outside the payload; redact personal or licensed data." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}

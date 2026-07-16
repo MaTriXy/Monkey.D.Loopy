@@ -1,0 +1,17 @@
+{
+  "scenario": "cap",
+  "inputs": {},
+  "effect_results": [
+    {
+      "status": "pending",
+      "evidence": {
+        "finding": "external gate still pending"
+      }
+    }
+  ],
+  "expect": {
+    "status": "stopped",
+    "reason": "no_progress",
+    "agent_calls": 0
+  }
+}

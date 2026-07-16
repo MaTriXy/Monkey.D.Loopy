@@ -1,0 +1,14 @@
+{
+  "scenario": "malformed-evidence",
+  "inputs": {},
+  "effect_results": [
+    {
+      "unexpected": true
+    }
+  ],
+  "expect": {
+    "status": "stopped",
+    "reason": "no_progress",
+    "agent_calls": 0
+  }
+}

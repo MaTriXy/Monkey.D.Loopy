@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "dependency-guardian",
+  "title": "Dependency Guardian",
+  "summary": "Evaluate dependency updates from external policy evidence and prepare reviewable changes without merging them.",
+  "inputs": [
+    { "name": "evaluation_url", "description": "Trusted endpoint returning dependency policy status/evidence.", "required": true, "example": "https://ci.example.test/dependencies" },
+    { "name": "report_path", "description": "Repository-relative Markdown report path.", "required": false, "example": "output/dependency-review.md" }
+  ],
+  "schedule": { "mode": "watch", "cadence": "on dependency update", "rationale": "Evaluate each newly proposed dependency change." },
+  "evidence": [{ "name": "dependency-policy", "source": "dependency policy service", "grounding": "external", "description": "Version, provenance, vulnerability, license, and test policy result." }],
+  "expected_artifacts": [
+    { "name": "dependency-review", "path": "output/dependency-review.md", "format": "markdown", "description": "Risk assessment and validation evidence." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "The agent may prepare a change but must never merge, publish, or bypass policy.", "destructive_actions": "approval-required", "secrets": "Credentials belong in the environment; evidence and reports must be redacted." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}

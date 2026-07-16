@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "production-error-sweep",
+  "title": "Production Error Sweep",
+  "summary": "Continuously triage redacted production error summaries and prepare bounded fixes for external verification.",
+  "inputs": [
+    { "name": "summary_url", "description": "Authenticated endpoint returning redacted error status/evidence.", "required": true, "secret": false, "example": "https://ops.example.test/errors/summary" },
+    { "name": "report_path", "description": "Repository-relative Markdown report path.", "required": false, "example": "output/production-errors.md" }
+  ],
+  "schedule": { "mode": "forever", "cadence": "every 5 minutes", "rationale": "Keep watching until the external error gate reports settled." },
+  "evidence": [{ "name": "error-summary", "source": "redacted observability summary", "grounding": "external", "description": "Aggregated fingerprints, counts, deployment context, and external verification state." }],
+  "expected_artifacts": [
+    { "name": "triage-report", "path": "output/production-errors.md", "format": "markdown", "description": "Findings, minimal repair, verification, and rollback notes." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "Only redacted summaries enter the loop; deployment and destructive actions require approval.", "destructive_actions": "approval-required", "secrets": "Fetch credentials from environment bindings and never place raw logs, tokens, or personal data in state, prompts, journals, or reports." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}

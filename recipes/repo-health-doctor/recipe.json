@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "repo-health-doctor",
+  "title": "Repository Health Doctor",
+  "summary": "Run a deterministic repository check and ask an agent for a bounded repair only when evidence is actionable.",
+  "inputs": [
+    { "name": "check_command", "description": "Trusted repository health command that prints status/evidence JSON.", "required": true, "example": "./scripts/doctor-json.sh" },
+    { "name": "report_path", "description": "Repository-relative Markdown report path.", "required": false, "example": "output/repo-health.md" }
+  ],
+  "schedule": { "mode": "manual", "rationale": "Run explicitly after checkout, upgrade, or CI failure." },
+  "evidence": [{ "name": "health-check", "source": "trusted local command", "grounding": "external", "description": "Structured status and diagnostic evidence emitted by the repository-owned checker." }],
+  "expected_artifacts": [
+    { "name": "health-report", "path": "output/repo-health.md", "format": "markdown", "description": "Diagnosis, changes, and remaining risks." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "External checks decide completion; the agent receives no authority to weaken or skip them.", "destructive_actions": "approval-required", "secrets": "The checker must redact secrets before emitting evidence." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}

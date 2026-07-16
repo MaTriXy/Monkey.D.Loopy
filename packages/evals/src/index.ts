@@ -26,6 +26,7 @@ import {
   usedCapabilities,
 } from "@loopyc/core";
 import { scoreLoop, verifyLoop } from "@loopyc/verify";
+import { recipeEval } from "./recipe-eval.js";
 
 export interface EvalResult {
   name: string;
@@ -233,4 +234,5 @@ export const ALL_EVALS: { name: string; run: () => Promise<EvalResult> }[] = [
   { name: "capability-honesty", run: async () => capabilityEval() },
   { name: "validator-negative-corpus", run: async () => negativeEval() },
   { name: "grounding-honesty", run: groundingEval },
+  { name: "verified-recipes", run: recipeEval },
 ];

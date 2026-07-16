@@ -1,0 +1,16 @@
+{
+  "scenario": "no-op",
+  "inputs": {},
+  "effect_results": [
+    {
+      "status": "no-op",
+      "evidence": {
+        "finding": "nothing to change"
+      }
+    }
+  ],
+  "expect": {
+    "status": "completed",
+    "agent_calls": 0
+  }
+}

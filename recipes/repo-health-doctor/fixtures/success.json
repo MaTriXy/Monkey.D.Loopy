@@ -1,0 +1,22 @@
+{
+  "scenario": "success",
+  "inputs": {},
+  "effect_results": [
+    {
+      "status": "actionable",
+      "evidence": {
+        "finding": "externally verified work is required"
+      }
+    },
+    {
+      "status": "complete",
+      "evidence": {
+        "verification": "external gate passed"
+      }
+    }
+  ],
+  "expect": {
+    "status": "completed",
+    "agent_calls": 1
+  }
+}

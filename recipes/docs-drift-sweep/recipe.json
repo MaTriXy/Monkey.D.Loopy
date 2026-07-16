@@ -1,0 +1,19 @@
+{
+  "recipe": "1",
+  "name": "docs-drift-sweep",
+  "title": "Documentation Drift Sweep",
+  "summary": "Compare documentation with repository facts and repair only externally detected drift.",
+  "inputs": [
+    { "name": "drift_command", "description": "Trusted command returning documentation drift status/evidence JSON.", "required": true, "example": "./scripts/docs-drift-json.sh" },
+    { "name": "report_path", "description": "Repository-relative Markdown report path.", "required": false, "example": "output/docs-drift.md" }
+  ],
+  "schedule": { "mode": "manual", "rationale": "Run before releases or after public API and behavior changes." },
+  "evidence": [{ "name": "docs-diff", "source": "repository documentation checker", "grounding": "external", "description": "Machine-derived mismatches between docs and repository facts." }],
+  "expected_artifacts": [
+    { "name": "drift-report", "path": "output/docs-drift.md", "format": "markdown", "description": "Updated documents and source evidence." },
+    { "name": "run-journal", "path": ".loopy/runs/default/journal.jsonl", "format": "jsonl", "description": "Durable execution and effect audit trail." }
+  ],
+  "safety": { "rationale": "Repository facts remain authoritative and agent prose cannot declare the sweep complete.", "destructive_actions": "approval-required", "secrets": "Exclude secret files and redact any sensitive command output." },
+  "minimum_score": 90,
+  "fixtures": { "success": "fixtures/success.json", "no_op": "fixtures/no-op.json", "cap": "fixtures/cap.json", "malformed_evidence": "fixtures/malformed-evidence.json", "prompt_injection": "fixtures/prompt-injection.json" }
+}
