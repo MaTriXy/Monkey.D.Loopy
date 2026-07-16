@@ -23,6 +23,7 @@ import type { Adapter, PlanResult, PlannedFile } from "./types.js";
 import { capabilityWarnings } from "./types.js";
 import { emitGuard, emitOnDone, emitTemplate } from "./step-emit.js";
 import { parseDuration } from "../duration.js";
+import { FACTORY_VERSION } from "../version.js";
 import type { CapAction, ExitAction, Gate, LoopSpec, Step } from "../types.js";
 
 const SDK_VERSION = "^0.0.188";
@@ -328,7 +329,7 @@ function emitPackageJsonBaby(spec: LoopSpec): string {
     JSON.stringify(
       {
         name: `${spec.id}-babysitter-loop`,
-        version: spec.meta?.version ?? "0.1.0",
+        version: spec.meta?.version ?? FACTORY_VERSION,
         private: true,
         type: "module",
         description: spec.meta?.description ?? `Generated babysitter process: ${spec.id}`,
@@ -395,7 +396,7 @@ function emitLockBaby(spec: LoopSpec): string {
       {
         loop_id: spec.id,
         loopspec_version: spec.loopspec,
-        factory_version: spec.provenance?.factory_version ?? "0.1.0",
+        factory_version: spec.provenance?.factory_version ?? FACTORY_VERSION,
         target: "babysitter",
         signal: spec.terminate.signal,
         caps: spec.caps,

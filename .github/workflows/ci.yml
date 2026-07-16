@@ -31,3 +31,7 @@ jobs:
         run: pnpm eval
       - name: Build (dist for all packages)
         run: pnpm build
+      - name: Release parity (versions, CLI, targets, docs)
+        run: pnpm release:check
+      - name: Packed consumer smoke (all targets, Claude-native, standalone run)
+        run: pnpm release:pack-smoke

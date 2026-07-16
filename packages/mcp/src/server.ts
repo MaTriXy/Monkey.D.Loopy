@@ -11,6 +11,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  FACTORY_VERSION,
   formatValidation,
   getBlueprint,
   listBlueprints,
@@ -88,7 +89,7 @@ function fence(s: string): string {
 }
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: "loopc-mcp", version: "0.1.0" });
+  const server = new McpServer({ name: "loopc-mcp", version: FACTORY_VERSION });
 
   server.tool(
     "get_loop_schema",

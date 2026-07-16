@@ -1,7 +1,7 @@
 {
   "name": "monkey-d-loopy",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -17,7 +17,9 @@
     "test": "pnpm -r test",
     "eval": "pnpm --filter @loopyc/evals eval",
     "eval:skill": "pnpm --filter @loopyc/evals eval:skill",
-    "loopc": "pnpm --filter @loopyc/cli exec loopc"
+    "loopc": "pnpm --filter @loopyc/cli exec loopc",
+    "release:check": "node scripts/check-release-parity.mjs",
+    "release:pack-smoke": "node scripts/pack-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

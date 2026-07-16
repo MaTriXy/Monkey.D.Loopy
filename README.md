@@ -134,11 +134,11 @@ One spec, `compile --target all`, five runnable forms:
 
 | Target | What it emits |
 |---|---|
-| **standalone** | A self-contained Node project running on `@loopyc/runtime` — the durable engine (journal, replay, caps, sleep, breakpoints). Add `--vendor` for a zero-install bundle. |
-| **supervised process** | A durable long-running process for a process-supervisor runtime. |
-| **coding-agent guide** | A prose execution guide any coding agent follows step by step. |
-| **Claude Code-native skill** | A project skill under `.claude/skills/<loop>/SKILL.md`, invokable as `/<loop>`, with a hybrid handoff to standalone when available. |
-| **workflow** | An importable workflow JSON for a visual automation tool. |
+| **`standalone`** | A self-contained Node project running on `@loopyc/runtime` — the durable engine (journal, replay, caps, sleep, breakpoints). Add `--vendor` for a zero-install bundle. |
+| **`babysitter`** | A durable long-running process for the Babysitter process-supervisor runtime. |
+| **`claude-code`** | A prose execution guide a coding agent follows step by step. |
+| **`claude-native`** | A Claude Code project skill under `.claude/skills/<loop>/SKILL.md`, invokable as `/<loop>`, with a hybrid handoff to standalone when available. |
+| **`n8n`** | An importable n8n workflow JSON for visual automation. |
 
 ## Claude Code-native skills
 
@@ -252,8 +252,11 @@ pnpm -r test          # vitest (unit · golden codegen · security · runtime ·
 pnpm eval             # property-based + capability + negative evals (graded by the real code)
 pnpm eval:skill       # NL→spec authoring quality (live with any provider key, else golden)
 pnpm build            # tsup → dist/ for every package (ESM + .d.ts; bins get a node shebang)
+pnpm release:check    # 0.1.1 versions + CLI/help/targets/docs parity
+pnpm release:pack-smoke # clean consumer installs tarballs and exercises every target
 ```
 
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
+Release `0.1.1` also gates on repository-to-tarball parity and a clean packed-consumer smoke.

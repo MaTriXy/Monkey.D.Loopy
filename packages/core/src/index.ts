@@ -1,5 +1,6 @@
 /** Public API of @loopyc/core — the pure, zero-I/O brain of Monkey D Loopy. */
 
+export { FACTORY_VERSION } from "./version.js";
 export * from "./types.js";
 export { LoopSpecSchema, parseLoopSpec, type RawLoopSpec, type ParseOk, type ParseErr } from "./schema.js";
 export { normalize, asLoopSpec, type NormalizedSpec } from "./normalize.js";

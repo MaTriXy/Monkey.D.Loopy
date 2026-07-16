@@ -15,6 +15,7 @@ import type {
 import { capabilityWarnings } from "./types.js";
 import { emitGuard, emitHttpReq, emitOnDone, emitSave, emitTemplate, emitValue } from "./step-emit.js";
 import { parseDuration } from "../duration.js";
+import { FACTORY_VERSION } from "../version.js";
 import type {
   ExitAction,
   Gate,
@@ -230,7 +231,7 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
 function emitPackageJson(spec: LoopSpec, vendor = false): string {
   const pkg = {
     name: `${spec.id}-loop`,
-    version: spec.meta?.version ?? "0.1.0",
+    version: spec.meta?.version ?? FACTORY_VERSION,
     private: true,
     type: "module",
     description: spec.meta?.description ?? `Generated loop: ${spec.id}`,
@@ -245,7 +246,7 @@ function emitPackageJson(spec: LoopSpec, vendor = false): string {
     },
     // In vendor mode the runtime is bundled into runtime.bundle.mjs, so there are no deps to
     // install — the artifact runs with plain `node`, no npm install, empty node_modules.
-    dependencies: vendor ? {} : { "@loopyc/runtime": "^0.1.0" },
+    dependencies: vendor ? {} : { "@loopyc/runtime": `^${FACTORY_VERSION}` },
   };
   return JSON.stringify(pkg, null, 2) + "\n";
 }
@@ -323,7 +324,7 @@ function emitLock(spec: LoopSpec, vendor = false): string {
   const lock = {
     loop_id: spec.id,
     loopspec_version: spec.loopspec,
-    factory_version: spec.provenance?.factory_version ?? "0.1.0",
+    factory_version: spec.provenance?.factory_version ?? FACTORY_VERSION,
     target: "standalone",
     vendor, // self-install mode — so `reprint` preserves zero-install instead of silently downgrading
     source: spec.provenance?.source,

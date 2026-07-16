@@ -42,10 +42,13 @@ jobs:
           pnpm -r typecheck
           pnpm -r test
           pnpm eval
+          pnpm build
+          pnpm release:check
+          pnpm release:pack-smoke
       - name: Pack (pnpm rewrites workspace:* to real versions)
         run: |
           mkdir -p /tmp/tarballs
-          for p in core runtime verify infer cli mcp; do
+          for p in $(node scripts/list-public-package-dirs.mjs); do
             (cd packages/$p && pnpm pack --pack-destination /tmp/tarballs)
           done
       - name: Publish with provenance (skips already-published versions)

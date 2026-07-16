@@ -17,9 +17,8 @@ loopc run      my-watch.yaml -i status_url=https://...
 
 The load-bearing rule: **the compiler will not emit an unbounded loop.** Termination is
 required, caps are mandatory, and the dry-run proves both before anything real executes.
-Compile targets: a standalone Node project (add `--vendor` for a zero-install bundle), a
-supervised process, a coding-agent execution guide, a Claude Code-native slash skill, or a
-workflow JSON.
+Compile targets: `standalone` (add `--vendor` for a zero-install bundle), `babysitter`,
+`claude-code`, `claude-native`, and `n8n`.
 
 For Claude Code-native loops, `loopc compile --target claude-native` emits
 `.claude/skills/<loop>/SKILL.md` plus the embedded LoopSpec reference. Copy the generated

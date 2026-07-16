@@ -10,6 +10,7 @@ describe("parseArgs", () => {
   });
   it("treats known booleans and value-less flags as true", () => {
     expect(parseArgs(["--help"]).flags.help).toBe(true);
+    expect(parseArgs(["--version"]).flags.version).toBe(true);
     expect(parseArgs(["--all"]).flags.all).toBe(true);
     expect(parseArgs(["validate", "--fix"]).flags.fix).toBe(true);
   });

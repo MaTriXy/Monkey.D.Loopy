@@ -7,6 +7,8 @@ pnpm exec tsx packages/cli/src/index.ts <command> [args]
 # (shown below as `loopc <command>`)
 ```
 
+Release `0.1.1` reports its synchronized factory version with `loopc --version`.
+
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
 ---

@@ -15,6 +15,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import {
   CAPABILITY_MATRIX,
+  FACTORY_VERSION,
   formatValidation,
   getBlueprint,
   listBlueprints,
@@ -30,7 +31,9 @@ import { flagString, parseArgs } from "./args.js";
 import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
 import { inferScaffold } from "@loopyc/infer";
 
-const USAGE = `loopc — factory for runnable agent loops
+const TARGET_ARG = `${SUPPORTED_TARGETS.join(",")}|all`;
+
+const USAGE = `loopc v${FACTORY_VERSION} — factory for runnable agent loops
 
 Usage:
   loopc new <id> [--blueprint <name>] [--pattern <pattern>] [--out <file>]
@@ -40,7 +43,7 @@ Usage:
   loopc score <spec.yaml>
   loopc run <spec.yaml> [--out <dir>] [--inputs <file.json>] [--approve] [--yes] [--run-id <id>]
   loopc inspect <dir> [--tail <n>] [--run-id <id>]
-  loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>] [--vendor]
+  loopc compile <spec.yaml> [--target ${TARGET_ARG}] [--out <dir>] [--vendor]
   loopc schedule install <dir>   (print the host trigger to fire a scheduled loop on a cadence)
   loopc reprint <artifact-dir> [--target <t>] [--out <dir>]   (recompile under this factory)
   loopc infer-scaffold <script-or-journal> [--out <draft.yaml>]   (draft a spec from a script/trace)
@@ -53,9 +56,14 @@ export async function run(argv: string[]): Promise<number> {
   const { positionals, flags } = parseArgs(argv);
   const cmd = positionals[0];
 
+  if (flags.version || cmd === "version") {
+    console.log(FACTORY_VERSION);
+    return 0;
+  }
+
   if (!cmd || flags.help) {
     console.log(USAGE);
-    return cmd ? 0 : 1;
+    return flags.help || cmd ? 0 : 1;
   }
 
   switch (cmd) {
