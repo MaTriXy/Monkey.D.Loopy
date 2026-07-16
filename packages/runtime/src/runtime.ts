@@ -12,6 +12,9 @@ import {
   builtinHarnesses,
   execHttp,
   execShell,
+  resolveAgentExecLimits,
+  resolveAgentTimeoutMs,
+  DEFAULT_LLM_TIMEOUT_MS,
   resolveLlm,
   type AgentHarness,
   type AgentRequest,
@@ -963,6 +966,14 @@ export class Runtime {
       }
     }
     lines.push(`  ✓ max_iterations: ${caps.max_iterations}`);
+    try {
+      const limits = resolveAgentExecLimits();
+      const llmTimeoutMs = resolveAgentTimeoutMs(process.env, DEFAULT_LLM_TIMEOUT_MS);
+      lines.push(`  ✓ agent limits: cliTimeout=${limits.timeoutMs}ms, llmTimeout=${llmTimeoutMs}ms, cliMaxBuffer=${limits.maxBufferBytes} bytes`);
+    } catch (e) {
+      ok = false;
+      lines.push(`  ✗ invalid agent limits: ${(e as Error).message}`);
+    }
     lines.push(`  ℹ termination signal: ${this.config.spec.signal ?? "(unset)"}`);
     lines.push(`  ℹ node: ${process.version}`);
     console.log(lines.join("\n"));

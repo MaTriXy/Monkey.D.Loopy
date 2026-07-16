@@ -200,6 +200,9 @@ Agent steps are **provider- and tool-agnostic** — choose at runtime, nothing i
 - **Any coding agent.** For a full file-editing, tool-running harness, drive **any** coding-agent
   CLI with your exact flags via `LOOPY_AGENT_CMD`. No harness is the default — pick the tool you
   run; nothing is hardcoded.
+- **Explicit agent limits.** Configure built-in harnesses with `LOOPY_AGENT_TIMEOUT_MS` and
+  `LOOPY_AGENT_MAX_BUFFER`. `doctor` reports the effective values, and a tripped limit names the
+  exact control instead of looking like a generic tool failure.
 
 ## Packages
 

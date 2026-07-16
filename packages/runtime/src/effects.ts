@@ -28,6 +28,47 @@ export interface AgentResult {
 
 export type AgentHarness = (req: AgentRequest) => Promise<AgentResult>;
 
+export interface AgentExecLimits {
+  timeoutMs: number;
+  maxBufferBytes: number;
+}
+
+export const DEFAULT_AGENT_TIMEOUT_MS = 600_000;
+export const DEFAULT_AGENT_MAX_BUFFER = 16 * 1024 * 1024;
+export const DEFAULT_LLM_TIMEOUT_MS = 120_000;
+
+function positiveIntegerEnv(
+  env: Record<string, string | undefined>,
+  name: string,
+  fallback: number
+): number {
+  const raw = env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer; got '${raw}'`);
+  }
+  return value;
+}
+
+/** Resolve an agent timeout override while allowing each harness family to preserve its default. */
+export function resolveAgentTimeoutMs(
+  env: Record<string, string | undefined> = process.env,
+  fallback = DEFAULT_AGENT_TIMEOUT_MS
+): number {
+  return positiveIntegerEnv(env, "LOOPY_AGENT_TIMEOUT_MS", fallback);
+}
+
+/** Resolve the process limits for built-in coding-agent CLI harnesses. */
+export function resolveAgentExecLimits(
+  env: Record<string, string | undefined> = process.env
+): AgentExecLimits {
+  return {
+    timeoutMs: resolveAgentTimeoutMs(env),
+    maxBufferBytes: positiveIntegerEnv(env, "LOOPY_AGENT_MAX_BUFFER", DEFAULT_AGENT_MAX_BUFFER),
+  };
+}
+
 export interface HttpRequestSpec {
   method: string;
   url: string;
@@ -226,18 +267,49 @@ const AGENT_CLIS: Record<string, AgentCli> = {
   "cursor-agent": { bin: "cursor-agent", buildArgs: (req) => ["-p", "--force", req.prompt], unwrap: unwrapAgentText },
 };
 
-const EXEC_OPTS = { encoding: "utf8" as const, maxBuffer: 1024 * 1024 * 16, timeout: 600_000, killSignal: "SIGKILL" as const };
+function agentExecOptions(limits: AgentExecLimits) {
+  return {
+    encoding: "utf8" as const,
+    maxBuffer: limits.maxBufferBytes,
+    timeout: limits.timeoutMs,
+    killSignal: "SIGKILL" as const,
+  };
+}
+
+type AgentExecError = Error & {
+  code?: string | number | null;
+  killed?: boolean;
+  signal?: string | null;
+};
+
+function agentExecFailure(name: string, bin: string, error: unknown, limits: AgentExecLimits): Error {
+  const err = error as AgentExecError;
+  if (err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" || /maxBuffer/i.test(err.message)) {
+    return new Error(
+      `agent step exceeded LOOPY_AGENT_MAX_BUFFER (${limits.maxBufferBytes} bytes) in harness '${name}' while running '${bin}'`
+    );
+  }
+  if (err.killed && err.signal === "SIGKILL") {
+    return new Error(
+      `agent step exceeded LOOPY_AGENT_TIMEOUT_MS (${limits.timeoutMs}ms) in harness '${name}' while running '${bin}'`
+    );
+  }
+  return new Error(
+    `agent harness '${name}' failed while running '${bin}' (is the CLI installed and authenticated?): ${err.message}`
+  );
+}
 
 /** Build an AgentHarness that shells out to a coding-agent CLI via execFile (no shell). */
 function makeCliHarness(name: string, cli: AgentCli): AgentHarness {
   const envBin = `LOOPY_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_BIN`;
   return async (req) => {
     const bin = (process.env[envBin] || cli.bin).trim();
+    const limits = resolveAgentExecLimits();
     try {
-      const { stdout } = await execFileAsync(bin, cli.buildArgs(req), EXEC_OPTS);
+      const { stdout } = await execFileAsync(bin, cli.buildArgs(req), agentExecOptions(limits));
       return cli.unwrap(stdout);
     } catch (e) {
-      throw new Error(`agent harness '${name}' failed (is the '${bin}' CLI installed and authenticated?): ${(e as Error).message}`);
+      throw agentExecFailure(name, bin, e, limits);
     }
   };
 }
@@ -256,11 +328,12 @@ const genericCliHarness: AgentHarness = async (req) => {
     );
   }
   const [bin, ...baseArgs] = cmd.split(/\s+/);
+  const limits = resolveAgentExecLimits();
   try {
-    const { stdout } = await execFileAsync(bin!, [...baseArgs, req.prompt], EXEC_OPTS);
+    const { stdout } = await execFileAsync(bin!, [...baseArgs, req.prompt], agentExecOptions(limits));
     return unwrapAgentText(stdout);
   } catch (e) {
-    throw new Error(`agent harness 'cli' (LOOPY_AGENT_CMD='${cmd}') failed: ${(e as Error).message}`);
+    throw agentExecFailure("cli", bin!, e, limits);
   }
 };
 
@@ -456,6 +529,7 @@ export async function chatComplete(
   opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number; stream?: boolean }
 ): Promise<{ text: string; usage?: { tokens?: number; usd?: number } }> {
   const maxTokens = opts?.maxTokens ?? 2000;
+  const timeoutMs = opts?.timeoutMs ?? 120_000;
   const reasoning = isReasoningModel(cfg.model);
   const body: Record<string, unknown> = {
     model: cfg.model,
@@ -471,7 +545,7 @@ export async function chatComplete(
   // effectTimeoutMs only covers http/shell, not the agent harness). The timeout spans the full
   // body read (incl. the stream) so a slow trickle still aborts.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), opts?.timeoutMs ?? 120_000);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: "POST",
@@ -489,6 +563,9 @@ export async function chatComplete(
       return parseCompletion(cfg, JSON.parse(streamed.raw) as CompletionJson);
     }
     return parseCompletion(cfg, (await res.json()) as CompletionJson);
+  } catch (e) {
+    if (ctrl.signal.aborted) throw new Error(`LLM request exceeded timeout (${timeoutMs}ms)`);
+    throw e;
   } finally {
     clearTimeout(timer);
   }
@@ -513,12 +590,22 @@ const llmHarness: AgentHarness = async (req) => {
   // budget metering while streaming relies on the provider honoring stream_options.include_usage
   // (chatComplete requests it) — providers that omit the final usage chunk leave the call unmetered.
   const stream = /^(1|true|yes|on)$/i.test((process.env.LOOPY_LLM_STREAM ?? "").trim());
-  const { text, usage } = await chatComplete(
-    cfg,
-    "You are executing one step of an agent loop. If the step needs a structured result, reply with a single JSON object; otherwise reply with plain text.",
-    req.prompt,
-    stream ? { stream: true } : undefined
-  );
+  const timeoutMs = resolveAgentTimeoutMs(process.env, DEFAULT_LLM_TIMEOUT_MS);
+  let completion: Awaited<ReturnType<typeof chatComplete>>;
+  try {
+    completion = await chatComplete(
+      cfg,
+      "You are executing one step of an agent loop. If the step needs a structured result, reply with a single JSON object; otherwise reply with plain text.",
+      req.prompt,
+      { timeoutMs, ...(stream ? { stream: true } : {}) }
+    );
+  } catch (e) {
+    if ((e as Error).message.startsWith("LLM request exceeded timeout")) {
+      throw new Error(`agent step exceeded LOOPY_AGENT_TIMEOUT_MS (${timeoutMs}ms) in harness 'llm'`);
+    }
+    throw e;
+  }
+  const { text, usage } = completion;
   let value: AgentResult;
   try {
     // models very often wrap JSON in ```json fences; strip them so `save: { x: "$.field" }` works.

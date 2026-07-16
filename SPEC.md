@@ -341,6 +341,9 @@ Deliberately deferred (documented, tracked for M2+):
   - **n8n fidelity:** agent/breakpoint/reduce emitted `noOp` and http dropped headers/body — now
     real nodes (httpRequest with headers+body, OpenAI-compat agent, Wait, SplitInBatches with a
     wired body) and a real lowered IF condition.
+  - **Agent execution limits:** `LOOPY_AGENT_TIMEOUT_MS` and `LOOPY_AGENT_MAX_BUFFER` replace the
+    opaque hard-coded coding-agent limits; built-in CLI and LLM timeout errors now name the exact
+    limit and effective value, and `doctor` validates/reports the configuration.
   - **llm harness:** keyless local endpoints, markdown-fence stripping, a request timeout, and
     `max_completion_tokens` for reasoning models; claude-code now passes `--allowedTools`.
   - **Validation/durability/infer:** `item` outside a reduce, reduce-alias reserved words,

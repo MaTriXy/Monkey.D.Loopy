@@ -26,12 +26,18 @@ export {
   BUILTIN_HARNESS_NAMES,
   resolveLlm,
   chatComplete,
+  resolveAgentExecLimits,
+  resolveAgentTimeoutMs,
+  DEFAULT_AGENT_TIMEOUT_MS,
+  DEFAULT_AGENT_MAX_BUFFER,
+  DEFAULT_LLM_TIMEOUT_MS,
   type AgentHarness,
   type AgentRequest,
   type AgentResult,
   type HttpRequestSpec,
   type ShellCommand,
   type LlmConfig,
+  type AgentExecLimits,
 } from "./effects.js";
 export { Journal, type JournalEvent, type JournalEventType } from "./journal.js";
 export { MODEL_PRICING, normalizeModel, priceUsd, isCostMeterable, type ModelPrice } from "./pricing.js";

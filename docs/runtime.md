@@ -96,9 +96,24 @@ instead — `body` is the parsed JSON (or raw text) — so the loop can read the
 Register your own via `createRuntime(config, { agentHarnesses: { myHarness: async (req) => ({...}) } })`.
 The exported `resolveLlm()` / `chatComplete()` are reusable provider-agnostic helpers.
 
+### Agent execution limits
+
+Built-in agent steps are bounded independently from http/shell `effectTimeoutMs`:
+
+| Environment variable | Default | Applies to |
+|---|---:|---|
+| `LOOPY_AGENT_TIMEOUT_MS` | CLI: `600000`; `llm`: `120000` | all built-in agent harnesses |
+| `LOOPY_AGENT_MAX_BUFFER` | `16777216` (16 MiB) | coding-agent CLI stdout/stderr buffers |
+
+Both values must be positive integers. `doctor` prints the effective limits and fails on invalid
+configuration. If a limit fires, the error names the exact variable and effective value—for
+example, `agent step exceeded LOOPY_AGENT_TIMEOUT_MS (2700000ms)`—rather than reporting a generic
+CLI failure. Increase the buffer carefully: `execFile` retains captured output in memory.
+
 The `llm` harness also: configures **keyless** local servers from a bare `LOOPY_LLM_BASE_URL`
 (any local OpenAI-compatible server), **strips markdown fences** so a ```json reply still parses for `save`,
-bounds each request with a **timeout** (default 120s), and uses `max_completion_tokens` for OpenAI
+bounds each request with a **timeout** (default 120s, overridable with
+`LOOPY_AGENT_TIMEOUT_MS`), and uses `max_completion_tokens` for OpenAI
 reasoning models. Model-supplied `usage` is ignored — only the trusted provider usage is metered.
 
 ## Cost metering (the `usd` budget cap)

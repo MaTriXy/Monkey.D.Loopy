@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, existsSync, appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, existsSync, appendFileSync, chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { chatComplete, createRuntime, execHttp, execShell, resolveLlm, unwrapClaudeResult, unwrapAgentText, builtinHarnesses, BUILTIN_HARNESS_NAMES, Journal, priceUsd, normalizeModel, isCostMeterable, type RuntimeConfig } from "../src/index.js";
+import { chatComplete, createRuntime, execHttp, execShell, resolveAgentExecLimits, resolveLlm, unwrapClaudeResult, unwrapAgentText, builtinHarnesses, BUILTIN_HARNESS_NAMES, Journal, priceUsd, normalizeModel, isCostMeterable, type RuntimeConfig } from "../src/index.js";
 
 function tmp(): string {
   return mkdtempSync(join(tmpdir(), "loopy-rt-"));
@@ -664,7 +664,11 @@ describe("provider-agnostic LLM (no vendor lock)", () => {
 });
 
 describe("effect + doctor coverage (audit wave 8)", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.LOOPY_AGENT_TIMEOUT_MS;
+    delete process.env.LOOPY_AGENT_MAX_BUFFER;
+  });
 
   it("execHttp returns parsed JSON for a JSON response", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ state: "green" }), { status: 200 })));
@@ -717,6 +721,24 @@ describe("effect + doctor coverage (audit wave 8)", () => {
     };
     const ok = await createRuntime(config, { cwd: tmp() }).doctor();
     expect(ok).toBe(true);
+  });
+
+  it("doctor() fails with the exact invalid agent-limit control", async () => {
+    const config: RuntimeConfig = {
+      spec: { id: "doc-limits", caps: { max_iterations: 5 }, signal: "state-predicate" },
+      initialState: () => ({}),
+      terminate: () => true,
+      iterate: async () => {},
+    };
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((value?: unknown) => void logs.push(String(value)));
+    process.env.LOOPY_AGENT_MAX_BUFFER = "unbounded";
+    try {
+      expect(await createRuntime(config, { cwd: tmp() }).doctor()).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(logs.join("\n")).toContain("LOOPY_AGENT_MAX_BUFFER must be a positive integer");
   });
 });
 
@@ -798,8 +820,16 @@ describe("durability fixes (audit wave 7)", () => {
 
 describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not claude-only)", () => {
   afterEach(() => {
-    for (const k of ["LOOPY_CODEX_BIN", "LOOPY_AGENT_CMD"]) delete process.env[k];
+    for (const k of ["LOOPY_CODEX_BIN", "LOOPY_AGENT_CMD", "LOOPY_AGENT_TIMEOUT_MS", "LOOPY_AGENT_MAX_BUFFER"]) delete process.env[k];
+    vi.unstubAllGlobals();
   });
+
+  const agentFixture = (source: string): string => {
+    const path = join(tmp(), "agent-fixture.mjs");
+    writeFileSync(path, `#!/usr/bin/env node\n${source}\n`);
+    chmodSync(path, 0o755);
+    return path;
+  };
 
   it("ships first-class coding-agent harnesses beyond claude-code", () => {
     for (const n of ["internal", "llm", "claude-code", "codex", "opencode", "antigravity", "cursor-agent", "cli"]) {
@@ -838,6 +868,46 @@ describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not
 
   it("the generic `cli` harness errors clearly when LOOPY_AGENT_CMD is unset", async () => {
     await expect(builtinHarnesses["cli"]!({ harness: "cli", prompt: "x" })).rejects.toThrow(/LOOPY_AGENT_CMD/);
+  });
+
+  it("resolves configurable agent limits with backward-compatible defaults and rejects unsafe values", () => {
+    expect(resolveAgentExecLimits({})).toEqual({ timeoutMs: 600_000, maxBufferBytes: 16 * 1024 * 1024 });
+    expect(resolveAgentExecLimits({ LOOPY_AGENT_TIMEOUT_MS: "2700000", LOOPY_AGENT_MAX_BUFFER: "33554432" })).toEqual({
+      timeoutMs: 2_700_000,
+      maxBufferBytes: 33_554_432,
+    });
+    expect(() => resolveAgentExecLimits({ LOOPY_AGENT_TIMEOUT_MS: "0" })).toThrow(/LOOPY_AGENT_TIMEOUT_MS must be a positive integer/);
+    expect(() => resolveAgentExecLimits({ LOOPY_AGENT_MAX_BUFFER: "many" })).toThrow(/LOOPY_AGENT_MAX_BUFFER must be a positive integer/);
+  });
+
+  it("names LOOPY_AGENT_TIMEOUT_MS when a coding-agent step exceeds its timeout", async () => {
+    process.env.LOOPY_CODEX_BIN = agentFixture("setTimeout(() => {}, 5_000);");
+    process.env.LOOPY_AGENT_TIMEOUT_MS = "25";
+    await expect(builtinHarnesses["codex"]!({ harness: "codex", prompt: "slow" })).rejects.toThrow(
+      /exceeded LOOPY_AGENT_TIMEOUT_MS \(25ms\).*harness 'codex'/
+    );
+  });
+
+  it("names LOOPY_AGENT_MAX_BUFFER when a coding-agent step exceeds its output buffer", async () => {
+    process.env.LOOPY_CODEX_BIN = agentFixture('process.stdout.write("x".repeat(4096));');
+    process.env.LOOPY_AGENT_MAX_BUFFER = "64";
+    await expect(builtinHarnesses["codex"]!({ harness: "codex", prompt: "verbose" })).rejects.toThrow(
+      /exceeded LOOPY_AGENT_MAX_BUFFER \(64 bytes\).*harness 'codex'/
+    );
+  });
+
+  it("applies the same timeout control and diagnostic to the built-in llm harness", async () => {
+    process.env.LOOPY_LLM_BASE_URL = "http://local.invalid/v1";
+    process.env.LOOPY_AGENT_TIMEOUT_MS = "10";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }))
+    );
+    await expect(builtinHarnesses["llm"]!({ harness: "llm", prompt: "slow" })).rejects.toThrow(
+      /exceeded LOOPY_AGENT_TIMEOUT_MS \(10ms\).*harness 'llm'/
+    );
   });
 });
 
