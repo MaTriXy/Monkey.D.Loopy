@@ -1,9 +1,9 @@
 # Operator Platform Roadmap
 
-Status: **proposed**  
-Scope: productization after the current LoopSpec/compiler/runtime foundation  
-Competitive input: [Loopany](https://github.com/superdesigndev/loopany-platform), reviewed
-2026-07-16
+- Status: **approved for implementation**
+- Scope: productization after the current LoopSpec/compiler/runtime foundation
+- Competitive input: [Loopany](https://github.com/superdesigndev/loopany-platform), reviewed
+  2026-07-16
 
 ## 1. Outcome
 
@@ -25,6 +25,10 @@ The roadmap therefore adds four product capabilities in order:
 4. artifact, notification, and guarded-evolution workflows.
 
 A remote team control plane is a later option, not a prerequisite.
+
+The active delivery goal covers Phases 0–5 through the `0.5.0` release. Phase 6 remains a
+separately approved product and threat-model decision and is not part of the current Definition of
+Done.
 
 ## 2. Product thesis
 
@@ -97,6 +101,13 @@ A generic green/red run list is insufficient.
 Local operator APIs and journal-derived views should be versioned before any remote control plane
 is attempted. The remote platform, if built, must use the same protocol and treat the local
 operator as the execution authority.
+
+### 3.6 No telemetry by default
+
+- The local operator emits no analytics, crash reports, or usage telemetry unless explicitly
+  configured.
+- Provider calls made by loops remain governed by each LoopSpec and are not operator telemetry.
+- Diagnostic export is a deliberate command that previews and redacts the bundle before writing it.
 
 ## 4. Target architecture
 
@@ -172,6 +183,72 @@ Run truth remains in each artifact's `.loopy/` journal. Registry updates use a l
 write/rename; operator actions append an audit event. An embedded database is deliberately deferred
 until measured registry or query scale requires one.
 
+### 4.4 Decisions fixed by plan review
+
+The following policies are fixed before implementation so later phases do not invent conflicting
+semantics.
+
+#### Forced-interruption recovery
+
+A graceful stop is honored only at a journal-safe boundary. If the process is forcibly interrupted
+after an effect's `pending` record but before `done`, resume enters a non-terminal **uncertain**
+pause. It must never silently retry and must never convert uncertainty into a permanent generic
+failure.
+
+Recovery requires one explicit action:
+
+- `retry` — re-run with documented at-least-once risk;
+- `assume-done` — provide/confirm the recovered result when the external system proves completion;
+- `abort` — terminate intentionally while preserving the uncertain record.
+
+The action, actor, reason, and original effect identity are journaled. The operator presents these
+choices but the policy lives in `@loopyc/runtime` and is available without the operator.
+
+#### One scheduler authority per loop
+
+An installed loop records `host` or `operator` as its scheduling authority. Operator install detects
+generated host-trigger files and refuses to enable its schedule until the user explicitly hands off
+authority. Switching back disables operator dispatch before printing host-install instructions.
+This prevents cron/systemd/launchd/GitHub Actions and `loopyd` from firing the same loop twice.
+
+#### Version and migration policy
+
+- Public workspace packages share one release version through `0.x`.
+- Operator API responses include an API version; registry files include a schema version.
+- The operator reads supported old journal/registry versions without rewriting them on inspection.
+- Mutating migration is explicit, backed up, atomic, and covered by downgrade diagnostics.
+- A newer unsupported format is read-only and visibly version-skewed, never guessed.
+
+#### Control-center implementation boundary
+
+- `@loopyc/operator` owns the Node service and bundled assets.
+- `apps/control-center` owns a React/Vite web application compiled into those assets.
+- The browser never reads journals directly; the versioned operator API serves the canonical read
+  model.
+- All API routes, including reads, require the local token because prompts, paths, and artifacts may
+  be sensitive.
+- The service binds to loopback, denies cross-origin access by default, validates `Origin` on
+  mutations, caps request bodies, and creates token/config files with owner-only permissions.
+
+#### Initial platform support
+
+- macOS and Linux support foreground and managed-background operator lifecycle in `0.3.0`.
+- Windows supports the foreground service and control center in `0.3.0`; managed background startup
+  is deferred until it has native lifecycle and CI coverage.
+- Every unsupported lifecycle command fails with a useful command/path, never a silent no-op.
+
+#### Recipe/artifact sequencing
+
+Phase 1 recipes document and test expected output conventions using existing loop state/files, but
+do not depend on the future `artifacts:` field. Phase 4 migrates those conventions into a validated
+artifact contract without changing the recipe's termination or evidence semantics.
+
+#### Initial notification surface
+
+`0.4.0` ships a bounded generic webhook adapter with multiple named channel configurations. Vendor-
+specific adapters are later additions over the same interface. Shell-command notification adapters
+are excluded because they would add a second code-execution surface.
+
 ## 5. Delivery plan
 
 Each phase has an independent user outcome and a hard exit gate. Later phases do not begin merely
@@ -196,8 +273,8 @@ Exit gate:
 
 - a model-produced `usage` object cannot alter a trusted meter;
 - a requested stop at every journal boundary is resumable;
-- a forced kill in the uncertain window produces an explicit recoverable or explicitly terminal
-  state according to the documented policy;
+- a forced kill in the uncertain window produces the recoverable `uncertain` pause and supports
+  explicit retry, assume-done, or abort recovery;
 - agent limit failures name the limit that fired;
 - packed tarball smoke tests cover `claude-native`;
 - npm and repository surfaces report the same version and targets.
@@ -244,6 +321,7 @@ Exit gate:
 - termination is externally grounded where the use case permits it;
 - every scheduled recipe has max-iteration, no-progress, USD/token, and wallclock protection;
 - fixture tests include success, no-op, cap, and malformed-evidence cases;
+- expected output conventions work without relying on the Phase 4 `artifacts:` field;
 - a fresh user can create and run one recipe in under five minutes from the README path.
 
 ### Phase 2 — Read-only local control center (`0.3.0-alpha.1`)
@@ -266,8 +344,9 @@ Exit gate:
 - the read model produces the same terminal/current state as runtime replay for a corpus of journals;
 - corrupted, truncated, uncertain, locked, and version-skewed journals are visible and never shown
   as healthy;
-- server binds to loopback and requires its local token for mutation-capable routes, even before
-  those routes exist;
+- server binds to loopback and requires its local token for every route, including reads;
+- CORS, Origin validation, request-size caps, and owner-only token/config permissions have
+  regression coverage;
 - startup to useful dashboard is under two seconds for 100 loops / 10,000 journal events.
 
 ### Phase 3 — Operator scheduling and control (`0.3.0`)
@@ -279,6 +358,7 @@ Work:
 - add scheduler and run controller on top of `@loopyc/runtime`;
 - implement run, step, pause, approve, resume, and stop;
 - preserve host-native scheduler files as a supported alternative;
+- enforce exactly one recorded scheduler authority per loop and require explicit handoff;
 - add per-loop concurrency policy and missed-run policy;
 - add daemon crash recovery, stale PID/lock handling, and version-skew diagnostics;
 - audit every operator mutation in the operator event log and target run journal where applicable.
@@ -325,7 +405,8 @@ The exact schema requires its own design review. Required behavior:
 - Markdown, JSON, text, images, and diffs first; no arbitrary HTML execution;
 - notification adapters receive a bounded summary and local artifact links by default;
 - channel credentials come from environment/config references, never LoopSpec literals;
-- retries, deduplication keys, failure streak suppression, and delivery audit events.
+- retries, deduplication keys, failure streak suppression, and delivery audit events;
+- the first external adapter is a generic webhook; shell-command delivery is not supported.
 
 Exit gate:
 
@@ -361,7 +442,9 @@ Hard rules:
 - evolution receives bounded summaries by default and opens full transcripts only when requested;
 - untrusted run/artifact content is labeled as data, never instructions;
 - activation records old/new spec hashes, score diff, approver, and reason;
-- rollback is one command and does not alter historical journals.
+- rollback is one command and does not alter historical journals;
+- the candidate authoring path may use the existing provider-agnostic LLM/agent harnesses, but the
+  comparator and every activation gate are deterministic code.
 
 Exit gate:
 
@@ -481,3 +564,32 @@ fix/usage-meter-trust
 
 It is the smallest high-severity slice, has a crisp adversarial test, and establishes the release
 baseline without coupling unrelated product work.
+
+## 11. End-to-end Definition of Done
+
+The active goal is complete only when all of the following are true:
+
+1. Phases 0–5 meet every exit gate; deferred items are explicitly outside those phases rather than
+   silently incomplete.
+2. Runtime, recipe, operator, artifact/notification, UI, and evolution adversarial suites are part
+   of normal CI, not one-off local checks.
+3. macOS and Linux end-to-end flows cover install → schedule → execute → observe → stop/recover →
+   notify → evolve → approve → activate → rollback. Windows covers the documented foreground flow.
+4. Standalone and vendored artifacts still run with the operator absent, and every existing compile
+   target passes its capability-honesty tests.
+5. Public CLI, MCP, API, registry, artifact, notification, and evolution contracts are documented
+   with migration/version behavior.
+6. Package versions, generated help, README, `SPEC.md`, package READMEs, examples, and npm contents
+   agree at each published release.
+7. The implementation is merged to `main`, required CI is green at the merged head, release tags
+   through `0.5.0` are cut, and all public packages—including `@loopyc/operator` once introduced—are
+   verified from clean packed consumers.
+8. Open roadmap issues are closed with evidence or moved to a named later milestone with a written
+   reason that does not violate an exit gate.
+9. The final competitive claim is demonstrated, not asserted: at least one shipped recipe is shown
+   in the control center with externally grounded termination, enforced budgets, crash recovery,
+   an artifact, a delivered notification, and a safely approved evolution revision.
+
+External release credentials or marketplace configuration can block publication even after code is
+ready. Such a block is reported with the exact missing external action; it does not permit marking
+the goal complete.
