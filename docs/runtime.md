@@ -13,7 +13,10 @@ import { createRuntime } from "@loopyc/runtime";
 const runtime = createRuntime(config, options?);
 await runtime.run();    // loop until terminate() or a cap; resumable
 await runtime.step();   // advance exactly one iteration → RunResult
-await runtime.main(process.argv.slice(2));  // dispatch: run | step | resume | doctor
+runtime.requestStop({ actor, reason });      // cross-process marker; honored at a safe boundary
+await runtime.resume({ actor, reason });     // clear an acknowledged graceful stop + continue
+await runtime.recoverUncertain(resolution);  // explicit retry | assume-done | abort
+await runtime.main(process.argv.slice(2));  // run | step | resume | stop | recover | doctor
 await runtime.doctor(); // preflight checks
 ```
 
@@ -114,9 +117,21 @@ the run opens a fresh window and continues (parity with `max_iterations` / `no_p
 ### `RunResult`
 
 ```ts
-{ status: "completed" | "waiting" | "paused" | "stopped" | "failed",
-  iteration, state, reason?, wakeAt?, next? }
+{ status: "completed" | "waiting" | "paused" | "uncertain" | "stopped" | "failed",
+  iteration, state, reason?, wakeAt?, next?, uncertain? }
 ```
+
+`uncertain` is non-terminal. Its `uncertain` field identifies the original iteration, sequence,
+kind, and deterministic effect identity. It can only continue through
+`recoverUncertain({ action, actor?, reason, ... })`:
+
+- `retry` re-executes the effect with an explicit at-least-once risk;
+- `assume-done` supplies the externally verified `result` without re-execution;
+- `abort` intentionally makes the run terminal `stopped`.
+
+Every resolution records the action, actor, reason, and original effect identity.
+The standalone CLI exits `2` for `uncertain` (`1` remains generic failure), so supervisors can
+route it to intervention without interpreting it as success or blindly retrying it.
 
 ## Journal format
 
@@ -124,7 +139,8 @@ Under `.loopy/runs/<runId>/`:
 
 - `events.jsonl` — append-one-line-per-event, each with a **chained sha256** checksum.
   Event types: `run_start` (carries `baseState`), `effect` (write-ahead `pending` then `done`),
-  `iteration_snapshot` (state + fingerprint), `parked` (`wakeAt`), `cap`, `terminated`, `failed`.
+  `effect_recovery`, `iteration_snapshot` (state + fingerprint), `parked` (`wakeAt`), `cap`,
+  `stop_requested`, `stop_cleared`, `terminated`, `failed`.
 - `state.json` — derived state cache (debuggable; the journal is the source of truth).
 - `meta.json` — `{ status, iteration, tokens, usd, eventCount, lastChecksum, ... }`.
 - `lock` — a PID lockfile held for the duration of a run (stale-PID reclaimable).
@@ -133,10 +149,16 @@ Under `.loopy/runs/<runId>/`:
 
 - Each `iterate` pass runs to a `iteration_snapshot`; resume restores the last snapshot (or
   `baseState`) and continues at the next iteration.
-- **Effects are write-ahead and idempotent**: a `pending` record is written before the side
+- **Effects are write-ahead and replay-safe**: a `pending` record is written before the side
   effect and a `done` record (with result) after. On replay a completed effect returns its
-  journaled result (no re-execution); a **divergent identity** or a **pending-without-done**
-  (crash mid-effect) **fails loud** rather than silently re-running or returning stale data.
+  journaled result (no re-execution); a **divergent identity** fails loud. A
+  **pending-without-done** (crash mid-effect) pauses as `uncertain` rather than silently retrying,
+  assuming success, or becoming a generic terminal failure. Runtime <=0.1.0 journals poisoned by
+  the old uncertain-effect failure are recognized and exposed through the same recovery flow.
+- **Graceful external stop**: `requestStop({ actor, reason })` publishes an atomic marker without
+  racing the active journal writer. The runner acknowledges it only before work or after a complete
+  iteration snapshot, returns resumable `stopped`, and records the request. `resume()` records who
+  cleared it and why. A forced kill inside an effect is not called graceful; it becomes `uncertain`.
 - **Durable sleep**: `sleep(dur)` longer than `maxBlockMs` parks the run (status `waiting`,
   records `wakeAt`) and returns; a later `run()`/`resume` past `wakeAt` continues.
 - **Caps**: `max_iterations`, `no_progress` fingerprint, and token/$/wallclock budget. Token/$
@@ -147,9 +169,14 @@ Under `.loopy/runs/<runId>/`:
 
 ## Durability guarantees & limitations
 
-Guaranteed: bounded execution under caps; crash-resume from the journal; at-most-once for
-completed effects with loud failure on the uncertain window; deterministic replay (given a
-deterministic `iterate`); locale-independent, corruption- and truncation-evident journal.
+Guaranteed: bounded execution under caps; crash-resume from the journal; no re-execution of
+completed effects; explicit resolution of the uncertain window; journal-safe graceful stop;
+deterministic replay (given a deterministic `iterate`); locale-independent, corruption- and
+truncation-evident journal.
+
+The runtime does not promise exactly-once delivery to external systems. Choosing `retry` after an
+uncertain effect explicitly accepts at-least-once risk; `assume-done` requires external proof and a
+supplied result.
 
 Transient effect failures are **retried** with exponential backoff per `retry: { max, backoff_ms }`
 (or the `effectRetries` option); only an exhausted retry is terminal. The MCP `run_loop` runs
@@ -164,6 +191,17 @@ not active CPU).
 A cap-action `breakpoint` now **pauses and is resumable**: re-run with `approveCaps` (or
 `node loop.mjs resume --approve`) to approve the gate, reset that cap's counter, and continue —
 mirroring babysitter's approve-and-reset. The `shell` effect supports a no-shell argv form.
+
+Standalone CLI recovery examples:
+
+```bash
+node loop.mjs stop --actor deploy-bot --reason "maintenance"
+node loop.mjs resume --actor operator --reason "maintenance complete"
+node loop.mjs recover --retry --actor operator --reason "external audit shows no side effect"
+node loop.mjs recover --assume-done --result-json '{"deploymentId":"dep-123"}' \
+  --actor operator --reason "deployment provider confirms completion"
+node loop.mjs recover --abort --actor operator --reason "rolled back manually"
+```
 
 The journal is corruption-evident by default (chained sha256); set `LOOPY_JOURNAL_KEY` to make
 it **tamper-evident** (keyed HMAC — the same key is then required to load/resume).

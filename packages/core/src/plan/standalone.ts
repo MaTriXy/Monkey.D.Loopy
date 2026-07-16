@@ -1,7 +1,7 @@
 /**
  * Standalone adapter — the canonical target. Lowers a LoopSpec into a complete,
  * crash-resumable Node project that depends only on @loopyc/runtime and exposes
- * a human CLI surface (run | step | resume | doctor) plus an agent surface (SKILL.md).
+ * a human CLI surface (run | step | resume | stop | recover | doctor) plus an agent surface (SKILL.md).
  *
  * The runtime (@loopyc/runtime, built in M1) owns the journal/replay/caps machinery;
  * this adapter emits explicit, auditable loop logic that calls into it.
@@ -239,6 +239,8 @@ function emitPackageJson(spec: LoopSpec, vendor = false): string {
       start: "node loop.mjs run",
       step: "node loop.mjs step",
       resume: "node loop.mjs resume",
+      stop: "node loop.mjs stop",
+      recover: "node loop.mjs recover",
       doctor: "node loop.mjs doctor",
     },
     // In vendor mode the runtime is bundled into runtime.bundle.mjs, so there are no deps to
@@ -257,6 +259,8 @@ node loop.mjs run           # run until termination or a cap is hit
 node loop.mjs step          # advance exactly one iteration (for cron / Stop-hook / CI drivers)
 node loop.mjs resume        # resume from the journal after a crash or pause
 node loop.mjs resume --approve   # approve a cap-breakpoint pause and continue (resets that cap's budget)
+node loop.mjs stop --reason "maintenance"   # stop after the next journal-safe boundary
+node loop.mjs recover --retry --reason "verified safe"   # explicitly resolve an uncertain effect
 node loop.mjs doctor        # preflight: journal dir writable, budget set, etc.
 \`\`\``
     : `\`\`\`bash
@@ -265,6 +269,8 @@ npm start                   # run until termination or a cap is hit
 npm run step                # advance exactly one iteration (for cron / Stop-hook / CI drivers)
 npm run resume              # resume from the journal after a crash or pause
 node loop.mjs resume --approve   # approve a cap-breakpoint pause and continue (resets that cap's budget)
+npm run stop -- --reason "maintenance"   # stop after the next journal-safe boundary
+npm run recover -- --retry --reason "verified safe"   # explicitly resolve an uncertain effect
 npm run doctor              # preflight: journal dir writable, budget set, etc.
 \`\`\``;
   return `# ${spec.meta?.name ?? spec.id}
@@ -282,8 +288,9 @@ ${spec.meta?.description ?? ""}
 
 ${runBlock}
 
-Every step is journaled under \`.loopy/runs/<runId>/\`. The loop is crash-resumable:
-kill it mid-run and \`npm run resume\` continues from the last good state.
+Every step is journaled under \`.loopy/runs/<runId>/\`. Graceful stop waits for a safe boundary.
+If a forced kill lands between an effect's pending and done records, resume reports \`uncertain\`
+and requires an explicit retry, assume-done result, or abort.
 
 ## Guarantees baked in
 

@@ -92,6 +92,8 @@ cd out/deploy-watch/standalone && npm install
 node loop.mjs run      # run until termination or a cap
 node loop.mjs step     # advance exactly one iteration (for cron / Stop-hook / CI drivers)
 node loop.mjs resume   # resume from the journal after a crash/pause
+node loop.mjs stop --reason "maintenance"  # request a journal-safe graceful stop
+node loop.mjs recover --retry --reason "verified safe" # resolve uncertainty explicitly
 node loop.mjs doctor   # preflight checks
 ```
 

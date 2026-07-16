@@ -12,6 +12,9 @@ export type {
   LoopCtx,
   RunResult,
   RunStatus,
+  UncertainEffectInfo,
+  UncertainResolution,
+  StopRequest,
 } from "./runtime.js";
 export { __in, jsonpath, parseDuration } from "./helpers.js";
 export {

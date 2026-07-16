@@ -5,7 +5,7 @@
  * (park + resume), and breakpoints. It owns the OUTER loop only — agent steps delegate
  * the inner ReAct turn to a harness.
  */
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Journal } from "./journal.js";
 import {
@@ -95,7 +95,27 @@ export interface RuntimeOptions {
   effects?: { http?: typeof execHttp; shell?: typeof execShell };
 }
 
-export type RunStatus = "completed" | "waiting" | "paused" | "stopped" | "failed";
+export type RunStatus = "completed" | "waiting" | "paused" | "uncertain" | "stopped" | "failed";
+
+export interface UncertainEffectInfo {
+  iteration: number;
+  seq: number;
+  kind: string;
+  identity: string;
+}
+
+export type UncertainResolution =
+  | { action: "retry"; reason: string; actor?: string }
+  | { action: "assume-done"; reason: string; actor?: string; result: unknown }
+  | { action: "abort"; reason: string; actor?: string };
+
+export interface StopRequest {
+  version: 1;
+  runId: string;
+  requestedAt: number;
+  actor: string;
+  reason: string;
+}
 
 export interface RunResult {
   status: RunStatus;
@@ -104,6 +124,7 @@ export interface RunResult {
   reason?: string;
   wakeAt?: number;
   next?: { iteration: number };
+  uncertain?: UncertainEffectInfo;
 }
 
 class ParkSignal {
@@ -121,9 +142,17 @@ class NonDeterministicReplayError extends Error {
   }
 }
 class UncertainEffectError extends Error {
-  constructor(seq: number, kind: string) {
-    super(`effect seq ${seq} (${kind}) crashed after starting but before its result was journaled; its outcome is unknown. Resume cannot safely continue — make the effect idempotent or clear the run.`);
+  constructor(public readonly effect: UncertainEffectInfo) {
+    super(uncertainReason(effect));
   }
+}
+
+function uncertainReason(effect: UncertainEffectInfo): string {
+  return `effect seq ${effect.seq} (${effect.kind}) crashed after starting but before its result was journaled; its outcome is unknown. Choose an explicit recovery: retry, assume-done, or abort.`;
+}
+
+function isLegacyUncertainFailure(message: unknown): boolean {
+  return typeof message === "string" && message.includes("crashed after starting but before its result was journaled") && message.includes("outcome is unknown");
 }
 
 /** Stable identity for an effect call (kind-agnostic), used to detect divergent replays. */
@@ -182,6 +211,10 @@ export class Runtime {
   private fpResetAt = 0;
   /** When true, a pending cap is approved on the next run (reset + continue). */
   private approveCaps: boolean;
+  /** A write-ahead effect without a matching result. It is recoverable, never generic-terminal. */
+  private pendingUncertain: UncertainEffectInfo | null = null;
+  /** A graceful external stop acknowledged at a replay-safe boundary. Explicit resume clears it. */
+  private pendingStop: StopRequest | null = null;
 
   constructor(private readonly config: RuntimeConfig, options: RuntimeOptions = {}) {
     const cwd = options.cwd ?? process.cwd();
@@ -235,9 +268,44 @@ export class Runtime {
         const seq = ev.data.seq as number;
         if (!this.effectsByIteration.has(it)) this.effectsByIteration.set(it, new Map());
         this.effectsByIteration.get(it)!.set(seq, ev.data);
+        if (ev.data.status === "pending") {
+          this.pendingUncertain = {
+            iteration: it,
+            seq,
+            kind: ev.data.kind as string,
+            identity: ev.data.identity as string,
+          };
+        } else if (ev.data.status === "done" && this.pendingUncertain?.iteration === it && this.pendingUncertain.seq === seq) {
+          this.pendingUncertain = null;
+        }
         const usage = ev.data.usage as { tokens?: number; usd?: number } | undefined;
         if (usage?.tokens) this.tokens += usage.tokens;
         if (usage?.usd) this.usd += usage.usd;
+      } else if (ev.type === "effect_recovery") {
+        const effect = ev.data.effect as UncertainEffectInfo;
+        const action = ev.data.action as UncertainResolution["action"];
+        const iterationEffects = this.effectsByIteration.get(effect.iteration);
+        if (action === "retry") {
+          iterationEffects?.delete(effect.seq);
+        } else if (action === "assume-done") {
+          if (!iterationEffects) this.effectsByIteration.set(effect.iteration, new Map());
+          this.effectsByIteration.get(effect.iteration)!.set(effect.seq, {
+            iteration: effect.iteration,
+            seq: effect.seq,
+            kind: effect.kind,
+            identity: effect.identity,
+            status: "done",
+            result: ev.data.result,
+            recovered: true,
+          });
+        } else if (action === "abort") {
+          this.terminalStatus = "stopped";
+        }
+        this.pendingUncertain = null;
+      } else if (ev.type === "stop_requested") {
+        this.pendingStop = ev.data.request as unknown as StopRequest;
+      } else if (ev.type === "stop_cleared") {
+        this.pendingStop = null;
       } else if (ev.type === "iteration_snapshot") {
         snapshotIteration = ev.data.iteration as number;
         this.state = structuredClone(ev.data.state) as Record<string, unknown>;
@@ -245,7 +313,10 @@ export class Runtime {
       } else if (ev.type === "terminated") {
         this.terminalStatus = "completed";
       } else if (ev.type === "failed") {
-        this.terminalStatus = "failed";
+        // Runtime <=0.1.0 converted a pending effect into a sticky generic failure. Preserve
+        // compatibility by recognizing that exact failure and exposing the original pending
+        // effect through the new explicit recovery flow.
+        if (!this.pendingUncertain || !isLegacyUncertainFailure(ev.data.error)) this.terminalStatus = "failed";
       } else if (ev.type === "cap") {
         const action = ev.data.action as string;
         const reason = ev.data.reason as string;
@@ -326,7 +397,9 @@ export class Runtime {
       if (replay.kind !== kind || replay.identity !== identity) {
         throw new NonDeterministicReplayError(seq, kind, replay.kind as string);
       }
-      if (replay.status === "pending") throw new UncertainEffectError(seq, kind);
+      if (replay.status === "pending") {
+        throw new UncertainEffectError({ iteration: this.iteration, seq, kind, identity });
+      }
       return replay.result;
     }
     this.journal.append("effect", { iteration: this.iteration, seq, kind, identity, status: "pending", ...data }, this.now());
@@ -357,7 +430,9 @@ export class Runtime {
       if (replay.kind !== "agent" || replay.identity !== identity) {
         throw new NonDeterministicReplayError(seq, "agent", replay.kind as string);
       }
-      if (replay.status === "pending") throw new UncertainEffectError(seq, "agent");
+      if (replay.status === "pending") {
+        throw new UncertainEffectError({ iteration: this.iteration, seq, kind: "agent", identity });
+      }
       return replay.result as AgentResult;
     }
     const harness = this.harnesses[req.harness];
@@ -519,6 +594,12 @@ export class Runtime {
     try {
       this.load();
       if (this.terminalStatus) return { status: this.terminalStatus, iteration: this.iteration, state: this.state };
+      if (this.pendingUncertain) {
+        this.persist("uncertain");
+        return this.uncertainResult();
+      }
+      const stopped = this.resolveExternalStop();
+      if (stopped) return stopped;
       const paused = this.resolvePendingCap();
       if (paused) return paused;
       for (;;) {
@@ -537,6 +618,12 @@ export class Runtime {
       if (this.terminalStatus) {
         return { status: this.terminalStatus, iteration: this.iteration, state: this.state, next: { iteration: this.iteration } };
       }
+      if (this.pendingUncertain) {
+        this.persist("uncertain");
+        return { ...this.uncertainResult(), next: { iteration: this.iteration } };
+      }
+      const stopped = this.resolveExternalStop();
+      if (stopped) return { ...stopped, next: { iteration: this.iteration } };
       const paused = this.resolvePendingCap();
       if (paused) return paused;
       const result = await this.runOneIteration();
@@ -575,6 +662,8 @@ export class Runtime {
       // truncation guard stays current during a long continuous run (not only on park/terminal)
       // and inspect_run sees live state. Best-effort (persist swallows write errors).
       this.persist("waiting");
+      const stopped = this.resolveExternalStop();
+      if (stopped) return stopped;
       return null;
     } catch (e) {
       return this.handleThrow(e);
@@ -594,10 +683,175 @@ export class Runtime {
     if (e instanceof CapSignal) {
       return this.capHit(e.reason);
     }
+    if (e instanceof UncertainEffectError) {
+      this.pendingUncertain = e.effect;
+      this.persist("uncertain");
+      return this.uncertainResult();
+    }
     this.journal.append("failed", { iteration: this.iteration, error: (e as Error).message }, this.now());
     this.terminalStatus = "failed";
     this.persist("failed");
     return { status: "failed", iteration: this.iteration, state: this.state, reason: (e as Error).message };
+  }
+
+  private uncertainResult(): RunResult {
+    const effect = this.pendingUncertain!;
+    return {
+      status: "uncertain",
+      iteration: this.iteration,
+      state: this.state,
+      reason: uncertainReason(effect),
+      uncertain: effect,
+    };
+  }
+
+  /** Resolve a write-ahead effect whose external outcome is unknown. Every resolution is
+   * journaled with actor/reason and the original identity before execution can continue. */
+  async recoverUncertain(resolution: UncertainResolution): Promise<RunResult> {
+    this.acquireLock();
+    let continueRun = false;
+    try {
+      this.load();
+      if (this.terminalStatus) {
+        throw new Error(`cannot recover uncertain effect: run is already ${this.terminalStatus}`);
+      }
+      const effect = this.pendingUncertain;
+      if (!effect) throw new Error("cannot recover uncertain effect: no unresolved effect");
+      if (!resolution.reason?.trim()) throw new Error("uncertain recovery requires a non-empty reason");
+      if (resolution.action === "assume-done" && !("result" in resolution)) {
+        throw new Error("assume-done recovery requires a result");
+      }
+
+      this.journal.append(
+        "effect_recovery",
+        {
+          effect,
+          action: resolution.action,
+          actor: resolution.actor ?? "unknown",
+          reason: resolution.reason.trim(),
+          ...(resolution.action === "assume-done" ? { result: resolution.result } : {}),
+        },
+        this.now()
+      );
+
+      const effects = this.effectsByIteration.get(effect.iteration);
+      if (resolution.action === "retry") {
+        effects?.delete(effect.seq);
+      } else if (resolution.action === "assume-done") {
+        if (!effects) this.effectsByIteration.set(effect.iteration, new Map());
+        this.effectsByIteration.get(effect.iteration)!.set(effect.seq, {
+          ...effect,
+          status: "done",
+          result: resolution.result,
+          recovered: true,
+        });
+      } else {
+        this.pendingUncertain = null;
+        this.terminalStatus = "stopped";
+        this.persist("stopped");
+        return { status: "stopped", iteration: this.iteration, state: this.state, reason: resolution.reason.trim() };
+      }
+      this.pendingUncertain = null;
+      this.persist("waiting");
+      continueRun = true;
+    } finally {
+      this.releaseLock();
+    }
+    if (continueRun) return this.run();
+    throw new Error("unreachable uncertain recovery state");
+  }
+
+  /** Request a cross-process graceful stop. The active runner acknowledges this marker only
+   * after it reaches a replay-safe boundary; no concurrent journal writes are attempted. */
+  requestStop(input: { reason: string; actor?: string }): StopRequest {
+    const reason = input.reason?.trim();
+    if (!reason) throw new Error("stop requires a non-empty reason");
+    mkdirSync(this.journal.dir, { recursive: true });
+    const request: StopRequest = {
+      version: 1,
+      runId: this.runId,
+      requestedAt: this.now(),
+      actor: input.actor ?? "unknown",
+      reason,
+    };
+    const path = this.stopRequestPath();
+    const temp = `${path}.${process.pid}.${request.requestedAt}.tmp`;
+    writeFileSync(temp, JSON.stringify(request, null, 2));
+    try {
+      // An atomic hard-link publishes the complete request without overwriting an earlier one.
+      linkSync(temp, path);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new Error(`a stop is already requested for run '${this.runId}'`);
+      }
+      throw e;
+    } finally {
+      rmSync(temp, { force: true });
+    }
+    return request;
+  }
+
+  /** Resume a run paused by an acknowledged external stop. Terminal stops (cap/abort) remain
+   * terminal, and uncertain effects still require recoverUncertain(). */
+  async resume(input: { reason?: string; actor?: string } = {}): Promise<RunResult> {
+    this.acquireLock();
+    try {
+      this.load();
+      if (this.terminalStatus) {
+        return { status: this.terminalStatus, iteration: this.iteration, state: this.state };
+      }
+      if (this.pendingUncertain) {
+        this.persist("uncertain");
+        return this.uncertainResult();
+      }
+      // A stop may have been requested while no runner was active. Acknowledge it before the
+      // explicit resume so both sides of the transition remain visible in the journal.
+      this.acknowledgeStopRequest();
+      if (this.pendingStop) {
+        this.journal.append(
+          "stop_cleared",
+          {
+            request: this.pendingStop,
+            actor: input.actor ?? "unknown",
+            reason: input.reason?.trim() || "explicit resume",
+          },
+          this.now()
+        );
+        this.pendingStop = null;
+        this.persist("waiting");
+      }
+    } finally {
+      this.releaseLock();
+    }
+    return this.run();
+  }
+
+  private stopRequestPath(): string {
+    return join(this.journal.dir, "stop-request.json");
+  }
+
+  private acknowledgeStopRequest(): void {
+    const path = this.stopRequestPath();
+    if (!existsSync(path)) return;
+    const request = JSON.parse(readFileSync(path, "utf8")) as StopRequest;
+    if (request.version !== 1 || request.runId !== this.runId || !request.reason?.trim()) {
+      throw new Error(`invalid stop request for run '${this.runId}'`);
+    }
+    this.journal.append("stop_requested", { request }, this.now());
+    this.pendingStop = request;
+    unlinkSync(path);
+  }
+
+  private resolveExternalStop(): RunResult | null {
+    if (!this.pendingStop) this.acknowledgeStopRequest();
+    if (!this.pendingStop) return null;
+    this.persist("stopped");
+    return {
+      status: "stopped",
+      iteration: this.iteration,
+      state: this.state,
+      reason: this.pendingStop.reason,
+    };
   }
 
   // --- cross-process lock --------------------------------------------------
@@ -719,21 +973,66 @@ export class Runtime {
     const cmd = argv[0] ?? "run";
     if (argv.includes("--approve")) this.approveCaps = true; // approve a pending cap-breakpoint
     if (cmd === "run" || cmd === "resume") {
-      const r = await this.run();
+      const r = cmd === "resume"
+        ? await this.resume({ actor: argvValue(argv, "--actor"), reason: argvValue(argv, "--reason") })
+        : await this.run();
       console.log(JSON.stringify(r));
-      process.exitCode = r.status === "failed" ? 1 : 0;
+      process.exitCode = resultExitCode(r);
     } else if (cmd === "step") {
       const r = await this.step();
       console.log(JSON.stringify(r));
-      process.exitCode = r.status === "failed" ? 1 : 0;
+      process.exitCode = resultExitCode(r);
     } else if (cmd === "doctor") {
       const ok = await this.doctor();
       process.exitCode = ok ? 0 : 1;
+    } else if (cmd === "recover") {
+      const actionFlags = ["retry", "assume-done", "abort"].filter((action) => argv.includes(`--${action}`));
+      if (actionFlags.length !== 1) throw new Error("recover requires exactly one of --retry, --assume-done, or --abort");
+      const action = actionFlags[0] as UncertainResolution["action"];
+      const reason = argvValue(argv, "--reason");
+      if (!reason) throw new Error("recover requires --reason <text>");
+      const actor = argvValue(argv, "--actor");
+      let resolution: UncertainResolution;
+      if (action === "assume-done") {
+        const raw = argvValue(argv, "--result-json");
+        if (raw === undefined) throw new Error("--assume-done requires --result-json <json>");
+        let result: unknown;
+        try {
+          result = JSON.parse(raw);
+        } catch (e) {
+          throw new Error(`invalid --result-json: ${(e as Error).message}`);
+        }
+        resolution = { action, reason, actor, result };
+      } else {
+        resolution = { action, reason, actor };
+      }
+      const r = await this.recoverUncertain(resolution);
+      console.log(JSON.stringify(r));
+      process.exitCode = resultExitCode(r);
+    } else if (cmd === "stop") {
+      const reason = argvValue(argv, "--reason");
+      if (!reason) throw new Error("stop requires --reason <text>");
+      const request = this.requestStop({ reason, actor: argvValue(argv, "--actor") });
+      console.log(JSON.stringify({ status: "stop-requested", request }));
+      process.exitCode = 0;
     } else {
-      console.error(`loop: unknown command '${cmd}' (use run | step | resume | doctor)`);
+      console.error(`loop: unknown command '${cmd}' (use run | step | resume | stop | recover | doctor)`);
       process.exitCode = 1;
     }
   }
+}
+
+function argvValue(argv: string[], flag: string): string | undefined {
+  const index = argv.indexOf(flag);
+  return index >= 0 ? argv[index + 1] : undefined;
+}
+
+function resultExitCode(result: RunResult): number {
+  if (result.status === "failed") return 1;
+  // Intervention is required. A distinct code prevents schedulers from treating uncertainty as
+  // success without encouraging an automatic generic retry of the same external effect.
+  if (result.status === "uncertain") return 2;
+  return 0;
 }
 
 function isAlive(pid: number): boolean {

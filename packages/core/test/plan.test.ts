@@ -33,6 +33,14 @@ describe("standalone adapter", () => {
     }
   });
 
+  it("exposes graceful stop and explicit uncertain-effect recovery", () => {
+    const pkg = JSON.parse(fileMap.get("package.json")!);
+    expect(pkg.scripts.stop).toBe("node loop.mjs stop");
+    expect(pkg.scripts.recover).toBe("node loop.mjs recover");
+    expect(fileMap.get("README.md")).toContain("stop after the next journal-safe boundary");
+    expect(fileMap.get("README.md")).toContain("resume reports `uncertain`");
+  });
+
   it("lowers termination, steps, caps and durable sleep into the entry", () => {
     const loop = fileMap.get("loop.mjs")!;
     expect(loop).toContain('import { createRuntime, __in } from "@loopyc/runtime";');

@@ -120,9 +120,7 @@ describe("cap enforcement", () => {
 });
 
 describe("durability hardening (from the M1 review)", () => {
-  it("fails LOUD on an uncertain effect (crashed between begin and result)", async () => {
-    const cwd = tmp();
-    // hand-craft a journal with a write-ahead 'pending' shell effect and NO result.
+  function seedUncertainEffect(cwd: string, legacyFailure = false): void {
     const j = new Journal(cwd, "default");
     j.load();
     j.append("run_start", { loopId: "u", baseState: { n: 0 } }, 1);
@@ -131,18 +129,180 @@ describe("durability hardening (from the M1 review)", () => {
       { iteration: 0, seq: 0, kind: "shell", identity: JSON.stringify({ cmd: "crashy" }), status: "pending", cmd: "crashy" },
       1
     );
-    const config: RuntimeConfig = {
+    if (legacyFailure) {
+      j.append(
+        "failed",
+        {
+          iteration: 0,
+          error: "effect seq 0 (shell) crashed after starting but before its result was journaled; its outcome is unknown. Resume cannot safely continue — make the effect idempotent or clear the run.",
+        },
+        2
+      );
+    }
+  }
+
+  function uncertainConfig(): RuntimeConfig {
+    return {
       spec: { id: "u", caps: { max_iterations: 5, on_cap_exceeded: "exit-clean" } },
       initialState: () => ({ n: 0 }),
-      terminate: () => false,
+      terminate: (ctx) => num(ctx.state.n) >= 1,
       iterate: async (ctx) => {
-        await ctx.shell("crashy");
+        ctx.state.effectResult = await ctx.shell("crashy");
         ctx.state.n = 1;
       },
     };
-    const r = await createRuntime(config, { cwd, now: () => 2, effects: { shell: async () => ({ ok: true }) as unknown } }).run();
-    expect(r.status).toBe("failed");
+  }
+
+  it("pauses non-terminally on an uncertain effect without appending a generic failure", async () => {
+    const cwd = tmp();
+    seedUncertainEffect(cwd);
+    const r = await createRuntime(uncertainConfig(), { cwd, now: () => 2, effects: { shell: async () => ({ ok: true }) as unknown } }).run();
+    expect(r.status).toBe("uncertain");
     expect(r.reason).toMatch(/outcome is unknown/);
+    expect(r.uncertain).toEqual({ iteration: 0, seq: 0, kind: "shell", identity: JSON.stringify({ cmd: "crashy" }) });
+    const events = new Journal(cwd, "default").load();
+    expect(events.some((event) => event.type === "failed")).toBe(false);
+    const meta = JSON.parse(readFileSync(join(cwd, ".loopy", "runs", "default", "meta.json"), "utf8"));
+    expect(meta.status).toBe("uncertain");
+  });
+
+  it("retries an uncertain effect only after an audited explicit recovery", async () => {
+    const cwd = tmp();
+    seedUncertainEffect(cwd);
+    let calls = 0;
+    const runtime = createRuntime(uncertainConfig(), {
+      cwd,
+      now: () => 3,
+      effects: { shell: async () => { calls++; return { ok: true } as unknown; } },
+    });
+    const r = await runtime.recoverUncertain({ action: "retry", actor: "operator@example.com", reason: "external system confirms no change" });
+    expect(r.status).toBe("completed");
+    expect(calls).toBe(1);
+    const recovery = new Journal(cwd, "default").load().find((event) => event.type === "effect_recovery")!;
+    expect(recovery.data).toMatchObject({ action: "retry", actor: "operator@example.com", reason: "external system confirms no change" });
+    expect(recovery.data.effect).toEqual({ iteration: 0, seq: 0, kind: "shell", identity: JSON.stringify({ cmd: "crashy" }) });
+  });
+
+  it("assumes an uncertain effect done with a supplied result and never re-executes it", async () => {
+    const cwd = tmp();
+    seedUncertainEffect(cwd);
+    let calls = 0;
+    const runtime = createRuntime(uncertainConfig(), {
+      cwd,
+      now: () => 3,
+      effects: { shell: async () => { calls++; return { shouldNotRun: true } as unknown; } },
+    });
+    const r = await runtime.recoverUncertain({
+      action: "assume-done",
+      actor: "operator@example.com",
+      reason: "verified in deployment audit log",
+      result: { ok: true, deploymentId: "dep-123" },
+    });
+    expect(r.status).toBe("completed");
+    expect(calls).toBe(0);
+    expect(r.state.effectResult).toEqual({ ok: true, deploymentId: "dep-123" });
+  });
+
+  it("aborts an uncertain run intentionally while preserving the recovery audit", async () => {
+    const cwd = tmp();
+    seedUncertainEffect(cwd);
+    const runtime = createRuntime(uncertainConfig(), { cwd, now: () => 3 });
+    const r = await runtime.recoverUncertain({ action: "abort", actor: "operator@example.com", reason: "manual rollback chosen" });
+    expect(r.status).toBe("stopped");
+    expect((await createRuntime(uncertainConfig(), { cwd, now: () => 4 }).run()).status).toBe("stopped");
+    const recovery = new Journal(cwd, "default").load().find((event) => event.type === "effect_recovery")!;
+    expect(recovery.data).toMatchObject({ action: "abort", actor: "operator@example.com", reason: "manual rollback chosen" });
+  });
+
+  it("recovers journals poisoned by the legacy generic uncertain-effect failure", async () => {
+    const cwd = tmp();
+    seedUncertainEffect(cwd, true);
+    const before = await createRuntime(uncertainConfig(), { cwd, now: () => 3 }).run();
+    expect(before.status).toBe("uncertain");
+    const after = await createRuntime(uncertainConfig(), {
+      cwd,
+      now: () => 4,
+      effects: { shell: async () => ({ recovered: true }) as unknown },
+    }).recoverUncertain({ action: "retry", actor: "migration", reason: "legacy runtime failure migrated" });
+    expect(after.status).toBe("completed");
+    expect(after.state.effectResult).toEqual({ recovered: true });
+  });
+
+  it("honors an external stop before work starts and resumes only explicitly", async () => {
+    const cwd = tmp();
+    let calls = 0;
+    const config: RuntimeConfig = {
+      spec: { id: "safe-stop", caps: { max_iterations: 5, on_cap_exceeded: "exit-clean" } },
+      initialState: () => ({ n: 0 }),
+      terminate: (ctx) => num(ctx.state.n) >= 1,
+      iterate: async (ctx) => {
+        await ctx.shell("work");
+        ctx.state.n = 1;
+      },
+    };
+    const runtime = createRuntime(config, {
+      cwd,
+      now: () => 5,
+      effects: { shell: async () => { calls++; return {} as unknown; } },
+    });
+    runtime.requestStop({ actor: "operator@example.com", reason: "maintenance window" });
+    const stopped = await runtime.run();
+    expect(stopped.status).toBe("stopped");
+    expect(stopped.reason).toBe("maintenance window");
+    expect(calls).toBe(0);
+    expect((await createRuntime(config, { cwd, now: () => 6 }).run()).status).toBe("stopped");
+
+    const resumed = await createRuntime(config, {
+      cwd,
+      now: () => 7,
+      effects: { shell: async () => { calls++; return {} as unknown; } },
+    }).resume({ actor: "operator@example.com", reason: "maintenance complete" });
+    expect(resumed.status).toBe("completed");
+    expect(calls).toBe(1);
+    const events = new Journal(cwd, "default").load();
+    expect(events.find((event) => event.type === "stop_requested")?.data.request).toMatchObject({ actor: "operator@example.com", reason: "maintenance window" });
+    expect(events.find((event) => event.type === "stop_cleared")?.data).toMatchObject({ actor: "operator@example.com", reason: "maintenance complete" });
+  });
+
+  it("acknowledges a stop requested mid-effect only after the iteration snapshot", async () => {
+    const cwd = tmp();
+    let calls = 0;
+    let runtime: ReturnType<typeof createRuntime>;
+    const config: RuntimeConfig = {
+      spec: { id: "boundary-stop", caps: { max_iterations: 5, on_cap_exceeded: "exit-clean" } },
+      initialState: () => ({ n: 0 }),
+      terminate: (ctx) => num(ctx.state.n) >= 2,
+      iterate: async (ctx) => {
+        await ctx.shell("work");
+        ctx.state.n = num(ctx.state.n) + 1;
+      },
+    };
+    runtime = createRuntime(config, {
+      cwd,
+      now: () => 8,
+      effects: {
+        shell: async () => {
+          calls++;
+          if (calls === 1) runtime.requestStop({ actor: "signal-handler", reason: "SIGTERM" });
+          return {} as unknown;
+        },
+      },
+    });
+    const stopped = await runtime.run();
+    expect(stopped.status).toBe("stopped");
+    expect(stopped.iteration).toBe(1);
+    expect(stopped.state.n).toBe(1);
+
+    const events = new Journal(cwd, "default").load();
+    const snapshotIndex = events.findIndex((event) => event.type === "iteration_snapshot");
+    const stopIndex = events.findIndex((event) => event.type === "stop_requested");
+    expect(snapshotIndex).toBeGreaterThan(-1);
+    expect(stopIndex).toBeGreaterThan(snapshotIndex);
+
+    const resumed = await runtime.resume({ actor: "operator", reason: "continue safely" });
+    expect(resumed.status).toBe("completed");
+    expect(resumed.state.n).toBe(2);
+    expect(calls).toBe(2);
   });
 
   it("fails LOUD on a non-deterministic replay (effect kind diverges)", async () => {

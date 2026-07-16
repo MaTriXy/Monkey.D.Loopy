@@ -18,6 +18,9 @@ export type JournalEventType =
   | "terminated"
   | "cap"
   | "cap_cleared"
+  | "effect_recovery"
+  | "stop_requested"
+  | "stop_cleared"
   | "failed"
   | "parked";
 
