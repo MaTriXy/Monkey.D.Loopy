@@ -1,6 +1,18 @@
 /** Public API of @loopyc/core — the pure, zero-I/O brain of Monkey D Loopy. */
 
 export { FACTORY_VERSION } from "./version.js";
+export {
+  RecipeManifestSchema,
+  parseRecipeSource,
+  createRecipeCatalog,
+  type RecipeManifest,
+  type RecipeSource,
+  type Recipe,
+  type RecipeDiagnostic,
+  type RecipeParseResult,
+  type RecipeCatalog,
+  type RecipeCatalogResult,
+} from "./recipe.js";
 export * from "./types.js";
 export { LoopSpecSchema, parseLoopSpec, type RawLoopSpec, type ParseOk, type ParseErr } from "./schema.js";
 export { normalize, asLoopSpec, type NormalizedSpec } from "./normalize.js";

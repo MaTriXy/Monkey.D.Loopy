@@ -239,6 +239,7 @@ runs with **plain `node` on any machine with Node ≥ 22** — no install, nothi
 - [`loopc-mcp`](docs/mcp.md) — MCP tools and how to register the server.
 - [Operator platform roadmap](docs/operator-platform-roadmap.md) — verified recipes, local control
   center, artifacts, notifications, and guarded evolution.
+- [Verified recipe contract](docs/recipes.md) — product-use-case packages over canonical LoopSpec.
 - [SPEC.md](SPEC.md) — full design and tracked decisions.
 - The [`/loopy`](.claude/skills/loopy/SKILL.md) skill — the authoring judgment layer over `loopc`.
 
