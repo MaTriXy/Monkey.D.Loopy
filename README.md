@@ -1,8 +1,13 @@
 <h1 align="center">
-  <img src="docs/images/monkey-d-loopy-logo-512.png" alt="Monkey D Loopy logo" width="512" />
+  <img src="docs/public/images/monkey-d-loopy-logo-512.png" alt="Monkey D Loopy logo" width="512" />
 </h1>
 
 **A factory for runnable, crash-resumable agent loops.**
+
+[Documentation](https://matrixy.github.io/Monkey.D.Loopy/) ·
+[Agent guide](https://matrixy.github.io/Monkey.D.Loopy/agent-guide) ·
+[`llms.txt`](https://matrixy.github.io/Monkey.D.Loopy/llms.txt) ·
+[GitHub](https://github.com/MaTriXy/Monkey.D.Loopy)
 
 Describe a loop once in a declarative **LoopSpec**; compile it to something that actually runs —
 journaling every step, resuming after a crash, and stopping when it should. You bring the agent
@@ -257,6 +262,13 @@ runs with **plain `node` on any machine with Node ≥ 22** — no install, nothi
 
 ## Docs
 
+- [Documentation website](https://matrixy.github.io/Monkey.D.Loopy/) — guides, references, and
+  operator-platform material in a searchable reading experience.
+- [Using Loopy with agents](docs/agent-guide.md) — the recommended agent workflow, MCP setup,
+  context endpoints, and the guarantees an agent must preserve.
+- [`llms.txt`](https://matrixy.github.io/Monkey.D.Loopy/llms.txt) and
+  [`llms-full.txt`](https://matrixy.github.io/Monkey.D.Loopy/llms-full.txt) — compact and complete
+  agent-readable documentation indexes.
 - [LoopSpec reference](docs/loopspec.md) — the IR, step kinds, expression language, validation rules.
 - [`loopc` CLI](docs/cli.md) — every command and flag.
 - [`@loopyc/runtime`](docs/runtime.md) — runtime API, journal format, resume semantics, guarantees.
@@ -282,6 +294,7 @@ pnpm -r test          # vitest (unit · golden codegen · security · runtime ·
 pnpm eval             # property-based + capability + negative evals (graded by the real code)
 pnpm eval:skill       # NL→spec authoring quality (live with any provider key, else golden)
 pnpm build            # tsup → dist/ for every package (ESM + .d.ts; bins get a node shebang)
+pnpm docs:build       # verify agent docs and build the GitHub Pages site
 pnpm release:check    # 0.5.0 versions + CLI/help/targets/docs parity
 pnpm release:pack-smoke # clean consumer installs tarballs and exercises every target
 ```

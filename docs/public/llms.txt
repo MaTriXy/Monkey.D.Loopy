@@ -1,0 +1,27 @@
+# Monkey D Loopy
+
+> A factory for bounded, crash-resumable agent loops. Define a LoopSpec, prove it is bounded and resume-stable, then compile it into a durable artifact with enforced time, token, and cost controls.
+
+## Start here
+
+- [Documentation home](https://matrixy.github.io/Monkey.D.Loopy/): Product overview and quickstart.
+- [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended context and tool workflow for an agent.
+- [Complete agent context](https://matrixy.github.io/Monkey.D.Loopy/llms-full.txt): Consolidated canonical documentation in one text file.
+
+## Documentation
+
+- [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended agent workflow, MCP pattern, context endpoints, and safety boundaries.
+- [LoopSpec v0.1](https://matrixy.github.io/Monkey.D.Loopy/loopspec): Schema, steps, expressions, termination grounding, caps, and validation gates.
+- [CLI reference](https://matrixy.github.io/Monkey.D.Loopy/cli): Every loopc command and the standard validate, verify, score, compile flow.
+- [Verified recipes](https://matrixy.github.io/Monkey.D.Loopy/recipes): Supported outcome-oriented starting points with provenance and safety contracts.
+- [Durable runtime](https://matrixy.github.io/Monkey.D.Loopy/runtime): Runtime API, provider-agnostic harnesses, cost metering, journals, and resume semantics.
+- [MCP server](https://matrixy.github.io/Monkey.D.Loopy/mcp): Registration, structured tools, suggested agent flow, and protocol boundaries.
+- [Local operator](https://matrixy.github.io/Monkey.D.Loopy/operator): Secured local control center, journal read model, scheduling, and guarded controls.
+- [Artifacts and notifications](https://matrixy.github.io/Monkey.D.Loopy/artifacts-and-notifications): Bounded artifact indexing and deny-by-default generic webhook delivery.
+- [Guarded evolution](https://matrixy.github.io/Monkey.D.Loopy/guarded-evolution): Isolated candidates, deterministic gates, human activation, and byte-exact rollback.
+- [Operator platform roadmap](https://matrixy.github.io/Monkey.D.Loopy/operator-platform-roadmap): Product thesis, architecture, delivery phases, success measures, and definition of done.
+
+## Source and releases
+
+- [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
+- [v0.5.0 release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v0.5.0): Current documented release.

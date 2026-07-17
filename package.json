@@ -13,6 +13,9 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "docs:dev": "pnpm agent-docs:generate && vitepress dev docs",
+    "docs:build": "pnpm agent-docs:check && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "typecheck": "pnpm recipes:check && pnpm -r typecheck",
     "test": "pnpm -r test",
     "eval": "pnpm --filter @loopyc/evals eval",
@@ -20,6 +23,8 @@
     "loopc": "pnpm --filter @loopyc/cli exec loopc",
     "release:check": "node scripts/check-release-parity.mjs",
     "release:pack-smoke": "node scripts/pack-smoke.mjs",
+    "agent-docs:generate": "node scripts/generate-agent-docs.mjs",
+    "agent-docs:check": "node scripts/generate-agent-docs.mjs --check",
     "recipes:generate": "node scripts/generate-recipe-catalog.mjs",
     "recipes:check": "node scripts/generate-recipe-catalog.mjs --check"
   },
@@ -28,6 +33,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "vitepress": "^1.6.4",
     "vitest": "^2.1.8"
   },
   "pnpm": {

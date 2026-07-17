@@ -3,7 +3,7 @@
 The runtime that compiled **standalone** artifacts depend on. It owns the **outer** loop:
 journaling, replay, caps, durable sleep, and breakpoints. The **inner** ReAct turn is never
 owned by the runtime — `agent` steps delegate to a harness. Source:
-[`packages/runtime`](../packages/runtime).
+[`packages/runtime`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/runtime).
 
 ## API
 
@@ -119,7 +119,7 @@ reasoning models. Model-supplied `usage` is ignored — only the trusted provide
 ## Cost metering (the `usd` budget cap)
 
 `caps.budget.usd` is enforced from real cost. The `llm` harness derives USD per call via
-[`pricing.ts`](../packages/runtime/src/pricing.ts): a per-model table (`MODEL_PRICING`, USD per
+[`pricing.ts`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/packages/runtime/src/pricing.ts): a per-model table (`MODEL_PRICING`, USD per
 1M input/output tokens), overridable with `LOOPY_LLM_PRICE_IN` / `LOOPY_LLM_PRICE_OUT`, and it
 prefers a provider-reported `usage.cost` (e.g. OpenRouter) when present. The `claude-code` harness
 reports `total_cost_usd`. If a model can't be priced, `doctor` warns rather than letting the $ cap
@@ -221,5 +221,5 @@ node loop.mjs recover --abort --actor operator --reason "rolled back manually"
 The journal is corruption-evident by default (chained sha256); set `LOOPY_JOURNAL_KEY` to make
 it **tamper-evident** (keyed HMAC — the same key is then required to load/resume).
 
-Tracked for later (see [SPEC.md](../SPEC.md)): richer from-script / from-trace spec inference
+Tracked for later (see [SPEC.md](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/SPEC.md)): richer from-script / from-trace spec inference
 (LLM-side, via the `/loopy` skill).

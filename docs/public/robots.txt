@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://matrixy.github.io/Monkey.D.Loopy/sitemap.xml

@@ -3,7 +3,7 @@
 `loopc-mcp` exposes the Monkey D Loopy factory over the [Model Context
 Protocol](https://modelcontextprotocol.io) so any MCP-capable agent can author, verify,
 compile, run, and inspect loops conversationally. Source:
-[`packages/mcp`](../packages/mcp).
+[`packages/mcp`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp).
 
 ## Register it
 
@@ -39,7 +39,7 @@ Once published/installed, just point at the `loopc-mcp` bin:
 
 The server speaks JSON-RPC over **stdio**. `createServer()` is transport-agnostic, so it is
 also embeddable in-process via the SDK's `InMemoryTransport` (see
-[`packages/mcp/test`](../packages/mcp/test)).
+[`packages/mcp/test`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp/test)).
 
 ## Tools
 

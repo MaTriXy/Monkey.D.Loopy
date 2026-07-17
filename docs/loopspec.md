@@ -3,8 +3,8 @@
 A `LoopSpec` is one typed YAML document that declares a single **bounded** agent loop.
 Every input (a blueprint, a hand-written file, an NL draft) normalizes to this shape before
 any code is emitted. Canonical types live in
-[`packages/core/src/types.ts`](../packages/core/src/types.ts); the compact LLM-facing guide is
-[`LOOPSPEC_GUIDE`](../packages/core/src/toon.ts).
+[`packages/core/src/types.ts`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/packages/core/src/types.ts); the compact LLM-facing guide is
+[`LOOPSPEC_GUIDE`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/packages/core/src/toon.ts).
 
 > **The load-bearing rule:** the compiler refuses to emit an unbounded loop. `terminate` is
 > required and `caps` are mandatory (auto-injected if omitted).
@@ -125,7 +125,7 @@ caps:
 ```
 
 Per-pattern defaults (when omitted) are in
-[`normalize.ts`](../packages/core/src/normalize.ts).
+[`normalize.ts`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/packages/core/src/normalize.ts).
 
 ## artifacts and notify (optional, deny-by-default)
 
@@ -166,6 +166,6 @@ strong signal label over an agent-fed predicate), auto-injected caps, missing
 
 ## Worked example
 
-See [`examples/deploy-watch.yaml`](../examples/deploy-watch.yaml) — a `poll-until` loop that
+See [`examples/deploy-watch.yaml`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/examples/deploy-watch.yaml) — a `poll-until` loop that
 checks a deploy, lets an agent fix it when red, sleeps between checks, and exits when green.
 Scaffold any pattern with `loopc new <id> --blueprint <name>`.
