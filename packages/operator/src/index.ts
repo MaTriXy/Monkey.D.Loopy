@@ -52,3 +52,11 @@ export {
   type NotificationResult,
   type NotificationDispatcherOptions,
 } from "./notifications.js";
+export {
+  EvolutionManager,
+  type RevisionStatus,
+  type SemanticChange,
+  type EvolutionGate,
+  type FixtureGateResult,
+  type CandidateRecord,
+} from "./evolution.js";

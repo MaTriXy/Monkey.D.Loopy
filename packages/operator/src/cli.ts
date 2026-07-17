@@ -6,6 +6,7 @@ import { OperatorRegistry } from "./registry.js";
 import { OperatorRunController, OperatorScheduler } from "./controller.js";
 import { indexArtifacts } from "./artifacts.js";
 import { NotificationDispatcher } from "./notifications.js";
+import { EvolutionManager } from "./evolution.js";
 
 const HELP = `loopyd — local Monkey D Loopy operator
 
@@ -15,6 +16,9 @@ Usage:
   loopyd handoff <loop> <host|operator> --reason <text>
   loopyd run|step <loop> [--run-id <id>]
   loopyd pause|stop|resume|approve <loop> --run-id <id> --reason <text>
+  loopyd evolve propose <loop> <candidate-yaml>
+  loopyd evolve approve|reject <loop> <candidate-id> --reason <text> [--waive <codes>]
+  loopyd evolve rollback <loop> --reason <text>
   loopyd up [--background] [--port <port>]
   loopyd status
   loopyd down
@@ -135,6 +139,39 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     });
     console.log(`${command} requested for '${id}' run '${request.runId}' at the next journal-safe boundary`);
     return 0;
+  }
+  if (command === "evolve") {
+    const subcommand = argv[1];
+    const id = argv[2];
+    if (!subcommand || !id) throw new Error("usage: loopyd evolve propose|approve|reject|rollback <loop> ...");
+    const evolver = new EvolutionManager(registry);
+    const actor = flagValue(argv, "--actor") ?? "local-user";
+    if (subcommand === "propose") {
+      if (!argv[3]) throw new Error("usage: loopyd evolve propose <loop> <candidate-yaml>");
+      const candidate = await evolver.propose(id, readFileSync(argv[3], "utf8"), { actor, surface: "cli" });
+      console.log(`${candidate.id}\t${candidate.status}\t${candidate.baseScore ?? "?"}→${candidate.candidateScore ?? "?"}\tgates=${candidate.gates.map((gate) => gate.code).join(",") || "none"}`);
+      return candidate.gates.some((gate) => gate.severity === "fatal") ? 1 : 0;
+    }
+    if (subcommand === "rollback") {
+      const candidate = evolver.rollback(id, { actor, reason: flagValue(argv, "--reason") ?? "", surface: "cli" });
+      console.log(`rolled back '${id}' revision ${candidate.id}`);
+      return 0;
+    }
+    const candidateId = argv[3];
+    if (!candidateId) throw new Error(`usage: loopyd evolve ${subcommand} <loop> <candidate-id> --reason <text>`);
+    const reason = flagValue(argv, "--reason") ?? "";
+    if (subcommand === "approve") {
+      const waivers = (flagValue(argv, "--waive") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+      const candidate = evolver.activate(id, candidateId, { actor, reason, waivers, surface: "cli" });
+      console.log(`activated '${id}' revision ${candidate.id}`);
+      return 0;
+    }
+    if (subcommand === "reject") {
+      const candidate = evolver.reject(id, candidateId, { actor, reason, surface: "cli" });
+      console.log(`rejected '${id}' revision ${candidate.id}`);
+      return 0;
+    }
+    throw new Error(`unknown evolve command '${subcommand}'`);
   }
   if (command === "status") {
     const pid = readPid(registry);

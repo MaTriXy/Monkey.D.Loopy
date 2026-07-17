@@ -10,6 +10,7 @@ import { OperatorRegistry, type LoopRegistration } from "./registry.js";
 import { OperatorRunController, OperatorScheduler } from "./controller.js";
 import { indexArtifacts, readIndexedArtifact, type ArtifactIndex } from "./artifacts.js";
 import { NotificationDispatcher } from "./notifications.js";
+import { EvolutionManager } from "./evolution.js";
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 const MAX_BODY_BYTES = 64 * 1024;
@@ -24,6 +25,7 @@ export interface OperatorServerOptions {
   controller?: OperatorRunController;
   scheduler?: OperatorScheduler;
   notifier?: NotificationDispatcher;
+  evolver?: EvolutionManager;
 }
 
 export interface OperatorServerHandle {
@@ -32,6 +34,7 @@ export interface OperatorServerHandle {
   controller: OperatorRunController;
   scheduler: OperatorScheduler;
   notifier: NotificationDispatcher;
+  evolver: EvolutionManager;
   token: string;
   start(): Promise<{ host: string; port: number; url: string }>;
   stop(): Promise<void>;
@@ -82,7 +85,7 @@ function mime(path: string): string {
   }
 }
 
-async function loopOverview(loop: LoopRegistration, controller: OperatorRunController, artifactCache: Map<string, { key: string; index: ArtifactIndex }>): Promise<Record<string, unknown>> {
+async function loopOverview(loop: LoopRegistration, controller: OperatorRunController, evolver: EvolutionManager, artifactCache: Map<string, { key: string; index: ArtifactIndex }>): Promise<Record<string, unknown>> {
   const source = join(loop.path, "loop.source.yaml");
   let spec: Record<string, unknown> | undefined;
   let score: number | undefined;
@@ -108,7 +111,7 @@ async function loopOverview(loop: LoopRegistration, controller: OperatorRunContr
     catch (error) { artifacts = { files: [], totalBytes: 0, truncated: false, diagnostics: [`index failed without affecting the run: ${(error as Error).message}`] }; }
     artifactCache.set(loop.id, { key: cacheKey, index: artifacts });
   }
-  return { ...loop, score, grounding, spec, runs, artifacts, operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
+  return { ...loop, score, grounding, spec, runs, artifacts, revisions: evolver.list(loop.id), operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
 }
 
 function safeAsset(assetsDir: string, pathname: string): string | undefined {
@@ -156,6 +159,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
   const registry = options.registry ?? new OperatorRegistry();
   const artifactCache = new Map<string, { key: string; index: ArtifactIndex }>();
   const notifier = options.notifier ?? new NotificationDispatcher(registry);
+  const evolver = options.evolver ?? new EvolutionManager(registry);
   const controller = options.controller ?? new OperatorRunController({
     registry,
     onResult: async (loop, spec, runId, result) => {
@@ -258,6 +262,35 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
           }
           return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "action must be pause, stop, resume, approve, or recover" });
         }
+        const candidateRoute = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/evolution\/candidates(?:\/([A-Za-z0-9._-]+)\/actions)?$/);
+        if (candidateRoute) {
+          if (!registry.get(candidateRoute[1]!)) return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "loop not found" });
+          if (!candidateRoute[2]) {
+            if (typeof body.yaml !== "string" || !body.yaml.trim()) return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "candidate proposal requires yaml" });
+            const candidate = await evolver.propose(candidateRoute[1]!, body.yaml, { actor, surface: "api" });
+            return void json(res, 201, { apiVersion: OPERATOR_API_VERSION, candidate });
+          }
+          const reason = typeof body.reason === "string" ? body.reason : "";
+          try {
+            if (body.action === "activate") {
+              const waivers = Array.isArray(body.waivers) && body.waivers.every((value) => typeof value === "string") ? body.waivers as string[] : [];
+              return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, candidate: evolver.activate(candidateRoute[1]!, candidateRoute[2]!, { actor, reason, waivers, surface: "api" }) });
+            }
+            if (body.action === "reject") return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, candidate: evolver.reject(candidateRoute[1]!, candidateRoute[2]!, { actor, reason, surface: "api" }) });
+          } catch (error) {
+            return void json(res, 409, { apiVersion: OPERATOR_API_VERSION, error: (error as Error).message });
+          }
+          return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "candidate action must be activate or reject" });
+        }
+        const rollbackRoute = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/evolution\/rollback$/);
+        if (rollbackRoute) {
+          if (!registry.get(rollbackRoute[1]!)) return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "loop not found" });
+          try {
+            return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, candidate: evolver.rollback(rollbackRoute[1]!, { actor, reason: typeof body.reason === "string" ? body.reason : "", surface: "api" }) });
+          } catch (error) {
+            return void json(res, 409, { apiVersion: OPERATOR_API_VERSION, error: (error as Error).message });
+          }
+        }
         return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "not found" });
       }
       if (req.method !== "GET" && req.method !== "HEAD") return void json(res, 405, { apiVersion: OPERATOR_API_VERSION, error: "method not allowed" });
@@ -267,7 +300,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         return;
       }
       if (url.pathname === "/api/v1/loops") {
-        const loops = await Promise.all(registry.list().map((loop) => loopOverview(loop, controller, artifactCache)));
+        const loops = await Promise.all(registry.list().map((loop) => loopOverview(loop, controller, evolver, artifactCache)));
         json(res, 200, { apiVersion: OPERATOR_API_VERSION, loops });
         return;
       }
@@ -298,6 +331,11 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         else res.end(resolved.data);
         return;
       }
+      const revisionsMatch = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/evolution\/candidates$/);
+      if (revisionsMatch) {
+        if (!registry.get(revisionsMatch[1]!)) return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "loop not found" });
+        return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, candidates: evolver.list(revisionsMatch[1]!) });
+      }
       if (url.pathname === "/api/v1/events") {
         headers(res, "text/event-stream; charset=utf-8");
         res.setHeader("Connection", "keep-alive");
@@ -327,6 +365,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
     controller,
     scheduler,
     notifier,
+    evolver,
     token,
     start: () => new Promise((resolveStart, reject) => {
       server.once("error", reject);

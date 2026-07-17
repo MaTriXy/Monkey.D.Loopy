@@ -414,7 +414,9 @@ Deliberately deferred (documented, tracked for M2+):
 6. **Scheduling/lifetime ownership.** RESOLVED in M9: stay artifact-only but emit
    ready-to-install triggers. A recurring `schedule.mode` produces a `schedule/` dir (crontab,
    systemd, launchd, GitHub Actions); `loopc schedule install` prints the platform snippet. The
-   host fires it (no daemon ships today). The proposed optional operator does not replace this
-   default: standalone artifacts and host-native scheduling remain independent. See the
+   host fires it. The optional `@loopyc/operator` daemon can take scheduling authority only through
+   an explicit handoff; it does not replace this default. Standalone artifacts and host-native
+   scheduling remain independent. Its guarded-evolution layer evaluates candidates in isolated
+   state and requires deterministic gates plus human approval before atomic activation. See the
    [operator platform roadmap](docs/operator-platform-roadmap.md).
 7. **Licensing/attribution with `a5c-ai/babysitter`** for the distilled runtime + adapter.

@@ -22,6 +22,9 @@ loopyd handoff my-loop operator --reason "host timer disabled"
 loopyd step my-loop --run-id check-1
 loopyd pause my-loop --run-id check-1 --reason "maintenance"
 loopyd resume my-loop --run-id check-1 --reason "maintenance complete"
+loopyd evolve propose my-loop ./candidate.loop.yaml
+loopyd evolve approve my-loop <candidate-id> --reason "reviewed gates and fixtures"
+loopyd evolve rollback my-loop --reason "restore known-good revision"
 loopyd up --background                    # macOS/Linux detached local process
 loopyd status
 loopyd ui                                 # print the token bootstrap URL
@@ -43,3 +46,10 @@ byte ceilings. LoopSpec `notify` names logical generic-webhook channels whose UR
 from `LOOPY_NOTIFY_<CHANNEL>_URL` and optional `_TOKEN` environment variables. Delivery uses stable
 idempotency keys, bounded metadata-only payloads, transient retries, deduplication, failure-streak
 suppression, and audit events; observer failures never alter the run result.
+
+Guarded evolution stores complete candidate YAML outside the artifact, derives only bounded journal
+summaries, and runs deterministic validation, verification, scoring, regression, capability, and
+recipe-fixture gates. Fatal gates cannot be waived; safety expansions require every exact gate ID in
+an attributable approval. Activation and rollback refuse live runs, conditionally update the
+registry hash, preserve journal history, and restore the prior source byte-for-byte. See the
+[guarded-evolution contract](../../docs/guarded-evolution.md).

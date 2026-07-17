@@ -17,6 +17,23 @@ interface Run {
   source: { events: string };
   timeline: Array<{ seq: number; ts: number; type: string; summary: string }>;
 }
+interface Revision {
+  id: string;
+  status: "candidate" | "active" | "rejected" | "rolled-back" | "superseded";
+  createdAt: number;
+  updatedAt: number;
+  baseSpecHash: string;
+  candidateSpecHash: string;
+  baseScore?: number;
+  candidateScore?: number;
+  baseGrounding?: string;
+  candidateGrounding?: string;
+  changes: Array<{ path: string; before: string; after: string }>;
+  gates: Array<{ code: string; severity: "fatal" | "waiver-required"; message: string }>;
+  fixtures: Array<{ name: string; passed: boolean; detail?: string }>;
+  evidence: { recentRuns: Array<{ runId: string; status: string; integrity: string; iteration: number }> };
+  decision?: { actor: string; reason: string; at: number; waivers: string[] };
+}
 interface Loop {
   id: string;
   path: string;
@@ -29,13 +46,14 @@ interface Loop {
   score?: number;
   grounding?: string;
   spec?: { signal?: string; caps?: Record<string, unknown>; schedule?: Record<string, unknown> };
+  revisions?: Revision[];
   runs: Run[];
   source: { artifact: string; spec: string };
 }
 
 function badge(value: string): string {
-  if (["completed", "healthy", "verified", "external"].includes(value)) return "good";
-  if (["failed", "error", "corrupt", "truncated", "uncertain"].includes(value)) return "bad";
+  if (["completed", "healthy", "verified", "external", "active"].includes(value)) return "good";
+  if (["failed", "error", "corrupt", "truncated", "uncertain", "rejected"].includes(value)) return "bad";
   return "warn";
 }
 
@@ -54,6 +72,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string>();
   const [reason, setReason] = useState("");
+  const [candidateYaml, setCandidateYaml] = useState("");
+  const [waivers, setWaivers] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -106,6 +126,13 @@ function App() {
   const dispatch = (action: "run" | "step") => selected && void mutate(`/api/v1/loops/${selected.id}/runs`, { action, reason: reason || undefined }, action);
   const control = (action: "pause" | "stop" | "resume" | "approve") => selected && run && void mutate(`/api/v1/loops/${selected.id}/runs/${run.runId}/actions`, { action, reason: reason || undefined }, action);
   const handoff = () => selected && void mutate(`/api/v1/loops/${selected.id}/handoff`, { to: selected.schedulerAuthority === "operator" ? "host" : "operator", reason }, "handoff");
+  const propose = () => selected && void mutate(`/api/v1/loops/${selected.id}/evolution/candidates`, { yaml: candidateYaml }, "candidate proposal");
+  const decideRevision = (revision: Revision, action: "activate" | "reject") => selected && void mutate(
+    `/api/v1/loops/${selected.id}/evolution/candidates/${revision.id}/actions`,
+    { action, reason, waivers: waivers.split(",").map((value) => value.trim()).filter(Boolean) },
+    `${action} revision`,
+  );
+  const rollback = () => selected && void mutate(`/api/v1/loops/${selected.id}/evolution/rollback`, { reason }, "rollback revision");
 
   return <main>
     <header className="topbar">
@@ -144,7 +171,7 @@ function App() {
           </dl>
           <section className="controls" aria-labelledby="controls-title">
             <div><h3 id="controls-title">Guarded controls</h3><p>{selected.operation?.active ? `${selected.operation.active.action} active · ${selected.operation.active.runId}` : selected.operation?.nextDueAt ? `next operator fire ${new Date(selected.operation.nextDueAt).toLocaleString()}` : "no active operator claim"}</p></div>
-            <label><span>Reason for handoff or intervention</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. maintenance window" /></label>
+            <label><span>Reason for handoff, intervention, or revision decision</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. reviewed against fixture evidence" /></label>
             <div className="control-buttons">
               <button disabled={Boolean(busy || selected.operation?.active)} onClick={() => dispatch("run")}>Run</button>
               <button disabled={Boolean(busy || selected.operation?.active)} onClick={() => dispatch("step")}>Step</button>
@@ -166,6 +193,39 @@ function App() {
             </ul> : <p>No allowlisted products indexed yet.</p>}
             {selected.artifacts?.truncated && <div className="integrity" role="status">Artifact ceilings reached; the safe index is intentionally incomplete.</div>}
             {selected.artifacts?.diagnostics.length ? <details><summary>Artifact diagnostics ({selected.artifacts.diagnostics.length})</summary><ul className="diagnostics">{selected.artifacts.diagnostics.map((message) => <li key={message}>{message}</li>)}</ul></details> : null}
+          </section>
+          <section className="revisions" aria-labelledby="revisions-title">
+            <div className="revision-heading"><div><p className="eyebrow">Human-approved change</p><h3 id="revisions-title">Guarded evolution</h3><p>Candidate YAML stays isolated until its deterministic gates pass and a person activates it.</p></div><span>{selected.revisions?.length ?? 0} revisions</span></div>
+            <div className="proposal">
+              <label><span>Candidate LoopSpec YAML</span><textarea value={candidateYaml} onChange={(event) => setCandidateYaml(event.target.value)} placeholder="Paste the complete candidate LoopSpec here…" spellCheck={false} /></label>
+              <button disabled={Boolean(busy || !candidateYaml.trim() || candidateYaml.length > 65_536)} onClick={propose}>Evaluate isolated candidate</button>
+              {candidateYaml.length > 65_536 && <small role="alert">Candidate exceeds the 64 KiB local API limit.</small>}
+            </div>
+            {selected.revisions?.length ? <div className="revision-list">
+              {selected.revisions.map((revision) => {
+                const fatal = revision.gates.filter((gate) => gate.severity === "fatal");
+                const required = revision.gates.filter((gate) => gate.severity === "waiver-required").map((gate) => gate.code);
+                const supplied = new Set(waivers.split(",").map((value) => value.trim()).filter(Boolean));
+                const waiversReady = required.every((code) => supplied.has(code));
+                return <article className={`revision revision-${revision.status}`} key={revision.id}>
+                  <div className="revision-title"><div><b>{revision.id}</b><small>{relativeTime(revision.updatedAt)} · {revision.changes.length} semantic changes</small></div><i className={badge(revision.status)}>{revision.status}</i></div>
+                  <dl>
+                    <div><dt>Score</dt><dd>{revision.baseScore ?? "—"} → {revision.candidateScore ?? "—"}</dd></div>
+                    <div><dt>Grounding</dt><dd>{revision.baseGrounding ?? "—"} → {revision.candidateGrounding ?? "—"}</dd></div>
+                    <div><dt>Fixtures</dt><dd>{revision.fixtures.length ? `${revision.fixtures.filter((fixture) => fixture.passed).length}/${revision.fixtures.length} pass` : "not recipe-derived"}</dd></div>
+                    <div><dt>Evidence</dt><dd>{revision.evidence.recentRuns.length} bounded run summaries</dd></div>
+                  </dl>
+                  {revision.gates.length ? <ul className="gates">{revision.gates.map((gate) => <li className={gate.severity === "fatal" ? "bad" : "warn"} key={gate.code}><b>{gate.code}</b><span>{gate.message}</span></li>)}</ul> : <p className="gate-clear">All deterministic gates pass without waivers.</p>}
+                  <details><summary>Review semantic diff ({revision.changes.length})</summary><ul className="changes">{revision.changes.map((change) => <li key={change.path}><b>{change.path}</b><code>{change.before} → {change.after}</code></li>)}</ul></details>
+                  {revision.decision && <p className="decision">{revision.decision.actor}: {revision.decision.reason}{revision.decision.waivers.length ? ` · waived ${revision.decision.waivers.join(", ")}` : ""}</p>}
+                  {revision.status === "candidate" && <div className="revision-actions">
+                    {required.length > 0 && <label><span>Exact waiver gate IDs, comma-separated</span><input value={waivers} onChange={(event) => setWaivers(event.target.value)} placeholder={required.join(", ")} /></label>}
+                    <div><button disabled={Boolean(busy || !reason || selected.operation?.active || fatal.length || !waiversReady)} onClick={() => decideRevision(revision, "activate")}>Activate reviewed candidate</button><button disabled={Boolean(busy || !reason)} onClick={() => decideRevision(revision, "reject")}>Reject candidate</button></div>
+                  </div>}
+                  {revision.status === "active" && <div className="revision-actions"><button disabled={Boolean(busy || !reason || selected.operation?.active)} onClick={rollback}>Roll back byte-for-byte</button></div>}
+                </article>;
+              })}
+            </div> : <p className="no-revisions">No candidates evaluated yet. Current source remains the only active revision.</p>}
           </section>
           {run ? <>
             <div className="run-title"><div><h3>Latest run · {run.runId}</h3><p>{run.iteration} iterations · {run.tokens.toLocaleString()} tokens · ${run.usd.toFixed(4)}</p></div><div className="badges"><span className={badge(run.status)}>{run.status}</span><span className={badge(run.integrity)}>{run.integrity}</span></div></div>

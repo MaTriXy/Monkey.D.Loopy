@@ -88,6 +88,34 @@ describe("operator registry", () => {
       else process.env.LOOPY_OPERATOR_HOME = previous;
     }
   });
+
+  it("proposes, approves, and rolls back an isolated revision through the CLI", async () => {
+    const root = tmp();
+    const path = artifact(root);
+    const original = readFileSync(join(path, "loop.source.yaml"), "utf8");
+    const candidatePath = join(root, "candidate.yaml");
+    const candidateYaml = original.replace("prompt: finish", "prompt: finish carefully");
+    writeFileSync(candidatePath, candidateYaml);
+    const previous = process.env.LOOPY_OPERATOR_HOME;
+    process.env.LOOPY_OPERATOR_HOME = join(root, "operator-cli-evolution");
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...values) => void lines.push(values.join(" ")));
+    try {
+      expect(await runOperatorCli(["install", path])).toBe(0);
+      expect(await runOperatorCli(["evolve", "propose", "fixture", candidatePath, "--actor", "cli-user"])).toBe(0);
+      const candidateId = lines.find((line) => line.startsWith("candidate-"))?.split("\t")[0];
+      expect(candidateId).toBeTruthy();
+      expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(original);
+      expect(await runOperatorCli(["evolve", "approve", "fixture", candidateId!, "--actor", "cli-user", "--reason", "reviewed"])).toBe(0);
+      expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(candidateYaml);
+      expect(await runOperatorCli(["evolve", "rollback", "fixture", "--actor", "cli-user", "--reason", "restore"])).toBe(0);
+      expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(original);
+    } finally {
+      log.mockRestore();
+      if (previous === undefined) delete process.env.LOOPY_OPERATOR_HOME;
+      else process.env.LOOPY_OPERATOR_HOME = previous;
+    }
+  });
 });
 
 describe("loopback API and control center security", () => {
@@ -168,5 +196,48 @@ describe("loopback API and control center security", () => {
     expect(dispatch.status).toBe(202);
     await vi.waitFor(() => expect(handle.controller.readState().loops.fixture?.lastOutcome).toBe("waiting"));
     expect(readFileSync(registry.paths.audit, "utf8")).toContain('"runId":"api-step"');
+  });
+
+  it("keeps evolution isolated until an authenticated decision and supports exact rollback through the API", async () => {
+    const root = tmp();
+    const path = artifact(root);
+    const original = readFileSync(join(path, "loop.source.yaml"), "utf8");
+    const candidateYaml = original.replace("prompt: finish", "prompt: finish carefully");
+    const registry = new OperatorRegistry(join(root, "operator"));
+    registry.install(path);
+    const handle = createOperatorServer({ registry, token: "test-token-0123456789", port: 0 });
+    servers.push(handle);
+    const address = await handle.start();
+    const headers = { Authorization: `Bearer ${handle.token}`, Origin: address.url, "Content-Type": "application/json" };
+
+    const proposal = await fetch(`${address.url}/api/v1/loops/fixture/evolution/candidates`, {
+      method: "POST", headers, body: JSON.stringify({ yaml: candidateYaml, actor: "browser-user" }),
+    });
+    expect(proposal.status).toBe(201);
+    const proposed = (await proposal.json() as { candidate: { id: string; status: string; gates: unknown[] } }).candidate;
+    expect(proposed).toMatchObject({ status: "candidate", gates: [] });
+    expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(original);
+
+    const reasonless = await fetch(`${address.url}/api/v1/loops/fixture/evolution/candidates/${proposed.id}/actions`, {
+      method: "POST", headers, body: JSON.stringify({ action: "activate", actor: "browser-user" }),
+    });
+    expect(reasonless.status).toBe(409);
+    expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(original);
+
+    const revisions = await fetch(`${address.url}/api/v1/loops/fixture/evolution/candidates`, { headers: { Authorization: `Bearer ${handle.token}` } });
+    expect((await revisions.json() as { candidates: Array<{ id: string }> }).candidates).toEqual([expect.objectContaining({ id: proposed.id })]);
+
+    const activation = await fetch(`${address.url}/api/v1/loops/fixture/evolution/candidates/${proposed.id}/actions`, {
+      method: "POST", headers, body: JSON.stringify({ action: "activate", actor: "browser-user", reason: "reviewed deterministic diff", waivers: [] }),
+    });
+    expect(activation.status).toBe(200);
+    expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(candidateYaml);
+
+    const rollback = await fetch(`${address.url}/api/v1/loops/fixture/evolution/rollback`, {
+      method: "POST", headers, body: JSON.stringify({ actor: "browser-user", reason: "restore known-good bytes" }),
+    });
+    expect(rollback.status).toBe(200);
+    expect(readFileSync(join(path, "loop.source.yaml"), "utf8")).toBe(original);
+    expect(readFileSync(registry.paths.audit, "utf8")).toContain('"action":"evolution.rollback"');
   });
 });

@@ -58,7 +58,9 @@ designed out or made visible instead of debugged later.
   plain `node` — nothing to install.
 - **Optional local operations.** `@loopyc/operator` adds a secured loopback control center,
   explicit single-authority scheduling, guarded runtime controls, bounded artifact indexing, and
-  idempotent generic webhooks while journals and standalone/vendored artifacts remain independent.
+  idempotent generic webhooks. Guarded evolution evaluates isolated LoopSpec candidates against
+  deterministic regression gates, then requires a reasoned human activation with byte-exact
+  rollback. Journals and standalone/vendored artifacts remain independent.
 
 ## Quickstart
 
@@ -262,6 +264,8 @@ runs with **plain `node` on any machine with Node ≥ 22** — no install, nothi
 - [Local operator](docs/operator.md) — secured dashboard, scheduler handoff, run controls, and audit.
 - [Artifacts and notifications](docs/artifacts-and-notifications.md) — safe output contracts and
   generic webhook delivery semantics.
+- [Guarded evolution](docs/guarded-evolution.md) — isolated candidates, deterministic regression
+  gates, explicit waivers, human activation, and byte-exact rollback.
 - [Operator platform roadmap](docs/operator-platform-roadmap.md) — verified recipes, local control
   center, artifacts, notifications, and guarded evolution.
 - [Verified recipe contract](docs/recipes.md) — product-use-case packages over canonical LoopSpec.

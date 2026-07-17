@@ -36,6 +36,7 @@ export interface OperatorPaths {
   lock: string;
   scheduler: string;
   notifications: string;
+  revisions: string;
 }
 
 export interface OperatorConfigFile {
@@ -68,6 +69,7 @@ export function operatorPaths(root = process.env.LOOPY_OPERATOR_HOME ?? join(hom
     lock: join(absolute, "registry.lock"),
     scheduler: join(absolute, "scheduler.json"),
     notifications: join(absolute, "notifications.json"),
+    revisions: join(absolute, "revisions"),
   };
 }
 
@@ -223,6 +225,19 @@ export class OperatorRegistry {
     });
     this.appendAudit({ actor: input.actor, surface: input.surface, action: "loop.policy", outcome: "completed", loopId: id, specHash: updated.specHash, detail: { missedRunPolicy: updated.missedRunPolicy, concurrency: 1, reason: input.reason.trim() } });
     return updated;
+  }
+
+  replaceSpecHash(id: string, expected: string, nextHash: string): LoopRegistration {
+    return this.withLock(() => {
+      const registry = this.load();
+      const loop = registry.loops.find((candidate) => candidate.id === id);
+      if (!loop) throw new Error(`loop '${id}' is not installed`);
+      if (loop.specHash !== expected) throw new Error(`loop '${id}' registry hash changed; expected ${expected}, found ${loop.specHash}`);
+      const next = { ...loop, specHash: nextHash };
+      registry.loops = registry.loops.map((candidate) => candidate.id === id ? next : candidate);
+      atomicJson(this.paths.registry, registry);
+      return next;
+    });
   }
 
   ensureToken(): string {

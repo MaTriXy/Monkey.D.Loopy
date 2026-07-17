@@ -32,6 +32,9 @@ loopyd handoff my-loop operator --reason "disabled the host timer"
 loopyd step my-loop --run-id scheduled-check
 loopyd pause my-loop --run-id scheduled-check --reason "maintenance"
 loopyd resume my-loop --run-id scheduled-check --reason "maintenance complete"
+loopyd evolve propose my-loop ./candidate.loop.yaml
+loopyd evolve approve my-loop <candidate-id> --reason "reviewed deterministic evidence"
+loopyd evolve rollback my-loop --reason "restore known-good revision"
 loopyd ui
 loopyd down
 ```
@@ -79,6 +82,11 @@ Allowlisted artifacts and generic webhook delivery are described in
 [Artifacts and notifications](./artifacts-and-notifications.md). The dashboard shows only the
 bounded safe index and links each product to an authenticated loopback endpoint. Indexing and
 delivery are post-result observers: their failures are visible but cannot rewrite a successful run.
+
+Isolated LoopSpec candidates, deterministic regression gates, explicit waivers, activation, and
+byte-exact rollback are described in [Guarded evolution](./guarded-evolution.md). The dashboard
+distinguishes candidate, active, rejected, rolled-back, and superseded revisions and never treats
+journal or artifact content as instructions.
 
 `loopyd up --background` is supported on macOS and Linux; Windows is foreground-only and receives
 an explicit command. No service starts during npm installation.
