@@ -26,10 +26,14 @@ body:
 terminate: { signal: state-predicate, until: "\${state.done == true}" }
 caps: { max_iterations: 3, no_progress: { fingerprint: "\${state.done}", max_repeats: 2 }, budget: { tokens: 100, usd: 1, wallclock: 1h }, on_cap_exceeded: exit-clean }
 ${withSchedule ? 'schedule: { mode: cron, cron: "0 9 * * *" }' : 'schedule: { mode: manual }'}
+artifacts: { include: ["output/report.md"], max_files: 10, max_bytes: 1000000 }
+notify: { policy: on-change, channels: [] }
 observe: { trace: journal }
 `;
   writeFileSync(join(path, "loop.source.yaml"), yaml);
   writeFileSync(join(path, "loop.lock"), JSON.stringify({ loop_id: "fixture", target: "standalone" }));
+  mkdirSync(join(path, "output"));
+  writeFileSync(join(path, "output", "report.md"), "# safe report\n");
   if (withSchedule) mkdirSync(join(path, "schedule"));
   const journal = new Journal(path, "default");
   journal.load();
@@ -109,6 +113,14 @@ describe("loopback API and control center security", () => {
     expect(payload.loops[0]).toMatchObject({ id: "fixture", grounding: "structural" });
     expect(payload.loops[0]!.score).toBeGreaterThanOrEqual(90);
     expect(payload.loops[0]!.runs).toHaveLength(1);
+
+    const artifacts = await fetch(`${address.url}/api/v1/loops/fixture/artifacts`, { headers: auth });
+    expect(artifacts.status).toBe(200);
+    expect((await artifacts.json() as { artifacts: { files: Array<{ path: string }> } }).artifacts.files).toEqual([expect.objectContaining({ path: "output/report.md" })]);
+    const report = await fetch(`${address.url}/api/v1/loops/fixture/artifacts/output/report.md`, { headers: auth });
+    expect(report.headers.get("content-type")).toContain("text/markdown");
+    expect(await report.text()).toBe("# safe report\n");
+    expect((await fetch(`${address.url}/api/v1/loops/fixture/artifacts/../loop.source.yaml`, { headers: auth })).status).toBe(404);
 
     const bootstrap = await fetch(`${address.url}/?token=${handle.token}`, { redirect: "manual" });
     expect(bootstrap.status).toBe(302);

@@ -17,6 +17,8 @@ body:
 terminate: { signal: state-predicate, until: "\${state.done == true}" }
 caps: { max_iterations: 3 }
 schedule: { mode: ${schedule}${schedule === "cron" ? ', cron: "0 * * * *"' : ""} }
+artifacts: { include: ["output/report.md"], max_files: 10, max_bytes: 1000000 }
+notify: { policy: on-change, channels: [] }
 `;
 
 const source = (name = "repo-health-doctor"): RecipeSource => ({
@@ -92,6 +94,18 @@ describe("recipe contract", () => {
     const result = parseRecipeSource(value);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.diagnostics.some((diagnostic) => diagnostic.path.endsWith("minimum_score"))).toBe(true);
+  });
+
+  it("requires verified product artifacts and notification policy to match the LoopSpec", () => {
+    const value = source();
+    value.specYaml = value.specYaml.replace('artifacts: { include: ["output/report.md"], max_files: 10, max_bytes: 1000000 }\n', "").replace("notify: { policy: on-change, channels: [] }\n", "");
+    const result = parseRecipeSource(value);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const messages = result.diagnostics.map((diagnostic) => diagnostic.message).join("\n");
+      expect(messages).toContain("must be explicitly allowlisted");
+      expect(messages).toContain("notification policy");
+    }
   });
 
   it("sorts valid recipes and rejects duplicate names", () => {

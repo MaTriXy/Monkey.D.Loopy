@@ -36,3 +36,19 @@ export {
   type OperatorActionContext,
   type OperatorRunControllerOptions,
 } from "./controller.js";
+export {
+  DEFAULT_ARTIFACT_MAX_FILES,
+  DEFAULT_ARTIFACT_MAX_BYTES,
+  indexArtifacts,
+  resolveIndexedArtifact,
+  readIndexedArtifact,
+  type IndexedArtifact,
+  type ArtifactIndex,
+} from "./artifacts.js";
+export {
+  NotificationDispatcher,
+  type NotificationDeliveryState,
+  type NotificationStateFile,
+  type NotificationResult,
+  type NotificationDispatcherOptions,
+} from "./notifications.js";

@@ -37,3 +37,9 @@ The operator scheduler stores one explicit authority and one active claim per lo
 locks, atomic state, stale-claim recovery, durable cron/wake timestamps, a latest-only missed-run
 policy, and append-only actor/surface/spec-hash audit events keep control attributable. All run
 actions delegate to `@loopyc/runtime`; artifacts remain independently runnable and removable.
+
+LoopSpec `artifacts` allowlists are indexed with symlink, traversal, MIME, secret, file-count, and
+byte ceilings. LoopSpec `notify` names logical generic-webhook channels whose URL/token come only
+from `LOOPY_NOTIFY_<CHANNEL>_URL` and optional `_TOKEN` environment variables. Delivery uses stable
+idempotency keys, bounded metadata-only payloads, transient retries, deduplication, failure-streak
+suppression, and audit events; observer failures never alter the run result.

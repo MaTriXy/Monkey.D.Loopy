@@ -25,6 +25,7 @@ interface Loop {
   schedulerAuthority: string;
   hostScheduleDetected: boolean;
   operation?: { nextDueAt?: number; pendingDueAt?: number; active?: { runId: string; action: string; startedAt: number }; lastOutcome?: Status };
+  artifacts?: { files: Array<{ path: string; size: number; mime: string; sha256: string; modifiedAt: number; localUrl: string }>; totalBytes: number; truncated: boolean; diagnostics: string[] };
   score?: number;
   grounding?: string;
   spec?: { signal?: string; caps?: Record<string, unknown>; schedule?: Record<string, unknown> };
@@ -154,6 +155,17 @@ function App() {
               <button className="handoff" disabled={Boolean(busy || !reason || selected.operation?.active)} onClick={handoff}>Hand off to {selected.schedulerAuthority === "operator" ? "host" : "operator"}</button>
             </div>
             {busy && <p className="busy" role="status">Submitting {busy}…</p>}
+          </section>
+          <section className="products" aria-labelledby="products-title">
+            <div><p className="eyebrow">Allowlisted output</p><h3 id="products-title">Artifacts</h3></div>
+            {selected.artifacts?.files.length ? <ul>
+              {selected.artifacts.files.map((artifact) => <li key={artifact.path}>
+                <a href={artifact.localUrl}>{artifact.path}</a>
+                <span>{artifact.mime.split(";")[0]} · {artifact.size.toLocaleString()} bytes · <code>{artifact.sha256.slice(0, 10)}</code></span>
+              </li>)}
+            </ul> : <p>No allowlisted products indexed yet.</p>}
+            {selected.artifacts?.truncated && <div className="integrity" role="status">Artifact ceilings reached; the safe index is intentionally incomplete.</div>}
+            {selected.artifacts?.diagnostics.length ? <details><summary>Artifact diagnostics ({selected.artifacts.diagnostics.length})</summary><ul className="diagnostics">{selected.artifacts.diagnostics.map((message) => <li key={message}>{message}</li>)}</ul></details> : null}
           </section>
           {run ? <>
             <div className="run-title"><div><h3>Latest run · {run.runId}</h3><p>{run.iteration} iterations · {run.tokens.toLocaleString()} tokens · ${run.usd.toFixed(4)}</p></div><div className="badges"><span className={badge(run.status)}>{run.status}</span><span className={badge(run.integrity)}>{run.integrity}</span></div></div>

@@ -3,11 +3,13 @@ import { timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadSpecFromYaml, terminationGrounding } from "@loopyc/core";
+import { loadSpecFromYaml, terminationGrounding, type LoopSpec } from "@loopyc/core";
 import { scoreLoop, verifyLoop } from "@loopyc/verify";
 import { OPERATOR_API_VERSION, listRuns } from "./read-model.js";
 import { OperatorRegistry, type LoopRegistration } from "./registry.js";
 import { OperatorRunController, OperatorScheduler } from "./controller.js";
+import { indexArtifacts, readIndexedArtifact, type ArtifactIndex } from "./artifacts.js";
+import { NotificationDispatcher } from "./notifications.js";
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 const MAX_BODY_BYTES = 64 * 1024;
@@ -21,6 +23,7 @@ export interface OperatorServerOptions {
   assetsDir?: string;
   controller?: OperatorRunController;
   scheduler?: OperatorScheduler;
+  notifier?: NotificationDispatcher;
 }
 
 export interface OperatorServerHandle {
@@ -28,6 +31,7 @@ export interface OperatorServerHandle {
   registry: OperatorRegistry;
   controller: OperatorRunController;
   scheduler: OperatorScheduler;
+  notifier: NotificationDispatcher;
   token: string;
   start(): Promise<{ host: string; port: number; url: string }>;
   stop(): Promise<void>;
@@ -78,22 +82,33 @@ function mime(path: string): string {
   }
 }
 
-async function loopOverview(loop: LoopRegistration, controller: OperatorRunController): Promise<Record<string, unknown>> {
+async function loopOverview(loop: LoopRegistration, controller: OperatorRunController, artifactCache: Map<string, { key: string; index: ArtifactIndex }>): Promise<Record<string, unknown>> {
   const source = join(loop.path, "loop.source.yaml");
   let spec: Record<string, unknown> | undefined;
   let score: number | undefined;
   let grounding: string | undefined;
+  let loadedSpec: LoopSpec | undefined;
+  let artifacts: ArtifactIndex = { files: [], totalBytes: 0, truncated: false, diagnostics: [] };
   if (existsSync(source)) {
     const loaded = loadSpecFromYaml(readFileSync(source, "utf8"));
     if (loaded.spec) {
       const report = await verifyLoop(loaded.spec, loaded.capsInjected ?? false);
       score = scoreLoop(loaded.spec, report).total;
       grounding = terminationGrounding(loaded.spec).class;
+      loadedSpec = loaded.spec;
       spec = { signal: loaded.spec.terminate.signal, caps: loaded.spec.caps, schedule: loaded.spec.schedule };
     }
   }
   const runs = listRuns(loop.path);
-  return { ...loop, score, grounding, spec, runs, operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
+  const cacheKey = `${loop.specHash}:${Math.max(0, ...runs.map((run) => run.updatedAt ?? 0))}`;
+  const cached = artifactCache.get(loop.id);
+  if (cached?.key === cacheKey) artifacts = cached.index;
+  else if (loadedSpec) {
+    try { artifacts = indexArtifacts(loop.path, loadedSpec.artifacts, loop.id); }
+    catch (error) { artifacts = { files: [], totalBytes: 0, truncated: false, diagnostics: [`index failed without affecting the run: ${(error as Error).message}`] }; }
+    artifactCache.set(loop.id, { key: cacheKey, index: artifacts });
+  }
+  return { ...loop, score, grounding, spec, runs, artifacts, operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
 }
 
 function safeAsset(assetsDir: string, pathname: string): string | undefined {
@@ -139,7 +154,21 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
   if (!LOOPBACK.has(host)) throw new Error(`operator must bind to loopback; got '${host}'`);
   const port = options.port ?? 3210;
   const registry = options.registry ?? new OperatorRegistry();
-  const controller = options.controller ?? new OperatorRunController({ registry });
+  const artifactCache = new Map<string, { key: string; index: ArtifactIndex }>();
+  const notifier = options.notifier ?? new NotificationDispatcher(registry);
+  const controller = options.controller ?? new OperatorRunController({
+    registry,
+    onResult: async (loop, spec, runId, result) => {
+      artifactCache.delete(loop.id);
+      let artifacts: ArtifactIndex;
+      try { artifacts = indexArtifacts(loop.path, spec.artifacts, loop.id); }
+      catch (error) {
+        registry.appendAudit({ actor: "operator", surface: "scheduler", action: "artifact.index", outcome: "failed", loopId: loop.id, runId, specHash: loop.specHash, detail: { error: (error as Error).message } });
+        artifacts = { files: [], totalBytes: 0, truncated: false, diagnostics: [(error as Error).message] };
+      }
+      await notifier.dispatch(loop, spec, runId, result, artifacts);
+    },
+  });
   const scheduler = options.scheduler ?? new OperatorScheduler(controller);
   const token = options.token ?? registry.ensureToken();
   const assetsDir = options.assetsDir ?? DEFAULT_ASSETS;
@@ -238,7 +267,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         return;
       }
       if (url.pathname === "/api/v1/loops") {
-        const loops = await Promise.all(registry.list().map((loop) => loopOverview(loop, controller)));
+        const loops = await Promise.all(registry.list().map((loop) => loopOverview(loop, controller, artifactCache)));
         json(res, 200, { apiVersion: OPERATOR_API_VERSION, loops });
         return;
       }
@@ -250,6 +279,24 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         if (!runMatch[2]) return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, runs });
         const run = runs.find((candidate) => candidate.runId === runMatch[2]);
         return void json(res, run ? 200 : 404, run ? { apiVersion: OPERATOR_API_VERSION, run } : { apiVersion: OPERATOR_API_VERSION, error: "run not found" });
+      }
+      const artifactMatch = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/artifacts(?:\/(.+))?$/);
+      if (artifactMatch) {
+        const loop = registry.get(artifactMatch[1]!);
+        if (!loop) return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "loop not found" });
+        const loaded = loadSpecFromYaml(readFileSync(join(loop.path, "loop.source.yaml"), "utf8"));
+        if (!loaded.spec) return void json(res, 409, { apiVersion: OPERATOR_API_VERSION, error: "installed source no longer validates" });
+        const index = indexArtifacts(loop.path, loaded.spec.artifacts, loop.id);
+        if (!artifactMatch[2]) return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, artifacts: index });
+        const resolved = readIndexedArtifact(loop.path, index, artifactMatch[2]);
+        if (!resolved) return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "artifact not allowlisted" });
+        headers(res, resolved.artifact.mime);
+        res.setHeader("Content-Length", String(resolved.artifact.size));
+        res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(resolved.artifact.path.split("/").at(-1)!)}`);
+        res.statusCode = 200;
+        if (req.method === "HEAD") res.end();
+        else res.end(resolved.data);
+        return;
       }
       if (url.pathname === "/api/v1/events") {
         headers(res, "text/event-stream; charset=utf-8");
@@ -279,6 +326,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
     registry,
     controller,
     scheduler,
+    notifier,
     token,
     start: () => new Promise((resolveStart, reject) => {
       server.once("error", reject);

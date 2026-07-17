@@ -150,6 +150,8 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
     target: "standalone",
     signal: spec.terminate.signal,
     caps: spec.caps,
+    artifacts: spec.artifacts,
+    notify: spec.notify,
     schedule: spec.schedule,
     retry: spec.retry,
     provenance: spec.provenance,
@@ -332,6 +334,8 @@ function emitLock(spec: LoopSpec, vendor = false): string {
     recipe: spec.provenance?.recipe,
     signal: spec.terminate.signal,
     caps: spec.caps,
+    artifacts: spec.artifacts,
+    notify: spec.notify,
   };
   return JSON.stringify(lock, null, 2) + "\n";
 }

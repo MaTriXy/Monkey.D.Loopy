@@ -182,6 +182,22 @@ export const LoopSpecSchema = z
     schedule: z
       .object({ mode: z.enum(["manual", "cron", "watch", "forever"]), cron: z.string().optional() })
       .optional(),
+    artifacts: z
+      .object({
+        include: z.array(z.string().min(1)).min(1),
+        exclude: z.array(z.string().min(1)).optional(),
+        max_files: z.number().int().positive().max(10_000).optional(),
+        max_bytes: z.number().int().positive().max(1_000_000_000).optional(),
+      })
+      .strict()
+      .optional(),
+    notify: z
+      .object({
+        policy: z.enum(["never", "on-change", "on-failure", "always"]),
+        channels: z.array(z.string().min(1)).max(32),
+      })
+      .strict()
+      .optional(),
     retry: z
       .object({ max: z.number().int().nonnegative().optional(), backoff_ms: z.number().int().positive().optional() })
       .optional(),

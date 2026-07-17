@@ -56,6 +56,15 @@ export function normalize(raw: RawLoopSpec): NormalizedSpec {
 
   spec.schedule = spec.schedule ?? { mode: "manual" };
 
+  if (spec.artifacts) {
+    spec.artifacts = {
+      include: spec.artifacts.include,
+      exclude: spec.artifacts.exclude ?? [],
+      max_files: spec.artifacts.max_files ?? 1_000,
+      max_bytes: spec.artifacts.max_bytes ?? 50_000_000,
+    };
+  }
+
   if (spec.state) {
     spec.state.store = spec.state.store ?? "journal";
   }

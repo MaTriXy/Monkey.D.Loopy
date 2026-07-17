@@ -75,5 +75,10 @@ the active run acknowledges it only after a replay-safe boundary. Approvals and 
 journaled by the runtime, so the control center cannot invent weaker semantics. Shutdown requests a
 graceful boundary and reports a timeout rather than silently forcing an unsafe continuation.
 
+Allowlisted artifacts and generic webhook delivery are described in
+[Artifacts and notifications](./artifacts-and-notifications.md). The dashboard shows only the
+bounded safe index and links each product to an authenticated loopback endpoint. Indexing and
+delivery are post-result observers: their failures are visible but cannot rewrite a successful run.
+
 `loopyd up --background` is supported on macOS and Linux; Windows is foreground-only and receives
 an explicit command. No service starts during npm installation.

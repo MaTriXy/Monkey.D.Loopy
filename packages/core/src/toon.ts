@@ -83,12 +83,19 @@ if omitted, but you should set them deliberately).
 ## Resilience (optional)
 - retry: { max, backoff_ms }   # transient http/shell/agent failures retry with exponential backoff
 
+## Products and delivery (optional, deny-by-default)
+- artifacts: { include: ["reports/**/*.md"], exclude?: [...], max_files?: 1000, max_bytes?: 50000000 }
+- notify: { policy: never|on-change|on-failure|always, channels: [logical-name] }
+- artifact globs are relative; never allowlist secrets, dependencies, HTML/XML/SVG, or runtime journals.
+- webhook URLs/tokens are operator environment configuration, never LoopSpec values.
+
 ## Hard rules the validator enforces
 1. terminate present; until references a signal that some step can change (else unreachable).
 2. self-assess termination requires explicit caps.
 3. every reference (state/inputs) must be declared; every save/on_done target must be declared.
 4. exactly one of sleep.for / sleep.until.
 5. expressions must be in the safe subset (no calls / unknown roots).
+6. artifact allowlists cannot traverse, expose secrets, or include active content; channels are logical names.
 
 ## Post-generation checklist
 - [ ] Is the termination signal the STRONGEST available (prefer oracle/state-predicate)?

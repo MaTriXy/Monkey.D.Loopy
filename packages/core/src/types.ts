@@ -225,6 +225,23 @@ export interface ScheduleSpec {
   cron?: string;
 }
 
+export interface ArtifactSpec {
+  /** Repository-relative allowlist globs. No path is indexed unless it matches one. */
+  include: string[];
+  /** Additional repository-relative deny globs, applied after the allowlist. */
+  exclude?: string[];
+  max_files?: number;
+  max_bytes?: number;
+}
+
+export type NotifyPolicy = "never" | "on-change" | "on-failure" | "always";
+
+export interface NotifySpec {
+  policy: NotifyPolicy;
+  /** Logical local channel names. URLs and credentials live in operator environment/config. */
+  channels: string[];
+}
+
 /** Transient-error retry policy for http/shell/agent effects. */
 export interface RetrySpec {
   /** Max retries after the first attempt (default 0). */
@@ -267,6 +284,8 @@ export interface LoopSpec {
   terminate: Terminate;
   caps: Caps;
   schedule?: ScheduleSpec;
+  artifacts?: ArtifactSpec;
+  notify?: NotifySpec;
   retry?: RetrySpec;
   gates?: Gate[];
   observe?: ObserveSpec;

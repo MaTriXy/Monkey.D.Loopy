@@ -93,6 +93,8 @@ describe("loopc run() — dispatch + commands", () => {
     for (const target of ["standalone", "babysitter", "claude-code", "claude-native", "n8n"]) {
       const lock = JSON.parse(readFileSync(join(out, target, "loop.lock"), "utf8"));
       expect(lock.recipe).toEqual({ name: "repo-health-doctor", version: "1" });
+      expect(lock.artifacts.include).toContain("output/repo-health.md");
+      expect(lock.notify).toEqual({ policy: "on-change", channels: [] });
     }
   });
 

@@ -37,6 +37,12 @@ caps:
   budget: { tokens: 50000, usd: 2, wallclock: "30m" }
   on_cap_exceeded: exit-clean
 schedule: { mode: manual }
+artifacts:
+  include: ["output/repo-health.md"]
+  exclude: ["**/.env*", "**/node_modules/**"]
+  max_files: 20
+  max_bytes: 5000000
+notify: { policy: on-change, channels: [] }
 observe:
   trace: journal
   notify: { terminal: true, cap: true }

@@ -401,6 +401,8 @@ function emitLockBaby(spec: LoopSpec): string {
         recipe: spec.provenance?.recipe,
         signal: spec.terminate.signal,
         caps: spec.caps,
+        artifacts: spec.artifacts,
+        notify: spec.notify,
       },
       null,
       2

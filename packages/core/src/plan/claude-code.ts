@@ -107,7 +107,7 @@ export const claudeCodeAdapter: Adapter = {
         relativePath: "loop.lock",
         contents:
           JSON.stringify(
-            { loop_id: spec.id, loopspec_version: spec.loopspec, target: "claude-code", recipe: spec.provenance?.recipe, signal: spec.terminate.signal, caps: spec.caps },
+            { loop_id: spec.id, loopspec_version: spec.loopspec, target: "claude-code", recipe: spec.provenance?.recipe, signal: spec.terminate.signal, caps: spec.caps, artifacts: spec.artifacts, notify: spec.notify },
             null,
             2
           ) + "\n",

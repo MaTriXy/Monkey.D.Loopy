@@ -57,7 +57,9 @@ export type Capability =
   | "wallclock-budget"
   | "schedule-forever"
   | "schedule-cron"
-  | "http-native";
+  | "http-native"
+  | "artifact-contract"
+  | "notifications";
 
 export type Support = "enforced" | "soft" | "unsupported";
 
@@ -75,6 +77,8 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-forever": "enforced",
     "schedule-cron": "soft", // relies on host cron / Claude Cloud routines to fire it
     "http-native": "enforced",
+    "artifact-contract": "soft",
+    notifications: "soft",
   },
   babysitter: {
     journal: "enforced",
@@ -89,6 +93,8 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-forever": "enforced",
     "schedule-cron": "soft",
     "http-native": "unsupported", // closed task enum (agent|shell|breakpoint|sleep) → lowered to shell+curl
+    "artifact-contract": "soft",
+    notifications: "unsupported",
   },
   // Prose execution guide for a coding agent (cc-wf-studio style): everything is
   // agent-followed, so enforcement is soft and there is no journal/replay machinery.
@@ -105,6 +111,8 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-forever": "soft",
     "schedule-cron": "soft",
     "http-native": "enforced",
+    "artifact-contract": "soft",
+    notifications: "unsupported",
   },
   // Claude Code project skill: slash-command native UX. It can delegate to a sibling
   // standalone artifact for hard guarantees, but the Claude skill itself is still prompt-driven.
@@ -121,6 +129,8 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-forever": "soft",
     "schedule-cron": "soft",
     "http-native": "soft",
+    "artifact-contract": "soft",
+    notifications: "unsupported",
   },
   // n8n workflow export — a best-effort node graph. n8n has its own execution model
   // (item-passing, its own history), so our journal/caps/shared-state guarantees don't map.
@@ -137,6 +147,8 @@ export const CAPABILITY_MATRIX: Record<RuntimeTarget, Record<Capability, Support
     "schedule-forever": "soft",
     "schedule-cron": "enforced", // Schedule Trigger
     "http-native": "enforced", // HTTP Request node
+    "artifact-contract": "soft",
+    notifications: "unsupported",
   },
 };
 
@@ -153,6 +165,8 @@ export function usedCapabilities(spec: LoopSpec): Set<Capability> {
   if (spec.schedule?.mode === "forever" || spec.schedule?.mode === "watch")
     used.add("schedule-forever");
   if (spec.schedule?.mode === "cron") used.add("schedule-cron");
+  if (spec.artifacts) used.add("artifact-contract");
+  if (spec.notify && spec.notify.policy !== "never") used.add("notifications");
 
   const walk = (steps: typeof spec.body): void => {
     for (const s of steps) {

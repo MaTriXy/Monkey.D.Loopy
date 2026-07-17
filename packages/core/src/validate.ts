@@ -495,6 +495,35 @@ export function validate(normalized: NormalizedSpec): ValidationResult {
     if (gate.ask) checkTemplate(gate.ask, `gates[${i}].ask`, baseScope);
   }
 
+  // --- artifact + notification contracts ----------------------------------
+  const artifactPatternError = (pattern: string, include: boolean): string | undefined => {
+    if (pattern.includes("\\") || pattern.startsWith("/") || pattern.startsWith("~") || /^[A-Za-z]:/.test(pattern)) return "must be a repository-relative POSIX glob";
+    if (pattern.split("/").some((part) => part === ".." || part === ".")) return "must not traverse outside the artifact root";
+    if (/[\u0000-\u001f\u007f]/.test(pattern)) return "must not contain control characters";
+    if (include && /(^|\/)(?:\.env|\.git(?:\/|$)|node_modules(?:\/|$)|[^/]*(?:secret|credential|private[-_]?key)[^/]*$)/i.test(pattern)) return "must not allowlist secret or dependency paths";
+    if (include && /\.(?:html?|svg|xml|xhtml)(?:$|[?*])/i.test(pattern)) return "must not allow active-content formats";
+    return undefined;
+  };
+  for (const [i, pattern] of (spec.artifacts?.include ?? []).entries()) {
+    const message = artifactPatternError(pattern, true);
+    if (message) err("unsafe-artifact-include", `artifacts.include[${i}] '${pattern}' ${message}.`, `artifacts.include[${i}]`);
+  }
+  for (const [i, pattern] of (spec.artifacts?.exclude ?? []).entries()) {
+    const message = artifactPatternError(pattern, false);
+    if (message) err("unsafe-artifact-exclude", `artifacts.exclude[${i}] '${pattern}' ${message}.`, `artifacts.exclude[${i}]`);
+  }
+  if (spec.artifacts && new Set(spec.artifacts.include).size !== spec.artifacts.include.length) {
+    err("duplicate-artifact-include", "artifacts.include contains duplicate patterns.", "artifacts.include");
+  }
+  for (const [i, channel] of (spec.notify?.channels ?? []).entries()) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(channel)) {
+      err("unsafe-notify-channel", `notify.channels[${i}] must be a logical channel name, not a URL, path, or credential.`, `notify.channels[${i}]`);
+    }
+  }
+  if (spec.notify && new Set(spec.notify.channels).size !== spec.notify.channels.length) {
+    err("duplicate-notify-channel", "notify.channels contains duplicate channel names.", "notify.channels");
+  }
+
   // --- observability --------------------------------------------------------
   if (spec.observe?.trace === "none") {
     warn("no-trace", "observe.trace is 'none'; without a journal trace, failures are hard to diagnose.", "observe.trace");

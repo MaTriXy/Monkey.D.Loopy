@@ -38,6 +38,7 @@ export interface OperatorRunControllerOptions {
   registry?: OperatorRegistry;
   now?: () => number;
   runtimeOptions?: (loop: LoopRegistration, runId: string) => RuntimeOptions;
+  onResult?: (loop: LoopRegistration, spec: LoopSpec, runId: string, result: RunResult) => void | Promise<void>;
 }
 
 function atomicJson(path: string, value: unknown): void {
@@ -66,12 +67,14 @@ export class OperatorRunController {
   readonly registry: OperatorRegistry;
   private readonly now: () => number;
   private readonly runtimeOptions?: OperatorRunControllerOptions["runtimeOptions"];
+  private readonly onResult?: OperatorRunControllerOptions["onResult"];
   private readonly active = new Map<string, { runId: string; promise: Promise<RunResult> }>();
 
   constructor(options: OperatorRunControllerOptions = {}) {
     this.registry = options.registry ?? new OperatorRegistry();
     this.now = options.now ?? (() => Date.now());
     this.runtimeOptions = options.runtimeOptions;
+    this.onResult = options.onResult;
     this.recoverStaleClaims();
   }
 
@@ -190,9 +193,13 @@ export class OperatorRunController {
       }
       return runtime.run();
     })()
-      .then((result) => {
+      .then(async (result) => {
         this.release(loopId, result.status);
         this.registry.appendAudit({ actor: input.actor, surface: input.surface, action: `run.${action}`, outcome: "completed", loopId, runId, specHash: loop.specHash, detail: { status: result.status, iteration: result.iteration, reason: result.reason } });
+        try { await this.onResult?.(loop, spec, runId, result); }
+        catch (error) {
+          this.registry.appendAudit({ actor: "operator", surface: input.surface, action: "run.post-result", outcome: "failed", loopId, runId, specHash: loop.specHash, detail: { error: (error as Error).message } });
+        }
         return result;
       })
       .catch((error) => {

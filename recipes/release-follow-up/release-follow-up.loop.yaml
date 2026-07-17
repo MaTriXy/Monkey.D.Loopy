@@ -37,6 +37,12 @@ caps:
   budget: { tokens: 100000, usd: 4, wallclock: "24h" }
   on_cap_exceeded: exit-clean
 schedule: { mode: forever }
+artifacts:
+  include: ["output/release-follow-up.md"]
+  exclude: ["**/.env*", "**/node_modules/**"]
+  max_files: 20
+  max_bytes: 5000000
+notify: { policy: on-change, channels: [] }
 observe:
   trace: journal
   notify: { terminal: true, cap: true, action_required: true }

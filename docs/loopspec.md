@@ -127,6 +127,25 @@ caps:
 Per-pattern defaults (when omitted) are in
 [`normalize.ts`](../packages/core/src/normalize.ts).
 
+## artifacts and notify (optional, deny-by-default)
+
+```yaml
+artifacts:
+  include: ["reports/**/*.md", "metrics/*.json"]
+  exclude: ["reports/private/**", "**/.env*"]
+  max_files: 1000
+  max_bytes: 50000000
+notify:
+  policy: on-change
+  channels: [ops]
+```
+
+Artifact paths are relative allowlist globs with explicit file/count ceilings. Active content,
+secret/dependency allowlists, traversal, and absolute paths are compile-blocking. Notification
+channels are logical names; webhook URLs/tokens never belong in LoopSpec. No contract means no
+indexed files, and an empty channel list means no external calls. See
+[Artifacts and notifications](./artifacts-and-notifications.md).
+
 ## Validation — hard gates
 
 `loopc validate` blocks compilation on any of these:
@@ -138,6 +157,8 @@ Per-pattern defaults (when omitted) are in
 5. Exactly one of `sleep.for` / `sleep.until`.
 6. Names (ids, vars, inputs, reduce aliases) are safe identifiers; expressions are in the safe
    subset; `schedule: cron` has a `cron`; gate `after` references a real step.
+7. Artifact globs stay relative and cannot allowlist secrets/active content; notification channels
+   are logical names rather than URLs or credentials.
 
 Soft warnings (non-blocking, downgrade the score): weak signal, **ungrounded exit** (a
 strong signal label over an agent-fed predicate), auto-injected caps, missing

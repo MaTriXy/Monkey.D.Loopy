@@ -35,6 +35,7 @@ export interface OperatorPaths {
   audit: string;
   lock: string;
   scheduler: string;
+  notifications: string;
 }
 
 export interface OperatorConfigFile {
@@ -66,6 +67,7 @@ export function operatorPaths(root = process.env.LOOPY_OPERATOR_HOME ?? join(hom
     audit: join(absolute, "operator-events.jsonl"),
     lock: join(absolute, "registry.lock"),
     scheduler: join(absolute, "scheduler.json"),
+    notifications: join(absolute, "notifications.json"),
   };
 }
 

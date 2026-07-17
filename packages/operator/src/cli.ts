@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 import { createOperatorServer } from "./server.js";
 import { OperatorRegistry } from "./registry.js";
 import { OperatorRunController, OperatorScheduler } from "./controller.js";
+import { indexArtifacts } from "./artifacts.js";
+import { NotificationDispatcher } from "./notifications.js";
 
 const HELP = `loopyd — local Monkey D Loopy operator
 
@@ -36,6 +38,14 @@ function readPid(registry: OperatorRegistry): number | undefined {
   if (processAlive(pid)) return pid;
   rmSync(registry.paths.pid, { force: true });
   return undefined;
+}
+
+function runController(registry: OperatorRegistry): OperatorRunController {
+  const notifier = new NotificationDispatcher(registry);
+  return new OperatorRunController({
+    registry,
+    onResult: (loop, spec, runId, result) => notifier.dispatch(loop, spec, runId, result, indexArtifacts(loop.path, spec.artifacts, loop.id)).then(() => undefined),
+  });
 }
 
 async function serve(registry: OperatorRegistry, port: number): Promise<number> {
@@ -101,7 +111,7 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     if (!id) throw new Error(`usage: loopyd ${command} <loop> [--run-id <id>]`);
     const runId = flagValue(argv, "--run-id");
     if ((command === "resume" || command === "approve") && !runId) throw new Error(`${command} requires --run-id <id>`);
-    const controller = new OperatorRunController({ registry });
+    const controller = runController(registry);
     const result = await controller.execute(id, command as "run" | "step" | "resume" | "approve", {
       actor: flagValue(argv, "--actor") ?? "local-user",
       surface: "cli",
@@ -115,7 +125,7 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     const id = argv[1];
     const runId = flagValue(argv, "--run-id");
     if (!id || !runId) throw new Error(`usage: loopyd ${command} <loop> --run-id <id> --reason <text>`);
-    const controller = new OperatorRunController({ registry });
+    const controller = runController(registry);
     const request = controller.requestStop(id, {
       actor: flagValue(argv, "--actor") ?? "local-user",
       surface: "cli",

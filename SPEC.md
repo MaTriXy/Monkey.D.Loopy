@@ -98,6 +98,8 @@ caps:                      # MANDATORY — auto-injected with per-pattern defaul
   on_cap_exceeded: breakpoint
 
 schedule: { mode: forever }   # manual | cron("…") | watch | forever
+artifacts: { include: ["reports/**/*.md"], exclude: ["**/.env*"], max_files: 1000, max_bytes: 50000000 }
+notify: { policy: on-change, channels: [] } # logical channels; empty means zero external calls
 gates: [ { after: triage, when: "${state.attempt >= 3}", ask: "3 failed attempts. Approve another?", auto_approve_in: [yolo, ci] } ]
 observe: { trace: journal }
 ```
@@ -154,6 +156,8 @@ emits an honest warning rather than silently degrading.
 | schedule: forever / watch | enforced | enforced | soft | soft | soft |
 | schedule: cron | soft (host cron fires it) | soft | soft | soft | enforced |
 | http (native) | enforced | **unsupported** → lowered to a `shell` curl task | enforced | soft | enforced |
+| artifact contract | soft (operator-enforced) | soft | soft | soft | soft |
+| generic notifications | soft (operator-enforced) | unsupported | unsupported | unsupported | unsupported |
 
 > If you need hard cost caps, use the `standalone` target.
 

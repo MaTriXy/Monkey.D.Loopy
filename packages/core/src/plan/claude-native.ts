@@ -246,7 +246,7 @@ export const claudeNativeAdapter: Adapter = {
   plan(spec: LoopSpec): PlanResult {
     const slug = skillSlug(spec.id);
     const skillRoot = `.claude/skills/${slug}`;
-    const lock = { loop_id: spec.id, skill_name: slug, loopspec_version: spec.loopspec, target: "claude-native", recipe: spec.provenance?.recipe, signal: spec.terminate.signal, caps: spec.caps };
+    const lock = { loop_id: spec.id, skill_name: slug, loopspec_version: spec.loopspec, target: "claude-native", recipe: spec.provenance?.recipe, signal: spec.terminate.signal, caps: spec.caps, artifacts: spec.artifacts, notify: spec.notify };
     const files: PlannedFile[] = [
       { relativePath: `${skillRoot}/SKILL.md`, contents: emitSkill(spec, slug), kind: "skill" },
       { relativePath: `${skillRoot}/reference/loopspec.json`, contents: json(spec) + "\n", kind: "config" },

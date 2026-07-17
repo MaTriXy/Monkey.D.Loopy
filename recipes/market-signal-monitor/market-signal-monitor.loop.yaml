@@ -37,6 +37,12 @@ caps:
   budget: { tokens: 60000, usd: 2.5, wallclock: "45m" }
   on_cap_exceeded: exit-clean
 schedule: { mode: cron, cron: "0 9 * * *" }
+artifacts:
+  include: ["output/market-signals.md"]
+  exclude: ["**/.env*", "**/node_modules/**"]
+  max_files: 20
+  max_bytes: 5000000
+notify: { policy: on-change, channels: [] }
 observe:
   trace: journal
   notify: { terminal: true, cap: true }

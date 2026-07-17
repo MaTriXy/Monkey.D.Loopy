@@ -303,6 +303,36 @@ describe("llm-judge termination gating (matches self-assess)", () => {
   });
 });
 
+describe("artifact and notification contracts", () => {
+  it("accepts bounded safe artifact globs and logical notification channels", () => {
+    const result = processRaw({
+      ...validBase,
+      artifacts: { include: ["output/**/*.md", "metrics/*.json"], exclude: ["output/private/**"], max_files: 50, max_bytes: 2_000_000 },
+      notify: { policy: "on-change", channels: ["ops", "release-review"] },
+    });
+    expect(result.validation!.ok).toBe(true);
+    expect(result.spec?.artifacts).toMatchObject({ max_files: 50, max_bytes: 2_000_000 });
+  });
+
+  it("defaults artifact ceilings without inventing notification channels", () => {
+    const result = processRaw({ ...validBase, artifacts: { include: ["output/*.md"] } });
+    expect(result.spec?.artifacts).toMatchObject({ exclude: [], max_files: 1_000, max_bytes: 50_000_000 });
+    expect(result.spec?.notify).toBeUndefined();
+  });
+
+  it("rejects traversal, active content, secret allowlists, and URL-shaped channels", () => {
+    expect(codes({ ...validBase, artifacts: { include: ["../outside/*.md"] } })).toContain("unsafe-artifact-include");
+    expect(codes({ ...validBase, artifacts: { include: ["reports/*.html"] } })).toContain("unsafe-artifact-include");
+    expect(codes({ ...validBase, artifacts: { include: ["**/.env*"] } })).toContain("unsafe-artifact-include");
+    expect(codes({ ...validBase, notify: { policy: "always", channels: ["https://hooks.example/secret"] } })).toContain("unsafe-notify-channel");
+  });
+
+  it("rejects duplicate include patterns and notification channels", () => {
+    expect(codes({ ...validBase, artifacts: { include: ["output/*.md", "output/*.md"] } })).toContain("duplicate-artifact-include");
+    expect(codes({ ...validBase, notify: { policy: "always", channels: ["ops", "ops"] } })).toContain("duplicate-notify-channel");
+  });
+});
+
 describe("cap-only-termination warning (non-blocking exit-reachability guidance)", () => {
   it("warns when every writer of the exit var is behind a `when` guard", () => {
     const raw = {

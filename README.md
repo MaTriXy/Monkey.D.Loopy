@@ -56,8 +56,9 @@ designed out or made visible instead of debugged later.
   the whole factory to agents as MCP tools.
 - **Zero-install artifacts.** `compile --vendor` bundles the runtime so a compiled loop runs with
   plain `node` — nothing to install.
-- **Optional local operations.** `@loopyc/operator` derives a trustworthy read model from existing
-  journals without rewriting them; standalone and vendored artifacts remain independent.
+- **Optional local operations.** `@loopyc/operator` adds a secured loopback control center,
+  explicit single-authority scheduling, guarded runtime controls, bounded artifact indexing, and
+  idempotent generic webhooks while journals and standalone/vendored artifacts remain independent.
 
 ## Quickstart
 
@@ -258,6 +259,9 @@ runs with **plain `node` on any machine with Node ≥ 22** — no install, nothi
 - [`loopc` CLI](docs/cli.md) — every command and flag.
 - [`@loopyc/runtime`](docs/runtime.md) — runtime API, journal format, resume semantics, guarantees.
 - [`loopc-mcp`](docs/mcp.md) — MCP tools and how to register the server.
+- [Local operator](docs/operator.md) — secured dashboard, scheduler handoff, run controls, and audit.
+- [Artifacts and notifications](docs/artifacts-and-notifications.md) — safe output contracts and
+  generic webhook delivery semantics.
 - [Operator platform roadmap](docs/operator-platform-roadmap.md) — verified recipes, local control
   center, artifacts, notifications, and guarded evolution.
 - [Verified recipe contract](docs/recipes.md) — product-use-case packages over canonical LoopSpec.

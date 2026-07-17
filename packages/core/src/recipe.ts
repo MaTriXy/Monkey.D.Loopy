@@ -160,6 +160,22 @@ export function parseRecipeSource(source: RecipeSource): RecipeParseResult {
         message: `must match LoopSpec schedule mode '${specMode}'`,
       });
     }
+    const productArtifacts = manifest.expected_artifacts
+      .map((artifact) => artifact.path)
+      .filter((path) => !path.startsWith(".loopy/"));
+    const allowlisted = new Set(spec.artifacts?.include ?? []);
+    for (const path of productArtifacts) {
+      if (!allowlisted.has(path)) {
+        diagnostics.push({
+          code: "contract",
+          path: "recipe.json.expected_artifacts",
+          message: `product artifact '${path}' must be explicitly allowlisted by LoopSpec artifacts.include`,
+        });
+      }
+    }
+    if (!spec.notify) {
+      diagnostics.push({ code: "contract", path: `${manifest.name}.loop.yaml.notify`, message: "verified recipes must declare an explicit notification policy (channels may be empty)" });
+    }
   }
 
   if (!source.readme.trim()) diagnostics.push({ code: "contract", path: "README.md", message: "must not be empty" });

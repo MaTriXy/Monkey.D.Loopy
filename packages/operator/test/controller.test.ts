@@ -100,6 +100,19 @@ describe("operator run controller", () => {
     const restarted = new OperatorRunController({ registry });
     expect(restarted.readState().loops.controlled?.nextDueAt).toBe(1234);
   });
+
+  it("keeps a completed run successful when a post-result observer fails", async () => {
+    const root = tmp();
+    const registry = new OperatorRegistry(join(root, "operator"));
+    registry.install(runnableArtifact(root));
+    const controller = new OperatorRunController({
+      registry,
+      runtimeOptions: () => ({ effects: { shell: async () => ({}) } }),
+      onResult: async () => { throw new Error("index or webhook failed"); },
+    });
+    await expect(controller.execute("controlled", "run", { actor: "alice", surface: "api", runId: "observer-failure" })).resolves.toMatchObject({ status: "completed" });
+    expect(readFileSync(registry.paths.audit, "utf8")).toContain('"action":"run.post-result"');
+  });
 });
 
 describe("operator scheduler", () => {

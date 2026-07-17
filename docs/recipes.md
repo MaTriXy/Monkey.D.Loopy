@@ -19,14 +19,15 @@ recipes/<name>/fixtures/
 - an exact description of the LoopSpec `inputs`;
 - `schedule.mode`, optional cadence, and the scheduling rationale;
 - one or more evidence sources with `external`, `structural`, or `agent` grounding;
-- expected artifact paths and formats (conventions until the Phase 4 artifact contract ships);
+- expected artifact paths and formats, each product path explicitly allowlisted by LoopSpec
+  `artifacts.include` (runtime journals remain internal evidence rather than synced products);
 - a safety rationale, secret-handling rule, and whether destructive actions require approval;
 - `minimum_score` from 90–100 (the catalog quality floor);
 - distinct success, no-op, cap, malformed-evidence, and prompt-injection fixtures.
 
 The pure `@loopyc/core` APIs `parseRecipeSource()` and `createRecipeCatalog()` validate supplied
 file contents. They reject path traversal, invalid LoopSpecs, metadata/spec input or schedule drift,
-missing/aliased fixtures, and duplicate names. The release embeds the checked catalog in core so
+product artifact allowlist drift, missing notification policy, missing/aliased fixtures, and duplicate names. The release embeds the checked catalog in core so
 the published CLI and MCP server do not depend on a repository checkout; `pnpm recipes:check`
 rejects drift between the canonical packages above and the generated catalog.
 
