@@ -282,11 +282,11 @@ pnpm -r test          # vitest (unit · golden codegen · security · runtime ·
 pnpm eval             # property-based + capability + negative evals (graded by the real code)
 pnpm eval:skill       # NL→spec authoring quality (live with any provider key, else golden)
 pnpm build            # tsup → dist/ for every package (ESM + .d.ts; bins get a node shebang)
-pnpm release:check    # 0.1.1 versions + CLI/help/targets/docs parity
+pnpm release:check    # 0.5.0 versions + CLI/help/targets/docs parity
 pnpm release:pack-smoke # clean consumer installs tarballs and exercises every target
 ```
 
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.1.1` also gates on repository-to-tarball parity and a clean packed-consumer smoke.
+Release `0.5.0` also gates on repository-to-tarball parity and a clean packed-consumer smoke.

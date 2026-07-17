@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 — 2026-07-17
+
+- Ship six verified, externally grounded recipes with adversarial fixtures and CLI/MCP discovery.
+- Add the optional `@loopyc/operator` with a checksum-verified journal read model, secured loopback
+  control center, explicit scheduler handoff, durable claims, and journal-safe run controls.
+- Add allowlisted artifact contracts and generic-webhook notifications with path/secret/MIME
+  defenses, ceilings, idempotency, retries, deduplication, and failure-streak suppression.
+- Add guarded evolution: isolated candidates, semantic diffs, deterministic validation/verification/
+  score/capability regression gates, exact waivers, representative fixture replay, human approval,
+  active revision visibility, and byte-for-byte rollback without journal mutation.
+- Preserve standalone and vendored artifact independence plus honest behavior across standalone,
+  babysitter, Claude Code, Claude-native, and n8n targets.
+- Gate the release with 177 deterministic eval cases, repository-wide tests/builds, seven-package
+  parity, clean packed consumers, and an end-to-end recipe/operator/notification/evolution proof.
+
 ## 0.1.1 — 2026-07-16
 
 - Prevent model-authored usage fields from altering trusted token and cost meters.

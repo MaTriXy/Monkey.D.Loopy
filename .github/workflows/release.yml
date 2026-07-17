@@ -1,6 +1,6 @@
 name: Release
 
-# Publish all public packages to npm when a version tag is pushed (e.g. v0.1.1).
+# Publish all public packages to npm when a version tag is pushed (e.g. v0.5.0).
 #
 # Uses npm OIDC trusted publishing — no token stored in the repo. One-time setup on
 # npmjs.com for EACH package: Package → Settings → Trusted Publisher → GitHub Actions,
