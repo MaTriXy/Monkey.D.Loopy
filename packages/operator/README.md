@@ -15,3 +15,16 @@ console.log(run.status, run.integrity, run.source.events);
 from committed events, never acquires the runtime lock, and never rewrites old journals. Torn tails,
 corruption, truncation, uncertain effects, live locks, and newer schemas are visible and cannot be
 reported as healthy.
+
+```bash
+loopyd install ./out/my-loop/standalone   # import only; artifact remains independent
+loopyd up --background                    # macOS/Linux detached local process
+loopyd status
+loopyd ui                                 # print the token bootstrap URL
+loopyd down                               # graceful local shutdown
+```
+
+Windows supports `loopyd up` in the foreground; the CLI fails with an explicit diagnostic for
+background mode. The service binds only to loopback, authenticates every route, exchanges the
+tokenized bootstrap URL for an HttpOnly same-site cookie, rejects foreign origins and oversized
+requests, and installs no background service during npm installation.

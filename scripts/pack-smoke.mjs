@@ -39,7 +39,13 @@ try {
   run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", ...tarballs], consumer);
 
   const loopc = join(consumer, "node_modules", ".bin", "loopc");
+  const loopyd = join(consumer, "node_modules", ".bin", "loopyd");
   requireTruthy(run(loopc, ["--version"], consumer).trim() === releaseVersion, "packed loopc reports the wrong version");
+  requireTruthy(run(loopyd, ["--help"], consumer).includes("local Monkey D Loopy operator"), "packed loopyd CLI is missing");
+  requireTruthy(
+    existsSync(join(consumer, "node_modules", "@loopyc", "operator", "assets", "control-center", "index.html")),
+    "packed operator omits control-center assets"
+  );
   const targets = run(loopc, ["targets"], consumer);
   for (const target of ["standalone", "babysitter", "claude-code", "claude-native", "n8n"]) {
     requireTruthy(targets.includes(target), `packed loopc targets omits ${target}`);

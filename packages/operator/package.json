@@ -10,24 +10,28 @@
     "directory": "packages/operator"
   },
   "type": "module",
+  "bin": { "loopyd": "./dist/cli.js" },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": { ".": "./src/index.ts" },
-  "files": ["dist"],
+  "files": ["dist", "assets"],
   "publishConfig": {
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-    "access": "public"
+    "access": "public",
+    "bin": { "loopyd": "./dist/cli.js" }
   },
   "scripts": {
-    "build": "tsup",
-    "prepack": "tsup",
+    "build": "pnpm --filter @loopyc/control-center build && tsup",
+    "prepack": "pnpm --filter @loopyc/control-center build && tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@loopyc/runtime": "workspace:*"
+    "@loopyc/core": "workspace:*",
+    "@loopyc/runtime": "workspace:*",
+    "@loopyc/verify": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
