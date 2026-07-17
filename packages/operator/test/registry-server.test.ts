@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Journal } from "@loopyc/runtime";
 import { OperatorRegistry } from "../src/registry.js";
+import { OperatorRunController } from "../src/controller.js";
 import { createOperatorServer, type OperatorServerHandle } from "../src/server.js";
 import { runOperatorCli } from "../src/cli.js";
 
@@ -24,6 +25,7 @@ body:
   - { id: finish, kind: agent, harness: internal, prompt: finish, on_done: { set: { done: true } } }
 terminate: { signal: state-predicate, until: "\${state.done == true}" }
 caps: { max_iterations: 3, no_progress: { fingerprint: "\${state.done}", max_repeats: 2 }, budget: { tokens: 100, usd: 1, wallclock: 1h }, on_cap_exceeded: exit-clean }
+${withSchedule ? 'schedule: { mode: cron, cron: "0 9 * * *" }' : 'schedule: { mode: manual }'}
 observe: { trace: journal }
 `;
   writeFileSync(join(path, "loop.source.yaml"), yaml);
@@ -120,5 +122,39 @@ describe("loopback API and control center security", () => {
 
   it("refuses non-loopback bind addresses", () => {
     expect(() => createOperatorServer({ host: "0.0.0.0", token: "x", registry: new OperatorRegistry(tmp()) })).toThrow(/loopback/);
+  });
+
+  it("requires authenticated same-origin POST and performs explicit scheduler handoff", async () => {
+    const root = tmp();
+    const registry = new OperatorRegistry(join(root, "operator"));
+    registry.install(artifact(root, true));
+    const controller = new OperatorRunController({
+      registry,
+      runtimeOptions: () => ({ agentHarnesses: { internal: async () => ({ text: "done" }) } }),
+    });
+    const handle = createOperatorServer({ registry, controller, token: "test-token-0123456789", port: 0 });
+    servers.push(handle);
+    const address = await handle.start();
+    const body = JSON.stringify({ to: "operator", actor: "browser-user", reason: "disabled host timer" });
+    expect((await fetch(`${address.url}/api/v1/loops/fixture/handoff`, { method: "POST", body })).status).toBe(401);
+    expect((await fetch(`${address.url}/api/v1/loops/fixture/handoff`, { method: "POST", headers: { Authorization: `Bearer ${handle.token}`, Origin: "https://evil.example", "Content-Type": "application/json" }, body })).status).toBe(403);
+    const response = await fetch(`${address.url}/api/v1/loops/fixture/handoff`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${handle.token}`, Origin: address.url, "Content-Type": "application/json" },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect(registry.get("fixture")?.schedulerAuthority).toBe("operator");
+    expect(handle.controller.readState().loops.fixture?.nextDueAt).toBeTypeOf("number");
+    expect(readFileSync(registry.paths.audit, "utf8")).toContain('"action":"scheduler.handoff"');
+
+    const dispatch = await fetch(`${address.url}/api/v1/loops/fixture/runs`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${handle.token}`, Origin: address.url, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "step", runId: "api-step", actor: "browser-user" }),
+    });
+    expect(dispatch.status).toBe(202);
+    await vi.waitFor(() => expect(handle.controller.readState().loops.fixture?.lastOutcome).toBe("waiting"));
+    expect(readFileSync(registry.paths.audit, "utf8")).toContain('"runId":"api-step"');
   });
 });

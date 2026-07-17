@@ -28,6 +28,10 @@ loopyd install ./out/my-loop/standalone
 loopyd up --background
 loopyd status
 loopyd list
+loopyd handoff my-loop operator --reason "disabled the host timer"
+loopyd step my-loop --run-id scheduled-check
+loopyd pause my-loop --run-id scheduled-check --reason "maintenance"
+loopyd resume my-loop --run-id scheduled-check --reason "maintenance complete"
 loopyd ui
 loopyd down
 ```
@@ -50,6 +54,26 @@ is the fallback. Desktop, single-column tablet, horizontally scrollable loop nav
 responsive run details, keyboard focus, reduced motion, and narrow phone layouts are represented in
 the stylesheet.
 
+## Scheduling and guarded controls
+
+Host cron/systemd/launchd/GitHub Actions files remain supported and are the default authority when
+an artifact is installed. `loopyd` refuses implicit dual scheduling: switching to the operator
+requires an explicit, reasoned handoff, and switching back clears operator dispatch state before it
+prints the host-install guidance. The registry records one authority, concurrency is fixed to one,
+and the default `latest` missed-run policy retains only the newest invocation instead of creating a
+catch-up storm.
+
+Scheduler state and active claims are owner-only, locked across processes, and atomically replaced.
+Cron, durable wake time, pending invocation, outcome, and active PID/run identity survive process
+restart. Stale claims are recovered with an audit event; a live claim rejects duplicate dispatch.
+Every operator mutation records timestamp, actor, surface, action, loop, run, spec hash, outcome,
+and bounded detail in `operator-events.jsonl`.
+
+Run, step, pause, stop, resume, approve, and uncertain-effect recovery call the same
+`@loopyc/runtime` used by standalone artifacts. Pause/stop publish the runtime's atomic stop marker;
+the active run acknowledges it only after a replay-safe boundary. Approvals and recoveries are also
+journaled by the runtime, so the control center cannot invent weaker semantics. Shutdown requests a
+graceful boundary and reports a timeout rather than silently forcing an unsafe continuation.
+
 `loopyd up --background` is supported on macOS and Linux; Windows is foreground-only and receives
-an explicit command. No service starts during npm installation. Mutating run controls and scheduler
-handoff are introduced in Phase 3.
+an explicit command. No service starts during npm installation.

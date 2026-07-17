@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
@@ -33,11 +33,26 @@ export interface OperatorPaths {
   token: string;
   pid: string;
   audit: string;
+  lock: string;
+  scheduler: string;
 }
 
 export interface OperatorConfigFile {
   schemaVersion: 1;
   port: number;
+}
+
+export interface OperatorAuditEvent {
+  version: 1;
+  ts: number;
+  actor: string;
+  surface: string;
+  action: string;
+  outcome: "accepted" | "completed" | "rejected" | "failed";
+  loopId?: string;
+  runId?: string;
+  specHash?: string;
+  detail?: Record<string, unknown>;
 }
 
 export function operatorPaths(root = process.env.LOOPY_OPERATOR_HOME ?? join(homedir(), ".loopy", "operator")): OperatorPaths {
@@ -49,6 +64,8 @@ export function operatorPaths(root = process.env.LOOPY_OPERATOR_HOME ?? join(hom
     token: join(absolute, "token"),
     pid: join(absolute, "operator.pid"),
     audit: join(absolute, "operator-events.jsonl"),
+    lock: join(absolute, "registry.lock"),
+    scheduler: join(absolute, "scheduler.json"),
   };
 }
 
@@ -66,6 +83,13 @@ function atomicJson(path: string, value: unknown): void {
 
 function hashFile(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function processAlive(pid: number): boolean {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
 }
 
 export class OperatorRegistry {
@@ -96,6 +120,23 @@ export class OperatorRegistry {
 
   get(id: string): LoopRegistration | undefined {
     return this.load().loops.find((loop) => loop.id === id);
+  }
+
+  withLock<T>(operation: () => T): T {
+    if (existsSync(this.paths.lock)) {
+      const owner = Number(readFileSync(this.paths.lock, "utf8").trim());
+      if (processAlive(owner)) throw new Error(`operator registry is locked by pid ${owner}`);
+      unlinkSync(this.paths.lock);
+    }
+    writeFileSync(this.paths.lock, `${process.pid}\n`, { mode: 0o600, flag: "wx" });
+    try { return operation(); } finally { unlinkSync(this.paths.lock); }
+  }
+
+  appendAudit(event: Omit<OperatorAuditEvent, "version" | "ts"> & { ts?: number }): OperatorAuditEvent {
+    const complete: OperatorAuditEvent = { version: 1, ts: event.ts ?? Date.now(), ...event };
+    appendFileSync(this.paths.audit, `${JSON.stringify(complete)}\n`, { mode: 0o600 });
+    chmodSync(this.paths.audit, 0o600);
+    return complete;
   }
 
   readPort(fallback = 3210): number {
@@ -139,13 +180,47 @@ export class OperatorRegistry {
       missedRunPolicy: "latest",
       hostScheduleDetected,
     };
-    const registry = this.load();
-    const existing = registry.loops.find((loop) => loop.id === id);
-    if (existing && existing.path !== path) throw new Error(`loop id '${id}' is already registered to ${existing.path}`);
-    registry.loops = [...registry.loops.filter((loop) => loop.id !== id), registration]
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    atomicJson(this.paths.registry, registry);
+    this.withLock(() => {
+      const registry = this.load();
+      const existing = registry.loops.find((loop) => loop.id === id);
+      if (existing && existing.path !== path) throw new Error(`loop id '${id}' is already registered to ${existing.path}`);
+      registry.loops = [...registry.loops.filter((loop) => loop.id !== id), registration]
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      atomicJson(this.paths.registry, registry);
+    });
+    this.appendAudit({ actor: "local-user", surface: "cli", action: "loop.install", outcome: "completed", loopId: id, specHash, detail: { path, target: registration.target, schedulerAuthority: authority } });
     return registration;
+  }
+
+  handoff(id: string, to: SchedulerAuthority, input: { actor: string; surface: string; reason: string }): LoopRegistration {
+    if (!input.reason?.trim()) throw new Error("scheduler handoff requires a non-empty reason");
+    const updated = this.withLock(() => {
+      const registry = this.load();
+      const loop = registry.loops.find((candidate) => candidate.id === id);
+      if (!loop) throw new Error(`loop '${id}' is not installed`);
+      if (loop.schedulerAuthority === to) throw new Error(`scheduler authority for '${id}' is already '${to}'`);
+      const next = { ...loop, schedulerAuthority: to };
+      registry.loops = registry.loops.map((candidate) => candidate.id === id ? next : candidate);
+      atomicJson(this.paths.registry, registry);
+      return next;
+    });
+    this.appendAudit({ actor: input.actor, surface: input.surface, action: "scheduler.handoff", outcome: "completed", loopId: id, specHash: updated.specHash, detail: { to, reason: input.reason.trim(), hostScheduleDetected: updated.hostScheduleDetected } });
+    return updated;
+  }
+
+  setPolicy(id: string, input: { missedRunPolicy?: MissedRunPolicy; actor: string; surface: string; reason: string }): LoopRegistration {
+    if (!input.reason?.trim()) throw new Error("policy change requires a non-empty reason");
+    const updated = this.withLock(() => {
+      const registry = this.load();
+      const loop = registry.loops.find((candidate) => candidate.id === id);
+      if (!loop) throw new Error(`loop '${id}' is not installed`);
+      const next = { ...loop, missedRunPolicy: input.missedRunPolicy ?? loop.missedRunPolicy, concurrency: 1 as const };
+      registry.loops = registry.loops.map((candidate) => candidate.id === id ? next : candidate);
+      atomicJson(this.paths.registry, registry);
+      return next;
+    });
+    this.appendAudit({ actor: input.actor, surface: input.surface, action: "loop.policy", outcome: "completed", loopId: id, specHash: updated.specHash, detail: { missedRunPolicy: updated.missedRunPolicy, concurrency: 1, reason: input.reason.trim() } });
+    return updated;
   }
 
   ensureToken(): string {

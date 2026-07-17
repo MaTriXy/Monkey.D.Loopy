@@ -3,12 +3,16 @@ import { spawn } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { createOperatorServer } from "./server.js";
 import { OperatorRegistry } from "./registry.js";
+import { OperatorRunController, OperatorScheduler } from "./controller.js";
 
 const HELP = `loopyd — local Monkey D Loopy operator
 
 Usage:
   loopyd install <artifact-dir>
   loopyd list
+  loopyd handoff <loop> <host|operator> --reason <text>
+  loopyd run|step <loop> [--run-id <id>]
+  loopyd pause|stop|resume|approve <loop> --run-id <id> --reason <text>
   loopyd up [--background] [--port <port>]
   loopyd status
   loopyd down
@@ -43,7 +47,9 @@ async function serve(registry: OperatorRegistry, port: number): Promise<number> 
   writeFileSync(registry.paths.pid, `${process.pid}\n`, { mode: 0o600 });
   const cleanup = async () => {
     rmSync(registry.paths.pid, { force: true });
+    const safe = await handle.controller.shutdown();
     await handle.stop().catch(() => undefined);
+    if (!safe) console.error("loopyd: shutdown timed out before every run reached a journal-safe boundary");
   };
   process.once("SIGINT", () => void cleanup().then(() => process.exit(0)));
   process.once("SIGTERM", () => void cleanup().then(() => process.exit(0)));
@@ -68,6 +74,56 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     const loops = registry.list();
     if (!loops.length) console.log("no loops installed");
     for (const loop of loops) console.log(`${loop.id}\t${loop.schedulerAuthority}\t${loop.path}`);
+    return 0;
+  }
+  if (command === "handoff") {
+    const id = argv[1];
+    const to = argv[2];
+    const reason = flagValue(argv, "--reason") ?? "";
+    if (!id || (to !== "host" && to !== "operator")) throw new Error("usage: loopyd handoff <loop> <host|operator> --reason <text>");
+    const controller = new OperatorRunController({ registry });
+    const scheduler = new OperatorScheduler(controller);
+    if (to === "operator") {
+      scheduler.enable(id);
+      try { registry.handoff(id, to, { actor: flagValue(argv, "--actor") ?? "local-user", surface: "cli", reason }); }
+      catch (error) { scheduler.disable(id); throw error; }
+    } else {
+      scheduler.disable(id);
+      try { registry.handoff(id, to, { actor: flagValue(argv, "--actor") ?? "local-user", surface: "cli", reason }); }
+      catch (error) { scheduler.enable(id); throw error; }
+    }
+    console.log(`scheduler authority for '${id}' handed to ${to}`);
+    if (to === "host") console.log(`host trigger guidance: loopc schedule install ${registry.get(id)!.path}`);
+    return 0;
+  }
+  if (["run", "step", "resume", "approve"].includes(command)) {
+    const id = argv[1];
+    if (!id) throw new Error(`usage: loopyd ${command} <loop> [--run-id <id>]`);
+    const runId = flagValue(argv, "--run-id");
+    if ((command === "resume" || command === "approve") && !runId) throw new Error(`${command} requires --run-id <id>`);
+    const controller = new OperatorRunController({ registry });
+    const result = await controller.execute(id, command as "run" | "step" | "resume" | "approve", {
+      actor: flagValue(argv, "--actor") ?? "local-user",
+      surface: "cli",
+      runId,
+      reason: flagValue(argv, "--reason"),
+    });
+    console.log(`${command} '${id}' → ${result.status} (iteration ${result.iteration})`);
+    return result.status === "failed" || result.status === "uncertain" ? 1 : 0;
+  }
+  if (command === "pause" || command === "stop") {
+    const id = argv[1];
+    const runId = flagValue(argv, "--run-id");
+    if (!id || !runId) throw new Error(`usage: loopyd ${command} <loop> --run-id <id> --reason <text>`);
+    const controller = new OperatorRunController({ registry });
+    const request = controller.requestStop(id, {
+      actor: flagValue(argv, "--actor") ?? "local-user",
+      surface: "cli",
+      runId,
+      reason: flagValue(argv, "--reason"),
+      action: command,
+    });
+    console.log(`${command} requested for '${id}' run '${request.runId}' at the next journal-safe boundary`);
     return 0;
   }
   if (command === "status") {

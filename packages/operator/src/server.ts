@@ -7,6 +7,7 @@ import { loadSpecFromYaml, terminationGrounding } from "@loopyc/core";
 import { scoreLoop, verifyLoop } from "@loopyc/verify";
 import { OPERATOR_API_VERSION, listRuns } from "./read-model.js";
 import { OperatorRegistry, type LoopRegistration } from "./registry.js";
+import { OperatorRunController, OperatorScheduler } from "./controller.js";
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 const MAX_BODY_BYTES = 64 * 1024;
@@ -18,11 +19,15 @@ export interface OperatorServerOptions {
   port?: number;
   token?: string;
   assetsDir?: string;
+  controller?: OperatorRunController;
+  scheduler?: OperatorScheduler;
 }
 
 export interface OperatorServerHandle {
   server: Server;
   registry: OperatorRegistry;
+  controller: OperatorRunController;
+  scheduler: OperatorScheduler;
   token: string;
   start(): Promise<{ host: string; port: number; url: string }>;
   stop(): Promise<void>;
@@ -73,7 +78,7 @@ function mime(path: string): string {
   }
 }
 
-async function loopOverview(loop: LoopRegistration): Promise<Record<string, unknown>> {
+async function loopOverview(loop: LoopRegistration, controller: OperatorRunController): Promise<Record<string, unknown>> {
   const source = join(loop.path, "loop.source.yaml");
   let spec: Record<string, unknown> | undefined;
   let score: number | undefined;
@@ -88,7 +93,7 @@ async function loopOverview(loop: LoopRegistration): Promise<Record<string, unkn
     }
   }
   const runs = listRuns(loop.path);
-  return { ...loop, score, grounding, spec, runs, source: { artifact: loop.path, spec: source } };
+  return { ...loop, score, grounding, spec, runs, operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
 }
 
 function safeAsset(assetsDir: string, pathname: string): string | undefined {
@@ -99,26 +104,34 @@ function safeAsset(assetsDir: string, pathname: string): string | undefined {
   return existsSync(full) ? full : undefined;
 }
 
-async function bodyWithinLimit(req: IncomingMessage): Promise<boolean> {
+async function readBody(req: IncomingMessage): Promise<{ ok: true; body: Buffer } | { ok: false }> {
   const declared = Number(req.headers["content-length"] ?? 0);
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return false;
-  if (req.method === "GET" || req.method === "HEAD") return true;
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return { ok: false };
+  if (req.method === "GET" || req.method === "HEAD") return { ok: true, body: Buffer.alloc(0) };
   return new Promise((resolveBody) => {
     let bytes = 0;
-    const done = (ok: boolean) => {
+    const chunks: Buffer[] = [];
+    const done = (result: { ok: true; body: Buffer } | { ok: false }) => {
       req.removeAllListeners("data");
       req.removeAllListeners("end");
-      resolveBody(ok);
+      resolveBody(result);
     };
     req.on("data", (chunk: Buffer) => {
       bytes += chunk.length;
       if (bytes > MAX_BODY_BYTES) {
         req.pause();
-        done(false);
-      }
+        done({ ok: false });
+      } else chunks.push(chunk);
     });
-    req.on("end", () => done(true));
+    req.on("end", () => done({ ok: true, body: Buffer.concat(chunks) }));
   });
+}
+
+function jsonBody(body: Buffer): Record<string, unknown> {
+  if (body.length === 0) return {};
+  const value = JSON.parse(body.toString("utf8")) as unknown;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("request body must be a JSON object");
+  return value as Record<string, unknown>;
 }
 
 export function createOperatorServer(options: OperatorServerOptions = {}): OperatorServerHandle {
@@ -126,6 +139,8 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
   if (!LOOPBACK.has(host)) throw new Error(`operator must bind to loopback; got '${host}'`);
   const port = options.port ?? 3210;
   const registry = options.registry ?? new OperatorRegistry();
+  const controller = options.controller ?? new OperatorRunController({ registry });
+  const scheduler = options.scheduler ?? new OperatorScheduler(controller);
   const token = options.token ?? registry.ensureToken();
   const assetsDir = options.assetsDir ?? DEFAULT_ASSETS;
 
@@ -153,21 +168,77 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         json(res, 403, { apiVersion: OPERATOR_API_VERSION, error: "cross-origin request denied" });
         return;
       }
-      if (!await bodyWithinLimit(req)) {
+      const received = await readBody(req);
+      if (!received.ok) {
         json(res, 413, { apiVersion: OPERATOR_API_VERSION, error: "request body exceeds 65536 bytes" });
         return;
       }
-      if (req.method !== "GET" && req.method !== "HEAD") {
-        json(res, 405, { apiVersion: OPERATOR_API_VERSION, error: "method not allowed" });
-        return;
+
+      if (req.method === "POST") {
+        if (!String(req.headers["content-type"] ?? "").toLowerCase().startsWith("application/json")) {
+          return void json(res, 415, { apiVersion: OPERATOR_API_VERSION, error: "POST requires application/json" });
+        }
+        let body: Record<string, unknown>;
+        try { body = jsonBody(received.body); }
+        catch (error) { return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: (error as Error).message }); }
+        const actor = typeof body.actor === "string" && body.actor.trim() ? body.actor.trim() : "local-user";
+        const handoff = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/handoff$/);
+        if (handoff) {
+          const to = body.to === "host" || body.to === "operator" ? body.to : undefined;
+          if (!to) return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "handoff requires to=host|operator" });
+          const reason = typeof body.reason === "string" ? body.reason : "";
+          if (to === "operator") {
+            scheduler.enable(handoff[1]!);
+            try { registry.handoff(handoff[1]!, to, { actor, surface: "api", reason }); }
+            catch (error) { scheduler.disable(handoff[1]!); throw error; }
+          } else {
+            scheduler.disable(handoff[1]!);
+            try { registry.handoff(handoff[1]!, to, { actor, surface: "api", reason }); }
+            catch (error) { scheduler.enable(handoff[1]!); throw error; }
+          }
+          return void json(res, 200, { apiVersion: OPERATOR_API_VERSION, loop: registry.get(handoff[1]!), schedule: controller.readState().loops[handoff[1]!] ?? {} });
+        }
+        const dispatch = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/runs$/);
+        if (dispatch) {
+          const action = body.action === "step" ? "step" : body.action === "run" ? "run" : undefined;
+          if (!action) return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "action must be run or step" });
+          const runId = typeof body.runId === "string" ? body.runId : undefined;
+          const promise = controller.execute(dispatch[1]!, action, { actor, surface: "api", runId, reason: typeof body.reason === "string" ? body.reason : undefined });
+          void promise.catch(() => undefined);
+          return void json(res, 202, { apiVersion: OPERATOR_API_VERSION, accepted: true, action, runId: runId ?? controller.readState().loops[dispatch[1]!]?.active?.runId });
+        }
+        const actionRoute = url.pathname.match(/^\/api\/v1\/loops\/([A-Za-z0-9._-]+)\/runs\/([A-Za-z0-9._-]+)\/actions$/);
+        if (actionRoute) {
+          const action = typeof body.action === "string" ? body.action : "";
+          const reason = typeof body.reason === "string" ? body.reason : undefined;
+          if (action === "pause" || action === "stop") {
+            const request = controller.requestStop(actionRoute[1]!, { actor, surface: "api", runId: actionRoute[2]!, reason, action });
+            return void json(res, 202, { apiVersion: OPERATOR_API_VERSION, accepted: true, action, request });
+          }
+          if (action === "resume" || action === "approve") {
+            const promise = controller.execute(actionRoute[1]!, action, { actor, surface: "api", runId: actionRoute[2]!, reason });
+            void promise.catch(() => undefined);
+            return void json(res, 202, { apiVersion: OPERATOR_API_VERSION, accepted: true, action, runId: actionRoute[2] });
+          }
+          if (action === "recover") {
+            const resolution = body.resolution;
+            if (!resolution || typeof resolution !== "object" || Array.isArray(resolution)) return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "recover requires a resolution object" });
+            const promise = controller.execute(actionRoute[1]!, "recover", { actor, surface: "api", runId: actionRoute[2]!, reason, recovery: resolution as never });
+            void promise.catch(() => undefined);
+            return void json(res, 202, { apiVersion: OPERATOR_API_VERSION, accepted: true, action, runId: actionRoute[2] });
+          }
+          return void json(res, 400, { apiVersion: OPERATOR_API_VERSION, error: "action must be pause, stop, resume, approve, or recover" });
+        }
+        return void json(res, 404, { apiVersion: OPERATOR_API_VERSION, error: "not found" });
       }
+      if (req.method !== "GET" && req.method !== "HEAD") return void json(res, 405, { apiVersion: OPERATOR_API_VERSION, error: "method not allowed" });
 
       if (url.pathname === "/api/v1/health") {
-        json(res, 200, { apiVersion: OPERATOR_API_VERSION, ok: true, loopback: true });
+        json(res, 200, { apiVersion: OPERATOR_API_VERSION, ok: true, loopback: true, scheduler: true });
         return;
       }
       if (url.pathname === "/api/v1/loops") {
-        const loops = await Promise.all(registry.list().map(loopOverview));
+        const loops = await Promise.all(registry.list().map((loop) => loopOverview(loop, controller)));
         json(res, 200, { apiVersion: OPERATOR_API_VERSION, loops });
         return;
       }
@@ -206,6 +277,8 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
   return {
     server,
     registry,
+    controller,
+    scheduler,
     token,
     start: () => new Promise((resolveStart, reject) => {
       server.once("error", reject);
@@ -213,9 +286,13 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
         server.off("error", reject);
         const address = server.address();
         const boundPort = typeof address === "object" && address ? address.port : port;
+        scheduler.start();
         resolveStart({ host, port: boundPort, url: `http://${host}:${boundPort}` });
       });
     }),
-    stop: () => new Promise((resolveStop, reject) => server.close((error) => error ? reject(error) : resolveStop())),
+    stop: () => {
+      scheduler.stop();
+      return new Promise((resolveStop, reject) => server.close((error) => error ? reject(error) : resolveStop()));
+    },
   };
 }

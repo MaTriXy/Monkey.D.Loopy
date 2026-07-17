@@ -24,6 +24,7 @@ interface Loop {
   specHash: string;
   schedulerAuthority: string;
   hostScheduleDetected: boolean;
+  operation?: { nextDueAt?: number; pendingDueAt?: number; active?: { runId: string; action: string; startedAt: number }; lastOutcome?: Status };
   score?: number;
   grounding?: string;
   spec?: { signal?: string; caps?: Record<string, unknown>; schedule?: Record<string, unknown> };
@@ -50,6 +51,8 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string>();
+  const [reason, setReason] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -78,6 +81,30 @@ function App() {
   const run = selected?.runs.toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
   const healthy = loops.filter((loop) => loop.runs.every((candidate) => candidate.health === "healthy")).length;
   const attention = loops.length - healthy;
+
+  const mutate = useCallback(async (path: string, body: Record<string, unknown>, label: string) => {
+    setBusy(label);
+    try {
+      const response = await fetch(path, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actor: "control-center", ...body }),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? `API returned ${response.status}`);
+      setError(undefined);
+      await refresh();
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(undefined);
+    }
+  }, [refresh]);
+
+  const dispatch = (action: "run" | "step") => selected && void mutate(`/api/v1/loops/${selected.id}/runs`, { action, reason: reason || undefined }, action);
+  const control = (action: "pause" | "stop" | "resume" | "approve") => selected && run && void mutate(`/api/v1/loops/${selected.id}/runs/${run.runId}/actions`, { action, reason: reason || undefined }, action);
+  const handoff = () => selected && void mutate(`/api/v1/loops/${selected.id}/handoff`, { to: selected.schedulerAuthority === "operator" ? "host" : "operator", reason }, "handoff");
 
   return <main>
     <header className="topbar">
@@ -114,6 +141,20 @@ function App() {
             <div><dt>Spec hash</dt><dd><code>{selected.specHash.slice(0, 12)}</code></dd></div>
             <div><dt>Runs</dt><dd>{selected.runs.length}</dd></div>
           </dl>
+          <section className="controls" aria-labelledby="controls-title">
+            <div><h3 id="controls-title">Guarded controls</h3><p>{selected.operation?.active ? `${selected.operation.active.action} active · ${selected.operation.active.runId}` : selected.operation?.nextDueAt ? `next operator fire ${new Date(selected.operation.nextDueAt).toLocaleString()}` : "no active operator claim"}</p></div>
+            <label><span>Reason for handoff or intervention</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. maintenance window" /></label>
+            <div className="control-buttons">
+              <button disabled={Boolean(busy || selected.operation?.active)} onClick={() => dispatch("run")}>Run</button>
+              <button disabled={Boolean(busy || selected.operation?.active)} onClick={() => dispatch("step")}>Step</button>
+              <button disabled={Boolean(busy || !run || !reason)} onClick={() => control("pause")}>Pause safely</button>
+              <button disabled={Boolean(busy || !run || !reason)} onClick={() => control("stop")}>Stop safely</button>
+              <button disabled={Boolean(busy || !run || selected.operation?.active)} onClick={() => control("resume")}>Resume</button>
+              <button disabled={Boolean(busy || !run || selected.operation?.active)} onClick={() => control("approve")}>Approve &amp; resume</button>
+              <button className="handoff" disabled={Boolean(busy || !reason || selected.operation?.active)} onClick={handoff}>Hand off to {selected.schedulerAuthority === "operator" ? "host" : "operator"}</button>
+            </div>
+            {busy && <p className="busy" role="status">Submitting {busy}…</p>}
+          </section>
           {run ? <>
             <div className="run-title"><div><h3>Latest run · {run.runId}</h3><p>{run.iteration} iterations · {run.tokens.toLocaleString()} tokens · ${run.usd.toFixed(4)}</p></div><div className="badges"><span className={badge(run.status)}>{run.status}</span><span className={badge(run.integrity)}>{run.integrity}</span></div></div>
             {run.integrityDetail && <div className="integrity" role="status">{run.integrityDetail}</div>}
