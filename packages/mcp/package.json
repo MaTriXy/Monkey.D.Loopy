@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/mcp",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "loopc-mcp — Model Context Protocol server exposing the Monkey D Loopy factory to agents (schema, scaffold, validate, verify, compile, run, inspect).",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

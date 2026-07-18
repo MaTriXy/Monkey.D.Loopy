@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 — 2026-07-18
+
+- Preserved fractional scorecard points so dimension rows reconcile exactly with the headline
+  score instead of independently rounding `25.5` and `10.5` upward.
+- Made observability deductions explicit in CLI output and documented why the safe quickstart
+  earns an honest 91 rather than claiming unsupported oracle or notification guarantees.
+- Corrected the perfect-score README example and regenerated the consolidated agent documentation.
+
 ## 0.6.0 — 2026-07-18
 
 - Added `loopc quickstart`, a non-destructive one-command journey that scaffolds, validates,

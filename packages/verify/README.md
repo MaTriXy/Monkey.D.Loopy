@@ -13,7 +13,7 @@ stops), caps, observability, resumability, and determinism.
 import { verifyLoop, scoreLoop } from "@loopyc/verify";
 
 const report = await verifyLoop(spec, capsInjected);
-const card = scoreLoop(spec, report); // { total: 96, grade: "A", dimensions: [...] }
+const card = scoreLoop(spec, report); // { total: 100, grade: "A", dimensions: [...] }
 ```
 
 Most users want the CLI instead: `npm i -g @loopyc/cli` → `loopc verify · loopc score`.

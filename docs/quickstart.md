@@ -46,6 +46,23 @@ loopy-quickstart/
 Open the spec and journal before moving on. They are the two core contracts: the spec says what is
 allowed to happen, and the journal records what actually happened.
 
+## Why the starter scores 91, not 100
+
+The starter is deliberately honest about what its tiny local demonstration proves:
+
+| Dimension | Points | Reason |
+|---|---:|---|
+| Termination safety | 25.5/30 | A deterministic state predicate stops it, but no independent external system acts as an oracle. |
+| Caps | 25/25 | Iteration, no-progress, token, cost, and wall-clock bounds are explicit. |
+| Observability | 10.5/15 | The durable journal is enabled; no notification or lifecycle hook is configured for the local demo. |
+| Resumability | 15/15 | Restart-per-iteration verification reaches the same result. |
+| Determinism | 15/15 | Independent mocked runs converge on the same state and status. |
+
+Those raw points total **91/100**. A production loop can earn 100 only when its exit predicate is
+fed by authoritative external evidence and it has both durable tracing and a configured observer
+(a lifecycle hook or notification). Do not relabel a predicate as an oracle just to change the
+number; Loopy traces the evidence feeding termination and caps unsupported claims.
+
 ## Regression-tested onboarding contract
 
 The repository runs this same journey against packed npm tarballs in CI. The gate requires:

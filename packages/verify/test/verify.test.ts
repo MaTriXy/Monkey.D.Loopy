@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getBlueprint, listBlueprints, loadSpecFromYaml } from "@loopyc/core";
-import { scoreLoop, verifyLoop } from "../src/verify.js";
+import { formatScore, scoreLoop, verifyLoop } from "../src/verify.js";
 
 describe("verify (dry-run guarantees)", () => {
   it("every blueprint is bounded, deterministic, and resume-stable", async () => {
@@ -64,6 +64,22 @@ caps: { max_iterations: 5, on_cap_exceeded: exit-clean }
 });
 
 describe("scorecard", () => {
+  it("preserves fractional dimension points so the breakdown matches the total", () => {
+    const output = formatScore({
+      total: 91,
+      grade: "A",
+      dimensions: [
+        { name: "termination safety", score: 0.85, weight: 30, note: "state predicate" },
+        { name: "observability", score: 0.7, weight: 15, note: "journal" },
+      ],
+    });
+
+    expect(output).toContain("25.5/30");
+    expect(output).toContain("10.5/15");
+    expect(output).not.toContain("26/30");
+    expect(output).not.toContain("11/15");
+  });
+
   it("grades five weighted dimensions", async () => {
     const r = loadSpecFromYaml(getBlueprint("poll-until")!.yaml);
     const report = await verifyLoop(r.spec!, r.capsInjected ?? false);

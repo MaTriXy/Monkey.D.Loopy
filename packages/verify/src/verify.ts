@@ -204,8 +204,14 @@ export function scoreLoop(spec: LoopSpec, report: VerifyReport): Scorecard {
     note: `${report.capsInjected ? "auto-injected" : "explicit"}${spec.caps.no_progress ? ", no_progress" : ""}${spec.caps.budget ? ", budget" : ""}`,
   });
 
-  const obs = (spec.observe?.trace === "journal" ? 0.7 : 0) + (spec.observe?.hooks || spec.observe?.notify ? 0.3 : 0);
-  dims.push({ name: "observability", score: obs, weight: 15, note: `trace: ${spec.observe?.trace ?? "none"}` });
+  const hasObserver = Boolean(spec.observe?.hooks || spec.observe?.notify);
+  const obs = (spec.observe?.trace === "journal" ? 0.7 : 0) + (hasObserver ? 0.3 : 0);
+  dims.push({
+    name: "observability",
+    score: obs,
+    weight: 15,
+    note: `trace: ${spec.observe?.trace ?? "none"} · hooks/notify: ${hasObserver ? "configured" : "none"}`,
+  });
 
   dims.push({ name: "resumability", score: report.resumeStable ? 1 : 0, weight: 15, note: report.resumeStable ? "stable" : "unstable" });
   dims.push({ name: "determinism", score: report.deterministic ? 1 : 0, weight: 15, note: report.deterministic ? "deterministic" : "non-deterministic" });
@@ -229,9 +235,10 @@ export function formatVerify(r: VerifyReport): string {
 
 export function formatScore(s: Scorecard): string {
   const bar = (x: number): string => "█".repeat(Math.round(x * 10)).padEnd(10, "░");
+  const points = (value: number): string => Number(value.toFixed(2)).toString();
   const lines = [
     `Scorecard: ${s.total}/100  (${s.grade})`,
-    ...s.dimensions.map((d) => `  ${bar(d.score)} ${d.name.padEnd(20)} ${Math.round(d.score * d.weight)}/${d.weight}  — ${d.note}`),
+    ...s.dimensions.map((d) => `  ${bar(d.score)} ${d.name.padEnd(20)} ${points(d.score * d.weight)}/${d.weight}  — ${d.note}`),
   ];
   return lines.join("\n");
 }

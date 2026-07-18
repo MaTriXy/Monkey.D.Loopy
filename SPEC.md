@@ -1,6 +1,6 @@
 # Monkey D Loopy — Specification (v0.1)
 
-Current synchronized package and factory release: **0.6.0**.
+Current synchronized package and factory release: **0.6.1**.
 
 > A factory for runnable, crash-resumable agent **loops**. Define a loop once in a
 > declarative `LoopSpec`; compile it to a runnable artifact with termination and cost

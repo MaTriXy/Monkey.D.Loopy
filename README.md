@@ -137,10 +137,10 @@ proved:
 ✓ verify PASSED
   bounded: ✓  deterministic: ✓  resume-stable: ✓
 
-Scorecard: 96/100  (A)
+Scorecard: 100/100  (A)
   ██████████ termination safety   30/30  — signal: oracle · grounding: external
   ██████████ caps                 25/25  — explicit, no_progress, budget
-  ██████████ observability        15/15  — trace: journal
+  ██████████ observability        15/15  — trace: journal · hooks/notify: configured
   ██████████ resumability         15/15  — stable
   ██████████ determinism          15/15  — deterministic
 ```
@@ -325,4 +325,4 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.6.0` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
+Release `0.6.1` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
