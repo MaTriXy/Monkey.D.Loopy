@@ -74,6 +74,17 @@ describe("loopc run() — dispatch + commands", () => {
     expect(await run(["validate", join(d, "p2.yaml")])).toBe(0);
   });
 
+  it("quickstart proves, runs, journals, and vendors a safe first loop without overwriting", async () => {
+    const d = join(tmp(), "first-loop");
+    const result = await capture(["quickstart", d]);
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("first loop complete");
+    expect(existsSync(join(d, "hello-loopy.loop.yaml"))).toBe(true);
+    expect(existsSync(join(d, "run", ".loopy", "runs", "default", "events.jsonl"))).toBe(true);
+    expect(existsSync(join(d, "artifact", "standalone", "runtime.bundle.mjs"))).toBe(true);
+    expect(await run(["quickstart", d])).toBe(1);
+  });
+
   it("lists and instantiates verified recipes with provenance in every target lock", async () => {
     const listed = await capture(["recipes"]);
     expect(listed.code).toBe(0);
@@ -121,7 +132,7 @@ describe("loopc run() — dispatch + commands", () => {
   it("reports the synchronized factory version", async () => {
     const { code, out } = await capture(["--version"]);
     expect(code).toBe(0);
-    expect(out.trim()).toBe("0.5.1");
+    expect(out.trim()).toBe("0.6.0");
   });
 
   it("run: a tiny valid shell loop completes and writes a .loopy journal in the out dir", async () => {

@@ -22,6 +22,21 @@ https://matrixy.github.io/Monkey.D.Loopy/llms.txt
 https://matrixy.github.io/Monkey.D.Loopy/llms-full.txt
 ```
 
+## Zero-context handoff
+
+An unfamiliar agent can prove the installation without cloning this repository:
+
+```text
+Read https://matrixy.github.io/Monkey.D.Loopy/llms.txt. Run
+`npx --yes @loopyc/cli@latest quickstart ./loopy-first-loop` in a new directory. Inspect the
+generated LoopSpec and journal, then report the termination evidence, caps, score, and artifact
+path. Do not run any workflow with real external effects until its inputs and commands are
+explicitly approved.
+```
+
+The quickstart is intentionally deterministic and local. It gives the agent a real successful
+run to reason about before it authors a production workflow. See the [first-loop guide](./quickstart.md).
+
 ## Recommended agent workflow
 
 Ask the agent to follow this sequence. Each boundary corresponds to a real command or tool result,

@@ -6,16 +6,19 @@ for runnable, crash-resumable agent loops.
 ```bash
 npm i -g @loopyc/cli
 
+loopc quickstart                     # safe proof: validate + run + inspect + vendor
 loopc blueprints                    # starting points, one per loop pattern
 loopc recipes                       # verified product workflows
 loopc new repo-check --recipe repo-health-doctor
 loopc new my-watch --blueprint poll-until
-loopc validate my-watch.yaml        # refuses unbounded / unreachable loops
-loopc verify   my-watch.yaml        # dry-run proof: bounded · deterministic · resume-stable
-loopc score    my-watch.yaml        # 0-100 scorecard (termination grounding included)
-loopc compile  my-watch.yaml --target all --out ./out
-loopc run      my-watch.yaml -i status_url=https://...
+loopc validate my-watch.loop.yaml   # refuses unbounded / unreachable loops
+loopc verify   my-watch.loop.yaml   # dry-run proof: bounded · deterministic · resume-stable
+loopc score    my-watch.loop.yaml   # 0-100 scorecard (termination grounding included)
+loopc compile  my-watch.loop.yaml --target all --out ./out
+loopc run      my-watch.loop.yaml --inputs ./inputs.json --out ./run
 ```
+
+No-install first run: `npx --yes @loopyc/cli@latest quickstart`.
 
 The load-bearing rule: **the compiler will not emit an unbounded loop.** Termination is
 required, caps are mandatory, and the dry-run proves both before anything real executes.

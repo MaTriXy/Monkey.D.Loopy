@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 — 2026-07-18
+
+- Added `loopc quickstart`, a non-destructive one-command journey that scaffolds, validates,
+  scores, executes, inspects, and vendors a safe first loop without a model or external API.
+- Added a packed-tarball clean-room onboarding gate so the documented first-run promise is tested
+  against the packages users actually install.
+- Replaced the failing input-less deploy-poller walkthrough with a deterministic first-loop guide,
+  a zero-context agent handoff, and copy-paste npm MCP setup for Codex and Claude Code.
+- Made the documentation navigation and agent release index read the synchronized package version
+  instead of carrying a stale hard-coded release.
+
 ## 0.5.1 — 2026-07-18
 
 - Patched the CLI's runtime `esbuild` dependency to `0.28.1`, closing the Windows development-server file-read advisory for npm consumers.

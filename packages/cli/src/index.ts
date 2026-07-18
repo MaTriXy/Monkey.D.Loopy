@@ -3,6 +3,7 @@
  * Dev runs via tsx; the published bin is the compiled ./dist/index.js (shebang added at build).
  *
  * Commands:
+ *   loopc quickstart [dir]
  *   loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <p>] [--out <file>]
  *   loopc validate <spec.yaml>
  *   loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>]
@@ -38,6 +39,7 @@ const TARGET_ARG = `${SUPPORTED_TARGETS.join(",")}|all`;
 const USAGE = `loopc v${FACTORY_VERSION} — factory for runnable agent loops
 
 Usage:
+  loopc quickstart [dir]   (prove, run, inspect, and compile a safe first loop)
   loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--out <file>]
   loopc new <id> --from-shell "<cmd>" --until "<expr>"   (scaffold a loop around a command)
   loopc validate <spec.yaml>
@@ -70,6 +72,8 @@ export async function run(argv: string[]): Promise<number> {
   }
 
   switch (cmd) {
+    case "quickstart":
+      return cmdQuickstart(positionals[1]);
     case "new":
       return cmdNew(positionals[1], flags);
     case "validate":
@@ -119,6 +123,45 @@ function cmdRecipes(): number {
     console.log(`  ${"".padEnd(25)} schedule=${manifest.schedule.mode} · minimum score=${manifest.minimum_score}`);
   }
   console.log("\nScaffold one with: loopc new <id> --recipe <name>");
+  return 0;
+}
+
+async function cmdQuickstart(dirArg: string | undefined): Promise<number> {
+  const dir = resolve(dirArg ?? "loopy-quickstart");
+  if (existsSync(dir) && readdirSync(dir).length > 0) {
+    console.error(`quickstart directory is not empty: ${dir}`);
+    console.error("  choose a new directory so Loopy does not overwrite existing work.");
+    return 1;
+  }
+
+  await mkdir(dir, { recursive: true });
+  const specPath = join(dir, "hello-loopy.loop.yaml");
+  const runDir = join(dir, "run");
+  const artifactDir = join(dir, "artifact");
+  const yaml = quickstartTemplate();
+
+  await writeFile(specPath, yaml, "utf8");
+  console.log(`Monkey D Loopy quickstart → ${dir}`);
+  console.log(`\n1/4 Scaffolded ${specPath}`);
+
+  console.log("\n2/4 Validating and proving bounded execution");
+  if ((await cmdValidate(specPath)) !== 0 || (await cmdScore(specPath)) !== 0) return 1;
+
+  console.log("\n3/4 Running once and reading the durable journal");
+  if ((await cmdRun(specPath, { out: runDir })) !== 0 || cmdInspect(runDir, { tail: "5" }) !== 0) {
+    return 1;
+  }
+
+  console.log("\n4/4 Compiling a zero-install standalone artifact");
+  if ((await cmdCompile(specPath, { target: "standalone", out: artifactDir, vendor: true })) !== 0) {
+    return 1;
+  }
+
+  console.log("\n✓ first loop complete: bounded, verified, journaled, and portable");
+  console.log(`  spec:     ${specPath}`);
+  console.log(`  journal:  ${join(runDir, ".loopy", "runs", "default")}`);
+  console.log(`  artifact: ${join(artifactDir, "standalone", "loop.mjs")}`);
+  console.log("\nNext: edit the LoopSpec or run `loopc recipes` for a production starting point.");
   return 0;
 }
 
@@ -584,6 +627,42 @@ caps:
   no_progress: { fingerprint: "\${state.out}", max_repeats: 8 }
   budget: { tokens: 200000, usd: 5.0, wallclock: "1h" }
   on_cap_exceeded: breakpoint
+`;
+}
+
+function quickstartTemplate(): string {
+  return `loopspec: "0.1"
+id: hello-loopy
+meta:
+  name: Hello Loopy
+  description: "A safe local proof that validates, completes, journals, and compiles."
+pattern: loop-until-dry
+
+state:
+  store: journal
+  vars:
+    done: { type: boolean, init: false }
+    out: { type: json, init: null }
+
+body:
+  - id: prove-local-effect
+    kind: shell
+    cmd: "node -e \\"console.log(JSON.stringify({done:true,message:'Monkey D Loopy is ready'}))\\""
+    save: { out: "$" }
+    on_done: { set: { done: true } }
+
+terminate:
+  signal: state-predicate
+  until: "\${state.done == true}"
+
+caps:
+  max_iterations: 3
+  no_progress: { fingerprint: "\${state.done}", max_repeats: 2 }
+  budget: { tokens: 1000, usd: 0.1, wallclock: "5m" }
+  on_cap_exceeded: exit-clean
+
+observe:
+  trace: journal
 `;
 }
 

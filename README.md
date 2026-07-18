@@ -5,6 +5,7 @@
 **A factory for runnable, crash-resumable agent loops.**
 
 [Documentation](https://matrixy.github.io/Monkey.D.Loopy/) ·
+[First loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart) ·
 [Agent guide](https://matrixy.github.io/Monkey.D.Loopy/agent-guide) ·
 [`llms.txt`](https://matrixy.github.io/Monkey.D.Loopy/llms.txt) ·
 [GitHub](https://github.com/MaTriXy/Monkey.D.Loopy)
@@ -70,7 +71,17 @@ designed out or made visible instead of debugged later.
 ## Quickstart
 
 ```bash
-npm i -g @loopyc/cli                               # Node ≥ 22
+npx --yes @loopyc/cli@latest quickstart            # Node ≥ 22
+```
+
+That one safe command validates and scores a starter LoopSpec, runs it to completion, inspects its
+durable journal, and emits a zero-install standalone artifact under `./loopy-quickstart/`. It needs
+no model, API key, or external service and refuses to overwrite a non-empty directory.
+
+When you are ready to author real work:
+
+```bash
+npm i -g @loopyc/cli
 
 loopc blueprints                                   # list starting points (one per pattern)
 loopc new my-watch --blueprint poll-until          # scaffold a LoopSpec
@@ -78,10 +89,12 @@ loopc validate my-watch.loop.yaml                  # rejects unbounded / unreach
 loopc verify   my-watch.loop.yaml                  # dry-run: bounded + deterministic, no side effects
 loopc score    my-watch.loop.yaml                  # graded 0–100 scorecard
 loopc compile  my-watch.loop.yaml --target all --out ./out/my-watch
-
-cd out/my-watch/standalone && npm install
-node loop.mjs run        # run · step · resume · doctor   (journals to .loopy/, crash-resumable)
 ```
+
+The poller requires a `status_url` input before execution; inspect the generated `inputs:` block
+and pass an `inputs.json` file to `loopc run`. See the
+[first-loop guide](https://matrixy.github.io/Monkey.D.Loopy/quickstart) for the complete clean-room
+journey.
 
 Claude Code users also get a native project skill from `--target all`: copy
 `out/my-watch/claude-native/.claude/` into the project where the loop should be available, then
@@ -312,4 +325,4 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.5.1` also gates on repository-to-tarball parity, a clean packed-consumer smoke, and a zero-vulnerability audit.
+Release `0.6.0` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.

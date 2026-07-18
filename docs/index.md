@@ -13,7 +13,7 @@ hero:
   actions:
     - theme: brand
       text: Build your first loop
-      link: /#quickstart
+      link: /quickstart
     - theme: alt
       text: Give this to your agent
       link: /agent-guide
@@ -69,26 +69,19 @@ own opinion as external evidence.
 
 ## Quickstart
 
-Install the CLI with Node 22 or newer, scaffold a bounded pattern, and prove it before compilation:
+With Node 22 or newer, one command creates and completes a safe local loop—no model, API key, or
+external service required:
 
 ```bash
-npm i -g @loopyc/cli
-
-loopc new deploy-watch --blueprint poll-until
-loopc validate deploy-watch.loop.yaml
-loopc verify deploy-watch.loop.yaml
-loopc score deploy-watch.loop.yaml
-loopc compile deploy-watch.loop.yaml --target standalone --out ./out/deploy-watch
+npx --yes @loopyc/cli@latest quickstart
 ```
 
-Then run the emitted project. Its journal is the source of truth for inspection and resume:
+The quickstart scaffolds a LoopSpec, validates and scores it, executes one bounded iteration,
+reads the durable journal, and emits a zero-install standalone artifact. It leaves every result in
+`./loopy-quickstart/` so both a human and an agent can inspect what happened.
 
-```bash
-cd out/deploy-watch/standalone
-npm install
-node loop.mjs run
-node loop.mjs inspect
-```
+Continue with the [two-minute first-loop guide](./quickstart.md), or install the CLI globally with
+`npm i -g @loopyc/cli` when you are ready to author real workflows.
 
 Prefer a complete product workflow? Start from one of the [verified recipes](./recipes.md), which
 adds provenance, evidence requirements, safety boundaries, and adversarial fixtures on top of the

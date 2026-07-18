@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/infer",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Deterministic FactPack extraction from existing scripts (JS/TS AST, bash) and .loopy journals → a draft LoopSpec for the /loopy skill to complete.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

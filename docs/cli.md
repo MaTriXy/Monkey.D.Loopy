@@ -1,17 +1,31 @@
 # `loopc` — CLI reference
 
-`loopc` is the deterministic factory CLI. Until a global binary build ships, invoke it via:
+`loopc` is the deterministic factory CLI. Install it globally or run a one-off command through
+`npx`:
 
 ```bash
-pnpm exec tsx packages/cli/src/index.ts <command> [args]
-# (shown below as `loopc <command>`)
+npm i -g @loopyc/cli
+npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.5.1` reports its synchronized factory version with `loopc --version`.
+Release `0.6.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
 ---
+
+### `loopc quickstart [dir]`
+
+Create a safe first-loop workspace (default `./loopy-quickstart`), validate and score its
+LoopSpec, execute one deterministic local iteration, inspect the durable journal, and compile a
+vendored standalone artifact. Refuses to write into a non-empty directory.
+
+```bash
+loopc quickstart
+loopc quickstart ./my-first-loop
+```
+
+This is the clean-room onboarding contract and requires no model or external API.
 
 ### `loopc blueprints`
 List the built-in starting-point templates (one per pattern).

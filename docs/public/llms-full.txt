@@ -15,6 +15,7 @@ Source: https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/README.md
 **A factory for runnable, crash-resumable agent loops.**
 
 [Documentation](https://matrixy.github.io/Monkey.D.Loopy/) ·
+[First loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart) ·
 [Agent guide](https://matrixy.github.io/Monkey.D.Loopy/agent-guide) ·
 [`llms.txt`](https://matrixy.github.io/Monkey.D.Loopy/llms.txt) ·
 [GitHub](https://github.com/MaTriXy/Monkey.D.Loopy)
@@ -80,7 +81,17 @@ designed out or made visible instead of debugged later.
 ## Quickstart
 
 ```bash
-npm i -g @loopyc/cli                               # Node ≥ 22
+npx --yes @loopyc/cli@latest quickstart            # Node ≥ 22
+```
+
+That one safe command validates and scores a starter LoopSpec, runs it to completion, inspects its
+durable journal, and emits a zero-install standalone artifact under `./loopy-quickstart/`. It needs
+no model, API key, or external service and refuses to overwrite a non-empty directory.
+
+When you are ready to author real work:
+
+```bash
+npm i -g @loopyc/cli
 
 loopc blueprints                                   # list starting points (one per pattern)
 loopc new my-watch --blueprint poll-until          # scaffold a LoopSpec
@@ -88,10 +99,12 @@ loopc validate my-watch.loop.yaml                  # rejects unbounded / unreach
 loopc verify   my-watch.loop.yaml                  # dry-run: bounded + deterministic, no side effects
 loopc score    my-watch.loop.yaml                  # graded 0–100 scorecard
 loopc compile  my-watch.loop.yaml --target all --out ./out/my-watch
-
-cd out/my-watch/standalone && npm install
-node loop.mjs run        # run · step · resume · doctor   (journals to .loopy/, crash-resumable)
 ```
+
+The poller requires a `status_url` input before execution; inspect the generated `inputs:` block
+and pass an `inputs.json` file to `loopc run`. See the
+[first-loop guide](https://matrixy.github.io/Monkey.D.Loopy/quickstart) for the complete clean-room
+journey.
 
 Claude Code users also get a native project skill from `--target all`: copy
 `out/my-watch/claude-native/.claude/` into the project where the loop should be available, then
@@ -322,7 +335,7 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.5.1` also gates on repository-to-tarball parity, a clean packed-consumer smoke, and a zero-vulnerability audit.
+Release `0.6.0` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
 
 ---
 
@@ -354,6 +367,21 @@ The raw endpoints are stable under the project site:
 https://matrixy.github.io/Monkey.D.Loopy/llms.txt
 https://matrixy.github.io/Monkey.D.Loopy/llms-full.txt
 ```
+
+## Zero-context handoff
+
+An unfamiliar agent can prove the installation without cloning this repository:
+
+```text
+Read https://matrixy.github.io/Monkey.D.Loopy/llms.txt. Run
+`npx --yes @loopyc/cli@latest quickstart ./loopy-first-loop` in a new directory. Inspect the
+generated LoopSpec and journal, then report the termination evidence, caps, score, and artifact
+path. Do not run any workflow with real external effects until its inputs and commands are
+explicitly approved.
+```
+
+The quickstart is intentionally deterministic and local. It gives the agent a real successful
+run to reason about before it authors a production workflow. See the [first-loop guide](./quickstart.md).
 
 ## Recommended agent workflow
 
@@ -426,6 +454,111 @@ completion evidence, state mutations, effect boundaries, and appropriate caps be
 
 Continue with the [`loopc` CLI reference](./cli.md) or the exact
 [LoopSpec v0.1 reference](./loopspec.md).
+
+---
+
+# First bounded loop
+
+Canonical page: https://matrixy.github.io/Monkey.D.Loopy/quickstart
+Source: https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/quickstart.md
+
+# Your first bounded loop
+
+This path starts from an empty directory and ends with an executed, inspected, portable loop. The
+generated loop does not call a model or application API; `npx` only downloads the CLI from npm.
+Node.js 22 or newer is the only prerequisite.
+
+## One-command proof
+
+```bash
+npx --yes @loopyc/cli@latest quickstart
+```
+
+Use a custom output directory when you want to keep more than one walkthrough:
+
+```bash
+npx --yes @loopyc/cli@latest quickstart ./my-first-loop
+```
+
+`quickstart` deliberately refuses a non-empty destination. It will not overwrite an existing
+project.
+
+## What the command proves
+
+The command performs the real product sequence:
+
+1. Writes an editable `hello-loopy.loop.yaml`.
+2. Validates termination, caps, and expression reachability.
+3. Dry-run verifies boundedness, determinism, and resume stability, then prints the scorecard.
+4. Executes one safe local shell step and reaches the declared termination predicate.
+5. Reads the resulting event-sourced journal.
+6. Compiles a vendored standalone artifact that runs with plain Node—no package install required.
+
+The default result is:
+
+```text
+loopy-quickstart/
+├── hello-loopy.loop.yaml
+├── run/.loopy/runs/default/       # durable journal and run metadata
+└── artifact/standalone/
+    ├── loop.mjs
+    ├── runtime.bundle.mjs          # vendored runtime
+    ├── loop.lock
+    └── loop.source.yaml
+```
+
+Open the spec and journal before moving on. They are the two core contracts: the spec says what is
+allowed to happen, and the journal records what actually happened.
+
+## Regression-tested onboarding contract
+
+The repository runs this same journey against packed npm tarballs in CI. The gate requires:
+
+| Contract | Evidence |
+|---|---|
+| No source checkout | CLI and MCP are installed only from packed public packages. |
+| One safe entry command | `loopc quickstart` reaches a completed run without a model or external API. |
+| Real proof boundaries | Validation, verification, scoring, execution, and inspection all succeed. |
+| Durable evidence | The clean workspace contains the journal event stream. |
+| Portable result | The standalone artifact contains a vendored runtime and needs no install. |
+
+This keeps the first-run promise executable: documentation changes cannot silently drift away from
+the package users actually install.
+
+## Move from the demo to real work
+
+Install the CLI once, then choose a verified outcome recipe when one fits:
+
+```bash
+npm i -g @loopyc/cli
+loopc recipes
+loopc new repo-check --recipe repo-health-doctor
+loopc validate repo-check.loop.yaml
+loopc verify repo-check.loop.yaml
+loopc score repo-check.loop.yaml
+```
+
+Recipes may require inputs or trusted commands. Read the generated `inputs:` block before running
+one. Pass runtime values in a JSON file rather than hard-coding secrets:
+
+```bash
+loopc run repo-check.loop.yaml --inputs ./inputs.json --out ./run/repo-check
+loopc inspect ./run/repo-check
+```
+
+## Give the journey to an agent
+
+Paste this instruction into a coding agent:
+
+```text
+Read https://matrixy.github.io/Monkey.D.Loopy/llms.txt and then use the first-loop guide.
+Run the safe quickstart in a new directory, inspect the generated LoopSpec and journal, and report
+the termination evidence, caps, score, and artifact path. Do not run a recipe with real effects
+until I approve its inputs and commands.
+```
+
+For structured tools instead of shell commands, continue with the [MCP setup](./mcp.md). For the
+full authoring contract, read [Using Loopy with agents](./agent-guide.md).
 
 ---
 
@@ -615,18 +748,32 @@ Source: https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/cli.md
 
 # `loopc` — CLI reference
 
-`loopc` is the deterministic factory CLI. Until a global binary build ships, invoke it via:
+`loopc` is the deterministic factory CLI. Install it globally or run a one-off command through
+`npx`:
 
 ```bash
-pnpm exec tsx packages/cli/src/index.ts <command> [args]
-# (shown below as `loopc <command>`)
+npm i -g @loopyc/cli
+npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.5.1` reports its synchronized factory version with `loopc --version`.
+Release `0.6.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
 ---
+
+### `loopc quickstart [dir]`
+
+Create a safe first-loop workspace (default `./loopy-quickstart`), validate and score its
+LoopSpec, execute one deterministic local iteration, inspect the durable journal, and compile a
+vendored standalone artifact. Refuses to write into a non-empty directory.
+
+```bash
+loopc quickstart
+loopc quickstart ./my-first-loop
+```
+
+This is the clean-room onboarding contract and requires no model or external API.
 
 ### `loopc blueprints`
 List the built-in starting-point templates (one per pattern).
@@ -1138,23 +1285,51 @@ Protocol](https://modelcontextprotocol.io) so any MCP-capable agent can author, 
 compile, run, and inspect loops conversationally. Source:
 [`packages/mcp`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp).
 
-## Register it
+## Register from npm
 
-**Compiled (recommended)** — after `pnpm build`, the bin is plain-node runnable. Add it to your
-MCP client's `mcpServers` config:
-
-```json
-{ "mcpServers": { "loopc": { "command": "node", "args": ["/ABS/PATH/MonkyDLoopy/packages/mcp/dist/index.js"] } } }
-```
-
-Once published/installed, just point at the `loopc-mcp` bin:
+No repository clone or global install is required. Let the client launch the published package
+through `npx`:
 
 ```json
-{ "mcpServers": { "loopc": { "command": "loopc-mcp" } } }
+{
+  "mcpServers": {
+    "loopy": {
+      "command": "npx",
+      "args": ["--yes", "@loopyc/mcp@latest"]
+    }
+  }
+}
 ```
 
-(If your MCP client has a CLI registration command, that works too — e.g.
-`<your-mcp-client> mcp add loopc -- node /ABS/PATH/MonkyDLoopy/packages/mcp/dist/index.js`.)
+Codex CLI:
+
+```bash
+codex mcp add loopy -- npx --yes @loopyc/mcp@latest
+```
+
+Claude Code:
+
+```bash
+claude mcp add --scope user loopy -- npx --yes @loopyc/mcp@latest
+```
+
+If you prefer a global install:
+
+```json
+{ "mcpServers": { "loopy": { "command": "loopc-mcp" } } }
+```
+
+```bash
+npm i -g @loopyc/mcp
+```
+
+## Register from a source checkout
+
+After `pnpm build`, point the client at the plain-Node entry:
+
+```json
+{ "mcpServers": { "loopy": { "command": "node", "args": ["/ABS/PATH/Monkey.D.Loopy/packages/mcp/dist/index.js"] } } }
+```
 
 **From source (dev, no build)** — via the `tsx` loader:
 

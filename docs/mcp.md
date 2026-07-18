@@ -5,23 +5,51 @@ Protocol](https://modelcontextprotocol.io) so any MCP-capable agent can author, 
 compile, run, and inspect loops conversationally. Source:
 [`packages/mcp`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp).
 
-## Register it
+## Register from npm
 
-**Compiled (recommended)** — after `pnpm build`, the bin is plain-node runnable. Add it to your
-MCP client's `mcpServers` config:
-
-```json
-{ "mcpServers": { "loopc": { "command": "node", "args": ["/ABS/PATH/MonkyDLoopy/packages/mcp/dist/index.js"] } } }
-```
-
-Once published/installed, just point at the `loopc-mcp` bin:
+No repository clone or global install is required. Let the client launch the published package
+through `npx`:
 
 ```json
-{ "mcpServers": { "loopc": { "command": "loopc-mcp" } } }
+{
+  "mcpServers": {
+    "loopy": {
+      "command": "npx",
+      "args": ["--yes", "@loopyc/mcp@latest"]
+    }
+  }
+}
 ```
 
-(If your MCP client has a CLI registration command, that works too — e.g.
-`<your-mcp-client> mcp add loopc -- node /ABS/PATH/MonkyDLoopy/packages/mcp/dist/index.js`.)
+Codex CLI:
+
+```bash
+codex mcp add loopy -- npx --yes @loopyc/mcp@latest
+```
+
+Claude Code:
+
+```bash
+claude mcp add --scope user loopy -- npx --yes @loopyc/mcp@latest
+```
+
+If you prefer a global install:
+
+```json
+{ "mcpServers": { "loopy": { "command": "loopc-mcp" } } }
+```
+
+```bash
+npm i -g @loopyc/mcp
+```
+
+## Register from a source checkout
+
+After `pnpm build`, point the client at the plain-Node entry:
+
+```json
+{ "mcpServers": { "loopy": { "command": "node", "args": ["/ABS/PATH/Monkey.D.Loopy/packages/mcp/dist/index.js"] } } }
+```
 
 **From source (dev, no build)** — via the `tsx` loader:
 

@@ -41,6 +41,22 @@ try {
   const loopc = join(consumer, "node_modules", ".bin", "loopc");
   const loopyd = join(consumer, "node_modules", ".bin", "loopyd");
   requireTruthy(run(loopc, ["--version"], consumer).trim() === releaseVersion, "packed loopc reports the wrong version");
+
+  // This is the public onboarding contract: from an empty directory, the packed CLI must prove,
+  // execute, journal, inspect, and vendor a safe first loop without reaching into the repository.
+  const firstLoop = join(consumer, "first-loop");
+  const onboarding = run(loopc, ["quickstart", firstLoop], consumer);
+  requireTruthy(onboarding.includes("first loop complete"), "quickstart did not reach its completion handoff");
+  requireTruthy(existsSync(join(firstLoop, "hello-loopy.loop.yaml")), "quickstart omitted the editable LoopSpec");
+  requireTruthy(
+    existsSync(join(firstLoop, "run", ".loopy", "runs", "default", "events.jsonl")),
+    "quickstart omitted the durable journal"
+  );
+  requireTruthy(
+    existsSync(join(firstLoop, "artifact", "standalone", "runtime.bundle.mjs")),
+    "quickstart omitted the vendored standalone runtime"
+  );
+
   requireTruthy(run(loopyd, ["--help"], consumer).includes("local Monkey D Loopy operator"), "packed loopyd CLI is missing");
   requireTruthy(
     existsSync(join(consumer, "node_modules", "@loopyc", "operator", "assets", "control-center", "index.html")),
@@ -116,7 +132,7 @@ if (!createdText.includes("name: repo-health-doctor")) throw new Error("packed M
 await client.close();
 `);
   run(process.execPath, [mcpSmoke], consumer);
-  console.log(`packed consumer smoke ✓ ${tarballs.length} packages · libraries + CLI + MCP · all targets · claude-native · standalone run`);
+  console.log(`packed consumer smoke ✓ ${tarballs.length} packages · clean-room quickstart + libraries + CLI + MCP · all targets · claude-native · standalone run`);
 } finally {
   if (keep) console.log(`packed consumer retained at ${temp}`);
   else rmSync(temp, { recursive: true, force: true });

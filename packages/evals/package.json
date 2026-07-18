@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/evals",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "description": "Eval harness for the Monkey D Loopy factory — property-based pipeline, capability-matrix honesty, and a validator negative corpus, graded by the real code.",
   "author": "MaTriXy <elkriefy@gmail.com>",

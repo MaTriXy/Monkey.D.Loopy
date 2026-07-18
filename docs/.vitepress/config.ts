@@ -1,6 +1,10 @@
 import { defineConfig } from "vitepress";
+import { readFileSync } from "node:fs";
 
 const repository = "https://github.com/MaTriXy/Monkey.D.Loopy";
+const release = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8")
+) as { version: string };
 
 export default defineConfig({
   title: "Monkey D Loopy",
@@ -38,12 +42,12 @@ export default defineConfig({
       { text: "Recipes", link: "/recipes" },
       { text: "Agent guide", link: "/agent-guide" },
       {
-        text: "v0.5.0",
+        text: `v${release.version}`,
         items: [
           { text: "CLI reference", link: "/cli" },
           { text: "Runtime", link: "/runtime" },
           { text: "Operator", link: "/operator" },
-          { text: "Release on GitHub", link: `${repository}/releases/tag/v0.5.0` },
+          { text: "Release on GitHub", link: `${repository}/releases/tag/v${release.version}` },
         ],
       },
     ],
@@ -52,6 +56,7 @@ export default defineConfig({
         text: "Start here",
         items: [
           { text: "Why Loopy", link: "/" },
+          { text: "First loop", link: "/quickstart" },
           { text: "Using Loopy with agents", link: "/agent-guide" },
           { text: "Verified recipes", link: "/recipes" },
           { text: "CLI reference", link: "/cli" },

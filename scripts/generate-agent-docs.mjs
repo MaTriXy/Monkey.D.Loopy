@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const site = "https://matrixy.github.io/Monkey.D.Loopy";
 const check = process.argv.includes("--check");
+const { version } = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 
 const sources = [
   {
@@ -19,6 +20,12 @@ const sources = [
     file: "docs/agent-guide.md",
     url: `${site}/agent-guide`,
     description: "Recommended agent workflow, MCP pattern, context endpoints, and safety boundaries.",
+  },
+  {
+    title: "First bounded loop",
+    file: "docs/quickstart.md",
+    url: `${site}/quickstart`,
+    description: "Clean-room install, safe one-command proof, generated files, and production handoff.",
   },
   {
     title: "LoopSpec v0.1",
@@ -83,6 +90,7 @@ const llms = `# Monkey D Loopy
 ## Start here
 
 - [Documentation home](${site}/): Product overview and quickstart.
+- [First bounded loop](${site}/quickstart): Safe clean-room proof from npm to a journaled, portable artifact.
 - [Using Loopy with agents](${site}/agent-guide): Recommended context and tool workflow for an agent.
 - [Complete agent context](${site}/llms-full.txt): Consolidated canonical documentation in one text file.
 
@@ -96,7 +104,7 @@ ${sources
 ## Source and releases
 
 - [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
-- [v0.5.1 release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v0.5.1): Current documented release.
+- [v${version} release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v${version}): Current documented release.
 `;
 
 const fullSections = await Promise.all(
