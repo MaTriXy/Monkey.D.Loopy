@@ -97,6 +97,16 @@ Claude Code users also get a native project skill from `--target all`: copy
 `out/my-watch/claude-native/.claude/` into the project where the loop should be available, then
 invoke it as `/my-watch run` from Claude Code.
 
+The local operator is deliberately optional and installs separately:
+
+```bash
+npm i -g @loopyc/operator
+loopyd --help
+```
+
+It imports compiled artifacts for local scheduling and inspection; installing it does not start a
+service or make standalone/vendored artifacts depend on the operator.
+
 (Working from a clone instead? See [Develop](#develop) — everything runs from source via `tsx`.)
 
 Prefer an opinionated product workflow over a structural blueprint? This path is ready in under

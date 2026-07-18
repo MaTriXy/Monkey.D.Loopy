@@ -32,6 +32,27 @@ for (const { dir, manifest } of manifests) {
 }
 requireTruthy(publicPackages.length === 7, `expected 7 public packages, found ${publicPackages.length}`);
 
+const publicOrderResult = spawnSync(process.execPath, [join(root, "scripts/list-public-package-dirs.mjs")], {
+  cwd: root,
+  encoding: "utf8",
+});
+requireTruthy(publicOrderResult.status === 0, `public package ordering failed: ${publicOrderResult.stderr}`);
+const publicOrder = publicOrderResult.stdout.trim().split(/\s+/);
+const publicPositions = new Map(publicOrder.map((dir, index) => [dir, index]));
+requireTruthy(publicPositions.size === publicPackages.length, "public package ordering is incomplete");
+const publicNames = new Map(publicPackages.map(({ dir, manifest }) => [manifest.name, dir]));
+for (const { dir, manifest } of publicPackages) {
+  for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+    const dependencyDir = publicNames.get(dependency);
+    if (dependencyDir) {
+      requireTruthy(
+        publicPositions.get(dependencyDir) < publicPositions.get(dir),
+        `${manifest.name} publishes before dependency ${dependency}`,
+      );
+    }
+  }
+}
+
 const core = await import(pathToFileURL(join(root, "packages/core/dist/index.js")));
 requireTruthy(core.FACTORY_VERSION === version, `FACTORY_VERSION is ${core.FACTORY_VERSION}; root is ${version}`);
 

@@ -4,6 +4,13 @@ The local-first Monkey D Loopy operator. The initial surface is a zero-mutation 
 existing runtime journals; the loopback API, control center, scheduler, and guarded controls build
 on the same derived state.
 
+Install the CLI globally, or add the package to an application that uses the read-model API:
+
+```bash
+npm install --global @loopyc/operator
+# or: npm install @loopyc/operator
+```
+
 ```ts
 import { readRun, listRuns } from "@loopyc/operator";
 

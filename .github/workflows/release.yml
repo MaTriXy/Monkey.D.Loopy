@@ -2,11 +2,11 @@ name: Release
 
 # Publish all public packages to npm when a version tag is pushed (e.g. v0.5.0).
 #
-# Uses npm OIDC trusted publishing — no token stored in the repo. One-time setup on
-# npmjs.com for EACH package: Package → Settings → Trusted Publisher → GitHub Actions,
-# repository MaTriXy/Monkey.D.Loopy, workflow release.yml. Until that's configured,
-# this workflow fails at the publish step with an auth error (nothing partial ships:
-# versions already published are skipped, so re-running after fixing setup is safe).
+# Uses npm OIDC trusted publishing — no token stored in the repo. Every current public package
+# trusts repository MaTriXy/Monkey.D.Loopy and workflow release.yml. A newly introduced package
+# still needs one authenticated first publish because npm requires the package to exist before its
+# trust relationship can be configured. Versions already published are skipped, so re-running is
+# safe. Packages publish in internal dependency order.
 #
 # `pnpm pack` (not npm) writes the tarballs so workspace:* deps are rewritten to real
 # versions; `npm publish <tarball>` then attaches --provenance via OIDC.
@@ -25,16 +25,16 @@ jobs:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           # no registry-url: it writes a token line into .npmrc that shadows OIDC auth
-      - name: Upgrade npm (OIDC trusted publishing needs npm >= 11.5; Node 22 bundles 10.x)
+      - name: Ensure npm supports OIDC trusted publishing (npm >= 11.5)
         run: npm install -g npm@11
       - run: pnpm install --frozen-lockfile
       - name: Gate — typecheck, tests, evals
@@ -53,7 +53,9 @@ jobs:
           done
       - name: Publish with provenance (skips already-published versions)
         run: |
-          for t in /tmp/tarballs/*.tgz; do
+          for p in $(node scripts/list-public-package-dirs.mjs); do
+            t=$(find /tmp/tarballs -maxdepth 1 -name "loopyc-${p}-*.tgz" -print -quit)
+            test -n "$t"
             npm publish "$t" --access public --provenance \
               || npm view "$(tar -xzOf "$t" package/package.json | jq -r '.name + "@" + .version')" version
           done
