@@ -96,7 +96,7 @@ ${sources
 ## Source and releases
 
 - [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
-- [v0.5.0 release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v0.5.0): Current documented release.
+- [v0.5.1 release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v0.5.1): Current documented release.
 `;
 
 const fullSections = await Promise.all(

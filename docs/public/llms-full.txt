@@ -315,14 +315,14 @@ pnpm eval             # property-based + capability + negative evals (graded by 
 pnpm eval:skill       # NL→spec authoring quality (live with any provider key, else golden)
 pnpm build            # tsup → dist/ for every package (ESM + .d.ts; bins get a node shebang)
 pnpm docs:build       # verify agent docs and build the GitHub Pages site
-pnpm release:check    # 0.5.0 versions + CLI/help/targets/docs parity
+pnpm release:check    # synchronized versions + CLI/help/targets/docs parity
 pnpm release:pack-smoke # clean consumer installs tarballs and exercises every target
 ```
 
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.5.0` also gates on repository-to-tarball parity and a clean packed-consumer smoke.
+Release `0.5.1` also gates on repository-to-tarball parity, a clean packed-consumer smoke, and a zero-vulnerability audit.
 
 ---
 
@@ -622,7 +622,7 @@ pnpm exec tsx packages/cli/src/index.ts <command> [args]
 # (shown below as `loopc <command>`)
 ```
 
-Release `0.5.0` reports its synchronized factory version with `loopc --version`.
+Release `0.5.1` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 

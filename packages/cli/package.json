@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "loopc — the Monkey D Loopy command-line factory.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -34,7 +34,7 @@
     "@loopyc/infer": "workspace:*",
     "@loopyc/runtime": "workspace:*",
     "@loopyc/verify": "workspace:*",
-    "esbuild": "^0.27.7",
+    "esbuild": "^0.28.1",
     "yaml": "^2.6.1"
   },
   "engines": {

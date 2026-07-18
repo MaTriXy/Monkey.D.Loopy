@@ -23,6 +23,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Security audit
+        run: pnpm security:audit
       - name: Typecheck
         run: pnpm typecheck
       - name: Test (unit + golden + fidelity + evals gate)

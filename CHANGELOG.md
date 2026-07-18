@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 — 2026-07-18
+
+- Patched the CLI's runtime `esbuild` dependency to `0.28.1`, closing the Windows development-server file-read advisory for npm consumers.
+- Constrained build-tool resolutions to patched, compatible esbuild and Vite releases.
+- Upgraded Vitest to the patched 3.2 line and added a zero-vulnerability audit gate to CI.
+
 ## 0.5.0 — 2026-07-17
 
 - Ship six verified, externally grounded recipes with adversarial fixtures and CLI/MCP discovery.

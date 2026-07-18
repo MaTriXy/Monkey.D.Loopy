@@ -1,7 +1,7 @@
 {
   "name": "monkey-d-loopy",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -16,6 +16,7 @@
     "docs:dev": "pnpm agent-docs:generate && vitepress dev docs",
     "docs:build": "pnpm agent-docs:check && vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "security:audit": "pnpm audit --audit-level=low",
     "typecheck": "pnpm recipes:check && pnpm -r typecheck",
     "test": "pnpm -r test",
     "eval": "pnpm --filter @loopyc/evals eval",
@@ -34,9 +35,14 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitepress": "^1.6.4",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild"],
+    "overrides": {
+      "bundle-require>esbuild": "^0.28.1",
+      "tsup>esbuild": "^0.28.1",
+      "vitepress>vite": "^6.4.3"
+    }
   }
 }
