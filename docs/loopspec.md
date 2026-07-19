@@ -25,7 +25,7 @@ any code is emitted. Canonical types live in
 | `schedule` | | `{ mode: manual\|cron\|watch\|forever, cron? }`. |
 | `retry` | | `{ max, backoff_ms }` — transient http/shell/agent failures retry with exponential backoff (default no retry). |
 | `gates` | | Durable human-approval gates `{ after?, when?, ask, strategy?, auto_approve_in? }` — lowered to an inline, fail-closed `ctx.breakpoint()` after the named step (standalone + babysitter). |
-| `observe` | | `{ trace: journal\|none, hooks?, notify? }`. |
+| `observe` | | Durable tracing plus executable lifecycle hooks; see [observe](#observe). |
 | `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|claude-native\|n8n, emit: [cli, skill, doctor] }`. |
 | `provenance` | | `{ factory_version, source, run_id }` (baked into the artifact). |
 
@@ -113,6 +113,33 @@ trips the `ungrounded-exit` warning and the scorecard caps the termination dimen
 the self-assessment ceiling — an honest `llm-judge`/`self-assess` label scores *higher*
 than an inflated one. To upgrade a loop's grade, ground the exit: let a shell exit code,
 an http status, or a scan count decide, not the agent's own report.
+
+## observe
+
+```yaml
+observe:
+  trace: journal
+  hooks:
+    completed:
+      kind: shell
+      cmd: "./record-completion.sh"
+```
+
+`trace` controls the scorecard's durable-trace declaration. `hooks.completed` is a strict action:
+either `{ kind: shell, cmd: <non-empty string> }` or `{ kind: http, request: <HttpRequest> }`.
+Unknown hook names, empty actions, and shell/http field mismatches are rejected during parsing.
+
+The standalone runtime attempts this hook once after it has journaled natural termination. It
+appends an `observer` event with `started`, then `done` or `failed`. The hook is post-result:
+failure is visible and durable but cannot rewrite a successful loop result. A process crash after
+`started` may leave the delivery outcome uncertain; the runtime does not blindly retry it and does
+not claim exactly-once external delivery. Other compile targets currently report
+`completion-observer` as unsupported in their capability warnings rather than silently promising
+standalone semantics.
+
+The scorecard awards observer credit only for an executable completion hook or an active top-level
+`notify` contract with at least one channel. Arbitrary legacy `observe.notify` metadata is inert and
+does not score.
 
 ## caps (mandatory)
 

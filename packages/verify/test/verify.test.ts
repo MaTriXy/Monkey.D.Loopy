@@ -64,6 +64,41 @@ caps: { max_iterations: 5, on_cap_exceeded: exit-clean }
 });
 
 describe("scorecard", () => {
+  it("awards 100 only to an externally grounded oracle with an executable completion observer", async () => {
+    const parsed = loadSpecFromYaml(`loopspec: "0.1"
+id: perfect
+pattern: react
+state: { vars: { done: { type: boolean, init: false } } }
+body:
+  - id: check
+    kind: shell
+    cmd: "./trusted-check"
+    save: { done: "$.done" }
+terminate: { signal: oracle, until: "\${state.done == true}" }
+caps:
+  max_iterations: 3
+  no_progress: { fingerprint: "\${state.done}", max_repeats: 2 }
+  budget: { tokens: 1000, usd: 0.1, wallclock: 5m }
+observe:
+  trace: journal
+  hooks:
+    completed: { kind: shell, cmd: "./record-completion" }
+`);
+    expect(parsed.validation!.ok).toBe(true);
+    const report = await verifyLoop(parsed.spec!, false, { fixtures: { shell: { done: true } } });
+    const card = scoreLoop(parsed.spec!, report);
+    expect(report.terminatedNaturally).toBe(true);
+    expect(card.total).toBe(100);
+    expect(card.dimensions.find((dimension) => dimension.name === "termination safety")?.note).toContain("grounding: external");
+    expect(card.dimensions.find((dimension) => dimension.name === "observability")?.note).toContain("completed hook");
+  });
+
+  it("does not award observer points for inert observe.notify metadata", async () => {
+    const parsed = loadSpecFromYaml(getBlueprint("poll-until")!.yaml.replace("  trace: journal", "  trace: journal\n  notify: { terminal: true }"));
+    const card = scoreLoop(parsed.spec!, await verifyLoop(parsed.spec!, false));
+    expect(card.dimensions.find((dimension) => dimension.name === "observability")?.score).toBe(0.7);
+  });
+
   it("preserves fractional dimension points so the breakdown matches the total", () => {
     const output = formatScore({
       total: 91,

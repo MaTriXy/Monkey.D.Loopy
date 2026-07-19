@@ -10,10 +10,18 @@ every iteration changes nothing). Then a 0–100 **scorecard** grades terminatio
 stops), caps, observability, resumability, and determinism.
 
 ```ts
-import { verifyLoop, scoreLoop } from "@loopyc/verify";
+import { verifyLoop, scoreLoop, type VerifyOptions } from "@loopyc/verify";
 
-const report = await verifyLoop(spec, capsInjected);
+const options: VerifyOptions = {
+  fixtures: { shell: { done: true }, http: { status: "green" } },
+};
+const report = await verifyLoop(spec, capsInjected, options);
 const card = scoreLoop(spec, report); // { total: 100, grade: "A", dimensions: [...] }
 ```
 
-Most users want the CLI instead: `npm i -g @loopyc/cli` → `loopc verify · loopc score`.
+Fixtures are cloned data returned by the dry-run mocks. They make realistic exit paths
+reproducible without enabling network, shell, or model calls. Observer points require executable
+evidence—an `observe.hooks.completed` action or an active top-level notification—not inert metadata.
+
+Most users want the CLI instead: `npm i -g @loopyc/cli` →
+`loopc verify spec.yaml --fixtures fixtures.json` · `loopc score spec.yaml --fixtures fixtures.json`.

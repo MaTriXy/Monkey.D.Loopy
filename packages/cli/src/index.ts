@@ -31,7 +31,7 @@ import {
 import { createRuntime, Journal } from "@loopyc/runtime";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { flagString, parseArgs } from "./args.js";
-import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
+import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop, type VerifyOptions } from "@loopyc/verify";
 import { inferScaffold } from "@loopyc/infer";
 
 const TARGET_ARG = `${SUPPORTED_TARGETS.join(",")}|all`;
@@ -43,8 +43,8 @@ Usage:
   loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--out <file>]
   loopc new <id> --from-shell "<cmd>" --until "<expr>"   (scaffold a loop around a command)
   loopc validate <spec.yaml>
-  loopc verify <spec.yaml> [--fix]
-  loopc score <spec.yaml>
+  loopc verify <spec.yaml> [--fix] [--fixtures <file.json>]
+  loopc score <spec.yaml> [--fixtures <file.json>]
   loopc run <spec.yaml> [--out <dir>] [--inputs <file.json>] [--approve] [--yes] [--run-id <id>]
   loopc inspect <dir> [--tail <n>] [--run-id <id>]
   loopc compile <spec.yaml> [--target ${TARGET_ARG}] [--out <dir>] [--vendor]
@@ -81,7 +81,7 @@ export async function run(argv: string[]): Promise<number> {
     case "verify":
       return cmdVerify(positionals[1], flags);
     case "score":
-      return cmdScore(positionals[1]);
+      return cmdScore(positionals[1], flags);
     case "run":
       return cmdRun(positionals[1], flags);
     case "inspect":
@@ -136,16 +136,18 @@ async function cmdQuickstart(dirArg: string | undefined): Promise<number> {
 
   await mkdir(dir, { recursive: true });
   const specPath = join(dir, "hello-loopy.loop.yaml");
+  const fixturesPath = join(dir, "verify-fixtures.json");
   const runDir = join(dir, "run");
   const artifactDir = join(dir, "artifact");
   const yaml = quickstartTemplate();
 
   await writeFile(specPath, yaml, "utf8");
+  await writeFile(fixturesPath, JSON.stringify({ shell: { done: true, message: "Monkey D Loopy is ready" } }, null, 2) + "\n", "utf8");
   console.log(`Monkey D Loopy quickstart → ${dir}`);
-  console.log(`\n1/4 Scaffolded ${specPath}`);
+  console.log(`\n1/4 Scaffolded ${specPath} + deterministic verification fixtures`);
 
   console.log("\n2/4 Validating and proving bounded execution");
-  if ((await cmdValidate(specPath)) !== 0 || (await cmdScore(specPath)) !== 0) return 1;
+  if ((await cmdValidate(specPath)) !== 0 || (await cmdScore(specPath, { fixtures: fixturesPath })) !== 0) return 1;
 
   console.log("\n3/4 Running once and reading the durable journal");
   if ((await cmdRun(specPath, { out: runDir })) !== 0 || cmdInspect(runDir, { tail: "5" }) !== 0) {
@@ -227,7 +229,7 @@ async function cmdValidate(file: string | undefined): Promise<number> {
 
 async function cmdVerify(file: string | undefined, flags: Record<string, string | boolean>): Promise<number> {
   if (!file) {
-    console.error("usage: loopc verify <spec.yaml> [--fix]");
+    console.error("usage: loopc verify <spec.yaml> [--fix] [--fixtures <file.json>]");
     return 1;
   }
   const text = await readFile(resolve(file), "utf8");
@@ -241,7 +243,7 @@ async function cmdVerify(file: string | undefined, flags: Record<string, string 
     console.error(formatValidation(result.validation!));
     return 1;
   }
-  const report = await verifyLoop(result.spec!, result.capsInjected ?? false);
+  const report = await verifyLoop(result.spec!, result.capsInjected ?? false, await verifyOptions(flags));
   console.log(formatVerify(report));
   if (flags.fix && report.capsInjected) {
     const obj = parseYaml(text) as Record<string, unknown>;
@@ -252,9 +254,9 @@ async function cmdVerify(file: string | undefined, flags: Record<string, string 
   return report.ok ? 0 : 1;
 }
 
-async function cmdScore(file: string | undefined): Promise<number> {
+async function cmdScore(file: string | undefined, flags: Record<string, string | boolean> = {}): Promise<number> {
   if (!file) {
-    console.error("usage: loopc score <spec.yaml>");
+    console.error("usage: loopc score <spec.yaml> [--fixtures <file.json>]");
     return 1;
   }
   const text = await readFile(resolve(file), "utf8");
@@ -268,7 +270,7 @@ async function cmdScore(file: string | undefined): Promise<number> {
     console.error(formatValidation(result.validation!));
     return 1;
   }
-  const report = await verifyLoop(result.spec!, result.capsInjected ?? false);
+  const report = await verifyLoop(result.spec!, result.capsInjected ?? false, await verifyOptions(flags));
   const card = scoreLoop(result.spec!, report);
   console.log(formatVerify(report));
   console.log("");
@@ -648,11 +650,10 @@ body:
   - id: prove-local-effect
     kind: shell
     cmd: "node -e \\"console.log(JSON.stringify({done:true,message:'Monkey D Loopy is ready'}))\\""
-    save: { out: "$" }
-    on_done: { set: { done: true } }
+    save: { done: "$.done", out: "$" }
 
 terminate:
-  signal: state-predicate
+  signal: oracle
   until: "\${state.done == true}"
 
 caps:
@@ -663,7 +664,34 @@ caps:
 
 observe:
   trace: journal
+  hooks:
+    completed:
+      kind: shell
+      cmd: "node -e \\"console.log(JSON.stringify({observed:true,event:'completed'}))\\""
 `;
+}
+
+async function verifyOptions(flags: Record<string, string | boolean>): Promise<VerifyOptions> {
+  const path = flagString(flags, "fixtures");
+  if (!path) return {};
+  const text = await readFile(resolve(path), "utf8");
+  if (Buffer.byteLength(text, "utf8") > 1_000_000) {
+    throw new Error(`verification fixture file exceeds the 1 MB limit: ${path}`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`invalid verification fixture JSON in ${path}: ${(error as Error).message}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`verification fixtures must be a JSON object: ${path}`);
+  }
+  const unknown = Object.keys(parsed).filter((key) => !["shell", "http", "agent"].includes(key));
+  if (unknown.length > 0) {
+    throw new Error(`unknown verification fixture ${unknown.length === 1 ? "key" : "keys"}: ${unknown.join(", ")}`);
+  }
+  return { fixtures: parsed as VerifyOptions["fixtures"] };
 }
 
 function resolveTargets(

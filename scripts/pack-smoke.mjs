@@ -47,7 +47,11 @@ try {
   const firstLoop = join(consumer, "first-loop");
   const onboarding = run(loopc, ["quickstart", firstLoop], consumer);
   requireTruthy(onboarding.includes("first loop complete"), "quickstart did not reach its completion handoff");
+  requireTruthy(onboarding.includes("Scorecard: 100/100"), "quickstart did not earn the honest 100-point contract");
+  requireTruthy(onboarding.includes("signal: oracle · grounding: external"), "quickstart termination is not externally grounded");
+  requireTruthy(onboarding.includes("completed hook"), "quickstart completion observer was not scored");
   requireTruthy(existsSync(join(firstLoop, "hello-loopy.loop.yaml")), "quickstart omitted the editable LoopSpec");
+  requireTruthy(existsSync(join(firstLoop, "verify-fixtures.json")), "quickstart omitted deterministic verification fixtures");
   requireTruthy(
     existsSync(join(firstLoop, "run", ".loopy", "runs", "default", "events.jsonl")),
     "quickstart omitted the durable journal"
@@ -56,6 +60,12 @@ try {
     existsSync(join(firstLoop, "artifact", "standalone", "runtime.bundle.mjs")),
     "quickstart omitted the vendored standalone runtime"
   );
+  const firstArtifact = join(firstLoop, "artifact", "standalone");
+  const artifactResult = JSON.parse(run(process.execPath, ["loop.mjs", "run"], firstArtifact).trim());
+  requireTruthy(artifactResult.status === "completed", `quickstart artifact returned ${artifactResult.status}`);
+  const artifactEvents = readFileSync(join(firstArtifact, ".loopy", "runs", "default", "events.jsonl"), "utf8");
+  requireTruthy(artifactEvents.includes('"type":"observer"'), "quickstart artifact did not journal its completion observer");
+  requireTruthy(artifactEvents.includes('"status":"done"'), "quickstart artifact completion observer did not finish");
 
   requireTruthy(run(loopyd, ["--help"], consumer).includes("local Monkey D Loopy operator"), "packed loopyd CLI is missing");
   requireTruthy(

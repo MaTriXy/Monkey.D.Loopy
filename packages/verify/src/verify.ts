@@ -23,6 +23,17 @@ export interface VerifyReport {
   issues: { severity: "error" | "warning" | "info"; message: string }[];
 }
 
+export interface VerifyFixtures {
+  shell?: unknown;
+  http?: unknown;
+  agent?: unknown;
+}
+
+export interface VerifyOptions {
+  /** Deterministic data returned by mocked effects. Verification never performs real I/O. */
+  fixtures?: VerifyFixtures;
+}
+
 function freshClock(): () => number {
   let t = 0;
   return () => (t += 1000);
@@ -65,9 +76,14 @@ function allHarnesses(spec: LoopSpec): Set<string> {
   return names;
 }
 
-function dryOpts(spec: LoopSpec, cwd: string): RuntimeOptions {
-  const mock = async () => ({}) as unknown;
-  const mockHarness: AgentHarness = async () => ({});
+function fixture(value: unknown): unknown {
+  return structuredClone(value === undefined ? {} : value);
+}
+
+function dryOpts(spec: LoopSpec, cwd: string, options: VerifyOptions): RuntimeOptions {
+  const httpMock = async () => fixture(options.fixtures?.http);
+  const shellMock = async () => fixture(options.fixtures?.shell);
+  const mockHarness: AgentHarness = async () => fixture(options.fixtures?.agent) as Awaited<ReturnType<AgentHarness>>;
   const agentHarnesses: Record<string, AgentHarness> = {};
   for (const name of allHarnesses(spec)) agentHarnesses[name] = mockHarness;
   return {
@@ -76,23 +92,23 @@ function dryOpts(spec: LoopSpec, cwd: string): RuntimeOptions {
     maxBlockMs: Number.MAX_SAFE_INTEGER, // sleeps resolve instantly (no parking) for the dry-run
     delay: () => Promise.resolve(),
     autoApprove: true, // don't pause on breakpoints during a dry-run
-    effects: { http: mock, shell: mock },
+    effects: { http: httpMock, shell: shellMock },
     agentHarnesses,
     inputs: sampleInputs(spec),
   };
 }
 
-async function dryRun(spec: LoopSpec, cwd: string): Promise<RunResult> {
-  return createRuntime(interpretLoop(spec), dryOpts(spec, cwd)).run();
+async function dryRun(spec: LoopSpec, cwd: string, options: VerifyOptions): Promise<RunResult> {
+  return createRuntime(interpretLoop(spec), dryOpts(spec, cwd, options)).run();
 }
 
 /** Drive the loop with a FRESH runtime per step — a real process restart between every
  * iteration — to genuinely exercise journal resume (not just reload a terminal journal). */
-async function steppedRun(spec: LoopSpec, cwd: string): Promise<RunResult> {
+async function steppedRun(spec: LoopSpec, cwd: string, options: VerifyOptions): Promise<RunResult> {
   const ceiling = spec.caps.max_iterations + 2;
   let r: RunResult = { status: "waiting", iteration: 0, state: {} };
   for (let i = 0; i <= ceiling; i++) {
-    r = await createRuntime(interpretLoop(spec), dryOpts(spec, cwd)).step();
+    r = await createRuntime(interpretLoop(spec), dryOpts(spec, cwd, options)).step();
     if (TERMINAL.has(r.status)) break;
   }
   return r;
@@ -104,13 +120,13 @@ function cleanTerminal(r: RunResult): boolean {
   return r.status === "failed" && CAP_REASONS.has(r.reason ?? "");
 }
 
-export async function verifyLoop(spec0: LoopSpec, capsInjected: boolean): Promise<VerifyReport> {
+export async function verifyLoop(spec0: LoopSpec, capsInjected: boolean, options: VerifyOptions = {}): Promise<VerifyReport> {
   const { spec, capped } = cappedSpec(spec0);
   const base = mkdtempSync(join(tmpdir(), "loopy-verify-"));
 
-  const rA = await dryRun(spec, join(base, "a")); // full run
-  const rB = await dryRun(spec, join(base, "b")); // fresh full run → determinism
-  const rStep = await steppedRun(spec, join(base, "c")); // restart-per-iteration → resume
+  const rA = await dryRun(spec, join(base, "a"), options); // full run
+  const rB = await dryRun(spec, join(base, "b"), options); // fresh full run → determinism
+  const rStep = await steppedRun(spec, join(base, "c"), options); // restart-per-iteration → resume
 
   const bounded = cleanTerminal(rA) && rA.iteration <= spec.caps.max_iterations + 1;
   const terminatedNaturally = rA.status === "completed";
@@ -204,13 +220,15 @@ export function scoreLoop(spec: LoopSpec, report: VerifyReport): Scorecard {
     note: `${report.capsInjected ? "auto-injected" : "explicit"}${spec.caps.no_progress ? ", no_progress" : ""}${spec.caps.budget ? ", budget" : ""}`,
   });
 
-  const hasObserver = Boolean(spec.observe?.hooks || spec.observe?.notify);
+  const completionHook = Boolean(spec.observe?.hooks?.completed);
+  const activeNotification = Boolean(spec.notify && spec.notify.policy !== "never" && spec.notify.channels.length > 0);
+  const hasObserver = completionHook || activeNotification;
   const obs = (spec.observe?.trace === "journal" ? 0.7 : 0) + (hasObserver ? 0.3 : 0);
   dims.push({
     name: "observability",
     score: obs,
     weight: 15,
-    note: `trace: ${spec.observe?.trace ?? "none"} · hooks/notify: ${hasObserver ? "configured" : "none"}`,
+    note: `trace: ${spec.observe?.trace ?? "none"} · observer: ${completionHook ? "completed hook" : activeNotification ? "active notification" : "none"}`,
   });
 
   dims.push({ name: "resumability", score: report.resumeStable ? 1 : 0, weight: 15, note: report.resumeStable ? "stable" : "unstable" });

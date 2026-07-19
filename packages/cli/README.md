@@ -6,7 +6,7 @@ for runnable, crash-resumable agent loops.
 ```bash
 npm i -g @loopyc/cli
 
-loopc quickstart                     # safe proof: validate + run + inspect + vendor
+loopc quickstart                     # honest 100: prove + run + observe + inspect + vendor
 loopc blueprints                    # starting points, one per loop pattern
 loopc recipes                       # verified product workflows
 loopc new repo-check --recipe repo-health-doctor
@@ -17,6 +17,10 @@ loopc score    my-watch.loop.yaml   # 0-100 scorecard (termination grounding inc
 loopc compile  my-watch.loop.yaml --target all --out ./out
 loopc run      my-watch.loop.yaml --inputs ./inputs.json --out ./run
 ```
+
+When the verified path depends on effect output, pass deterministic data-only mocks with
+`loopc verify spec.yaml --fixtures fixtures.json` and `loopc score spec.yaml --fixtures
+fixtures.json`. No shell, HTTP, or model effect executes during verification.
 
 No-install first run: `npx --yes @loopyc/cli@latest quickstart`.
 

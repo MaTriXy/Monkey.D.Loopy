@@ -2,10 +2,16 @@
 
 ## 0.6.1 — 2026-07-18
 
+- Upgraded the safe quickstart to an evidence-backed 100/100: deterministic verification fixtures
+  drive an externally grounded oracle, while the real run executes the matching local effect.
+- Added strict `observe.hooks.completed` shell/http actions, lowered them into standalone artifacts,
+  and journaled their best-effort outcome without letting observer failure rewrite success.
+- Added data-only `--fixtures` support to `loopc verify` and `loopc score`; dry-runs remain fully
+  side-effect-free and scoring no longer rewards inert observer metadata.
 - Preserved fractional scorecard points so dimension rows reconcile exactly with the headline
   score instead of independently rounding `25.5` and `10.5` upward.
-- Made observability deductions explicit in CLI output and documented why the safe quickstart
-  earns an honest 91 rather than claiming unsupported oracle or notification guarantees.
+- Made observability deductions explicit in CLI output and documented the executable evidence
+  needed for full observer credit.
 - Corrected the perfect-score README example and regenerated the consolidated agent documentation.
 
 ## 0.6.0 — 2026-07-18

@@ -304,6 +304,28 @@ describe("llm-judge termination gating (matches self-assess)", () => {
 });
 
 describe("artifact and notification contracts", () => {
+  it("accepts a typed completion observer and rejects inert or malformed hook metadata", () => {
+    const valid = processRaw({
+      ...validBase,
+      observe: { trace: "journal", hooks: { completed: { kind: "shell", cmd: "./record-completion.sh" } } },
+    });
+    expect(valid.validation!.ok).toBe(true);
+    expect(valid.spec?.observe?.hooks?.completed).toEqual({ kind: "shell", cmd: "./record-completion.sh" });
+
+    const http = processRaw({
+      ...validBase,
+      observe: {
+        hooks: { completed: { kind: "http", request: { method: "POST", url: "https://events.example/completed" } } },
+      },
+    });
+    expect(http.validation!.ok).toBe(true);
+    expect(http.spec?.observe?.hooks?.completed).toMatchObject({ kind: "http", request: { method: "POST" } });
+
+    expect(processRaw({ ...validBase, observe: { trace: "journal", hooks: { completed: {} } } }).parseErrors).toBeDefined();
+    expect(processRaw({ ...validBase, observe: { hooks: { completed: { kind: "http", cmd: ":" } } } }).parseErrors).toBeDefined();
+    expect(processRaw({ ...validBase, observe: { trace: "journal", hooks: { someday: { kind: "shell", cmd: ":" } } } }).parseErrors).toBeDefined();
+  });
+
   it("accepts bounded safe artifact globs and logical notification channels", () => {
     const result = processRaw({
       ...validBase,

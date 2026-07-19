@@ -30,9 +30,16 @@ await runtime.doctor(); // preflight checks
   terminate: (ctx) => boolean,         // exit predicate (read-only)
   fingerprint?: (ctx) => string,       // no-progress signal (read-only)
   onExit?:   (ctx) => Promise<void>,   // runs once on natural termination
+  onComplete?: (ctx, result) => Promise<void>, // best-effort post-success observer
   gates?: unknown[],
 }
 ```
+
+`onExit` is part of the loop's terminal work and uses durable effects. `onComplete` is deliberately
+different: generated standalone artifacts use it for `observe.hooks.completed` after termination
+has already succeeded. Its shell/http action is attempted directly, and its `observer` journal
+events record `started` followed by `done` or `failed`. An exception is swallowed after journaling,
+so notification/telemetry availability cannot turn completed work into a failed run.
 
 ### `RuntimeOptions`
 
@@ -155,7 +162,7 @@ Under `.loopy/runs/<runId>/`:
 - `events.jsonl` — append-one-line-per-event, each with a **chained sha256** checksum.
   Event types: `run_start` (carries `baseState`), `effect` (write-ahead `pending` then `done`),
   `effect_recovery`, `iteration_snapshot` (state + fingerprint), `parked` (`wakeAt`), `cap`,
-  `stop_requested`, `stop_cleared`, `terminated`, `failed`.
+  `stop_requested`, `stop_cleared`, `terminated`, `observer` (`started`/`done`/`failed`), `failed`.
 - `state.json` — derived state cache (debuggable; the journal is the source of truth).
 - `meta.json` — `{ status, iteration, tokens, usd, eventCount, lastChecksum, ... }`.
 - `lock` — a PID lockfile held for the duration of a run (stale-PID reclaimable).
@@ -181,6 +188,9 @@ Under `.loopy/runs/<runId>/`:
   `fail` → `failed`, `exit-clean` → `stopped`, `breakpoint` → `paused`.
 - **Breakpoints** fail closed by default; an approved one is journaled, an unapproved one stays
   unresolved so a later run re-evaluates (resumable, not auto-denied).
+- **Completion observers** run only after natural termination. Their failure is journaled and
+  non-fatal. A crash after `observer: started` can leave external delivery uncertain; the runtime
+  avoids automatic duplicate delivery and makes no exactly-once claim.
 
 ## Durability guarantees & limitations
 
@@ -189,9 +199,9 @@ completed effects; explicit resolution of the uncertain window; journal-safe gra
 deterministic replay (given a deterministic `iterate`); locale-independent, corruption- and
 truncation-evident journal.
 
-The runtime does not promise exactly-once delivery to external systems. Choosing `retry` after an
-uncertain effect explicitly accepts at-least-once risk; `assume-done` requires external proof and a
-supplied result.
+The runtime does not promise exactly-once delivery to external systems, including completion
+observers. Choosing `retry` after an uncertain durable effect explicitly accepts at-least-once
+risk; `assume-done` requires external proof and a supplied result.
 
 Transient effect failures are **retried** with exponential backoff per `retry: { max, backoff_ms }`
 (or the `effectRetries` option); only an exhausted retry is terminal. The MCP `run_loop` runs

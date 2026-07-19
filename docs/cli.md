@@ -62,29 +62,34 @@ Run the two-tier validator. Prints errors (compile-blocking) and warnings. Exit 
 loopc validate deploy-watch.yaml
 ```
 
-### `loopc verify <spec.yaml> [--fix]`
+### `loopc verify <spec.yaml> [--fix] [--fixtures <file.json>]`
 Dry-run the loop through the real runtime with **mocked effects** (no side effects). Proves it
 is **bounded under caps** and **deterministic on replay**, and reports whether it terminates
-naturally under empty mocks. `--fix` writes explicit caps into the file if it relied on
-auto-injected ones. Exit 1 if not bounded/deterministic/resume-stable.
+naturally. By default mocks return `{}`. `--fixtures` supplies deterministic, data-only results
+for shell/http/agent mocks, for example `{ "shell": { "done": true } }`; it never enables real
+I/O. `--fix` writes explicit caps into the file if it relied on auto-injected ones. Exit 1 if not
+bounded/deterministic/resume-stable.
 
 ```bash
 loopc verify deploy-watch.yaml --fix
+loopc verify deploy-watch.yaml --fixtures verify-fixtures.json
 ```
 
-### `loopc score <spec.yaml>`
+### `loopc score <spec.yaml> [--fixtures <file.json>]`
 Run verify, then grade five weighted dimensions (termination safety, caps, observability,
-resumability, determinism) into a 0–100 letter grade.
+resumability, determinism) into a 0–100 letter grade. The fixture format and side-effect boundary
+are identical to `verify`.
 
 ```bash
-loopc score deploy-watch.yaml
+loopc score deploy-watch.yaml --fixtures verify-fixtures.json
 ```
 
 ### `loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>] [--vendor]`
 Validate, then lower the spec to runnable artifact(s). Refuses to compile an invalid spec.
 Target defaults to the spec's `target.runtime` (or `standalone`); `--target all` emits every
 target. Output goes to `<out>/<target>/` (default `out/<id>/<target>/`). Prints any capability
-warnings (e.g. soft budget enforcement / `http→curl` on the babysitter target).
+warnings (e.g. soft budget enforcement / `http→curl` on the babysitter target, or a standalone-only
+completion observer requested for another target).
 
 `--vendor` (standalone target only) makes the artifact **zero-install**: it bundles
 `@loopyc/runtime` into a single local `runtime.bundle.mjs` (via esbuild), rewrites `loop.mjs` to

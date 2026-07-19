@@ -259,15 +259,17 @@ export interface Gate {
   auto_approve_in?: string[];
 }
 
-export interface HookAction {
-  kind: "shell" | "http";
-  cmd?: string;
-  request?: HttpRequest;
+export type HookAction =
+  | { kind: "shell"; cmd: string; request?: never }
+  | { kind: "http"; request: HttpRequest; cmd?: never };
+
+export interface ObserveHooks {
+  completed?: HookAction;
 }
 
 export interface ObserveSpec {
   trace?: "journal" | "none";
-  hooks?: Record<string, HookAction>;
+  hooks?: ObserveHooks;
   notify?: Record<string, unknown>;
 }
 

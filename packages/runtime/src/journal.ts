@@ -21,6 +21,7 @@ export type JournalEventType =
   | "effect_recovery"
   | "stop_requested"
   | "stop_cleared"
+  | "observer"
   | "failed"
   | "parked";
 

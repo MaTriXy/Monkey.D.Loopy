@@ -66,6 +66,8 @@ export interface RuntimeConfig {
   terminate: (ctx: LoopCtx) => boolean;
   fingerprint?: (ctx: LoopCtx) => string;
   onExit?: (ctx: LoopCtx) => Promise<void>;
+  /** Best-effort post-success observer. It is journaled but cannot rewrite completion. */
+  onComplete?: (ctx: LoopCtx, result: RunResult) => Promise<void>;
   // NB: there is no `gates` config — a spec's gates are lowered to inline ctx.breakpoint()
   // calls by the emitters, so the runtime needs no separate gate machinery.
 }
@@ -645,8 +647,10 @@ export class Runtime {
         await this.runExit(ctx); // inside the try so a parking/throwing onExit is handled
         this.journal.append("terminated", { iteration: this.iteration }, this.now());
         this.terminalStatus = "completed";
+        const result: RunResult = { status: "completed", iteration: this.iteration, state: this.state };
+        await this.runCompletionObserver(ctx, result);
         this.persist("completed");
-        return { status: "completed", iteration: this.iteration, state: this.state };
+        return result;
       }
 
       const cap = this.capExceeded();
@@ -912,6 +916,27 @@ export class Runtime {
       await this.config.onExit(exitCtx);
     } finally {
       this.iteration = saved;
+    }
+  }
+
+  private async runCompletionObserver(ctx: LoopCtx, result: RunResult): Promise<void> {
+    if (!this.config.onComplete) return;
+    this.journal.append("observer", { event: "completed", status: "started" }, this.now());
+    const observerCtx: LoopCtx = {
+      ...ctx,
+      http: (req) => this.withRetry(() => this.httpImpl(req, this.effectTimeoutMs)),
+      shell: (cmd) => this.withRetry(() => this.shellImpl(cmd, this.effectTimeoutMs, this.cwd, this.effectEnv)),
+    };
+    try {
+      await this.config.onComplete(observerCtx, result);
+      this.journal.append("observer", { event: "completed", status: "done" }, this.now());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.journal.append(
+        "observer",
+        { event: "completed", status: "failed", error: message.slice(0, 500) },
+        this.now()
+      );
     }
   }
 

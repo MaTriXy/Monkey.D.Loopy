@@ -74,9 +74,11 @@ designed out or made visible instead of debugged later.
 npx --yes @loopyc/cli@latest quickstart            # Node ≥ 22
 ```
 
-That one safe command validates and scores a starter LoopSpec, runs it to completion, inspects its
-durable journal, and emits a zero-install standalone artifact under `./loopy-quickstart/`. It needs
-no model, API key, or external service and refuses to overwrite a non-empty directory.
+That one safe command validates and scores an honest **100/100** starter LoopSpec, runs it to
+completion, records its completion observer, inspects its durable journal, and emits a zero-install
+standalone artifact under `./loopy-quickstart/`. Deterministic verification fixtures model the same
+structured shell evidence without executing side effects during proof. It needs no model, API key,
+or external service and refuses to overwrite a non-empty directory.
 
 When you are ready to author real work:
 
@@ -140,7 +142,7 @@ proved:
 Scorecard: 100/100  (A)
   ██████████ termination safety   30/30  — signal: oracle · grounding: external
   ██████████ caps                 25/25  — explicit, no_progress, budget
-  ██████████ observability        15/15  — trace: journal · hooks/notify: configured
+  ██████████ observability        15/15  — trace: journal · observer: completed hook
   ██████████ resumability         15/15  — stable
   ██████████ determinism          15/15  — deterministic
 ```
@@ -150,6 +152,11 @@ exit predicate reads. `grounding: external` means an http/shell fact decides whe
 stops; `grounding: agent` means the model grades its own work — and the score is capped
 accordingly, no matter what the signal label claims. Relabeling a judge as a `state-predicate`
 makes the score go *down*, not up.
+
+When a dry-run needs representative effect data, pass a data-only JSON fixture file with
+`--fixtures`. Verification returns those values from mocked shell/http/agent effects; it never
+executes the real effect. The quickstart emits its fixture alongside the spec so its 100-point
+claim is reproducible and inspectable.
 
 ## Examples
 

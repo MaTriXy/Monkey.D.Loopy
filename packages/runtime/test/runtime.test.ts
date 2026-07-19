@@ -29,6 +29,42 @@ describe("execution", () => {
     expect(existsSync(join(cwd, ".loopy", "runs", "default", "events.jsonl"))).toBe(true);
     expect(existsSync(join(cwd, ".loopy", "runs", "default", "state.json"))).toBe(true);
   });
+
+  it("runs a journaled completion observer without allowing observer failure to rewrite success", async () => {
+    for (const shouldFail of [false, true]) {
+      const cwd = tmp();
+      let observerCalls = 0;
+      const config: RuntimeConfig = {
+        spec: { id: `observed-${shouldFail}`, caps: { max_iterations: 3, on_cap_exceeded: "exit-clean" }, signal: "oracle" },
+        initialState: () => ({ done: false }),
+        terminate: (ctx) => ctx.state.done === true,
+        iterate: async (ctx) => { ctx.state.done = true; },
+        onComplete: async (ctx) => { await ctx.shell("record-completion"); },
+      };
+      const result = await createRuntime(config, {
+        cwd,
+        now: (() => { let now = 0; return () => ++now; })(),
+        effects: {
+          shell: async () => {
+            observerCalls++;
+            if (shouldFail) throw "observer unavailable";
+            return { observed: true };
+          },
+        },
+      }).run();
+
+      expect(result.status).toBe("completed");
+      expect(observerCalls).toBe(1);
+      const events = new Journal(cwd, "default").load();
+      expect(events).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: "observer", data: expect.objectContaining({ event: "completed", status: "started" }) }),
+        expect.objectContaining({
+          type: "observer",
+          data: expect.objectContaining({ event: "completed", status: shouldFail ? "failed" : "done" }),
+        }),
+      ]));
+    }
+  });
 });
 
 describe("crash-resume with idempotent effect replay", () => {

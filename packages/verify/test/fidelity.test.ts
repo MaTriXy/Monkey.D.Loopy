@@ -72,6 +72,7 @@ async function runGenerated(spec: LoopSpec, runCwd: string, effects?: EffectOver
       terminate: mod.terminate,
       fingerprint: mod.fingerprint,
       onExit: mod.onExit,
+      onComplete: mod.onComplete,
       gates: [],
     } as unknown as RuntimeConfig;
     return await createRuntime(config, mkOpts(spec, runCwd, effects)).run();
@@ -132,6 +133,49 @@ describe("envelope http fidelity (interpreter ≡ generated)", () => {
     expect(interp.state.done).toBe(true);
     expect(gen.status).toBe(interp.status);
     expect(stable(gen.state)).toBe(stable(interp.state));
+  });
+});
+
+describe("completion observer fidelity (interpreter ≡ generated)", () => {
+  it("executes the same interpolated http completion hook on both paths", async () => {
+    const spec = processRaw({
+      loopspec: "0.1",
+      id: "observer-fid",
+      pattern: "react",
+      state: { vars: { done: { type: "boolean", init: false } } },
+      body: [{ id: "finish", kind: "shell", cmd: ":", on_done: { set: { done: true } } }],
+      terminate: { signal: "state-predicate", until: "${state.done == true}" },
+      caps: { max_iterations: 3 },
+      observe: {
+        hooks: {
+          completed: {
+            kind: "http",
+            request: {
+              method: "POST",
+              url: "https://events.example/completed/${state.done}",
+              headers: { "x-iteration": "${iteration}" },
+              body: { done: "${state.done}" },
+            },
+          },
+        },
+      },
+    }).spec!;
+    const calls: HttpRequestSpec[] = [];
+    const effects: EffectOverride = {
+      shell: async () => ({}),
+      http: async (request) => { calls.push(request); return { accepted: true }; },
+    };
+    const base = mkdtempSync(TMP_PREFIX);
+    const interp = await createRuntime(interpretLoop(spec), mkOpts(spec, join(base, "i"), effects)).run();
+    const gen = await runGenerated(spec, join(base, "g"), effects);
+    rmSync(base, { recursive: true, force: true });
+
+    expect(interp.status).toBe("completed");
+    expect(gen.status).toBe("completed");
+    expect(calls).toEqual([
+      { method: "POST", url: "https://events.example/completed/true", headers: { "x-iteration": "1" }, body: { done: "${state.done}" } },
+      { method: "POST", url: "https://events.example/completed/true", headers: { "x-iteration": "1" }, body: { done: "${state.done}" } },
+    ]);
   });
 });
 

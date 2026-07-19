@@ -19,6 +19,7 @@ import { FACTORY_VERSION } from "../version.js";
 import type {
   ExitAction,
   Gate,
+  HookAction,
   LoopSpec,
   ScheduleMode,
   Step,
@@ -131,6 +132,11 @@ function emitExitAction(action: ExitAction, ind: string): string {
   }
 }
 
+function emitHookAction(action: HookAction, ind: string): string {
+  if (action.kind === "shell") return `${ind}await ctx.shell(${emitTemplate(action.cmd)});`;
+  return `${ind}await ctx.http(${emitHttpReq(action.request)});`;
+}
+
 /**
  * The module specifier the emitted `loop.mjs` imports the runtime from. Normally the published
  * `@loopyc/runtime` package; in `vendor` mode, a local single-file bundle the CLI emits alongside.
@@ -160,6 +166,7 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
 
   const hasFingerprint = Boolean(spec.caps.no_progress);
   const hasOnExit = Boolean(spec.terminate.on_exit);
+  const completionHook = spec.observe?.hooks?.completed;
 
   const parts: string[] = [];
   parts.push("#!/usr/bin/env node");
@@ -202,6 +209,13 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
     parts.push("}");
     parts.push("");
   }
+  if (completionHook) {
+    parts.push("export async function onComplete(ctx) {");
+    parts.push(`  ${CTX_DESTRUCTURE}`);
+    parts.push(emitHookAction(completionHook, "  "));
+    parts.push("}");
+    parts.push("");
+  }
   const cfg = [
     "  spec,",
     "  initialState,",
@@ -209,6 +223,7 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
     "  terminate,",
     hasFingerprint ? "  fingerprint," : null,
     hasOnExit ? "  onExit," : null,
+    completionHook ? "  onComplete," : null,
     // NB: gates are lowered to inline ctx.breakpoint() calls in iterate() above — the runtime
     // does not consume a `gates` config, so passing one here would be a silent no-op.
   ]

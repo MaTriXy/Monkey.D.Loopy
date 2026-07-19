@@ -16,6 +16,11 @@ const httpRequest = z.object({
   body: z.unknown().optional(),
 });
 
+const hookAction = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("shell"), cmd: z.string().min(1) }).strict(),
+  z.object({ kind: z.literal("http"), request: httpRequest }).strict(),
+]);
+
 const onDone = z.object({
   incr: z.string().optional(),
   set: z.record(z.unknown()).optional(),
@@ -215,7 +220,7 @@ export const LoopSpecSchema = z
     observe: z
       .object({
         trace: z.enum(["journal", "none"]).optional(),
-        hooks: z.record(z.unknown()).optional(),
+        hooks: z.object({ completed: hookAction.optional() }).strict().optional(),
         notify: z.record(z.unknown()).optional(),
       })
       .optional(),

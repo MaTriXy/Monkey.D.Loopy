@@ -15,6 +15,7 @@ function completed(base: string, runId = "default", count = 1): Journal {
     journal.append("iteration_snapshot", { iteration: i, state: { n: i + 1 }, fp: String(i + 1) }, i + 2);
   }
   journal.append("terminated", { iteration: count }, count + 2);
+  journal.append("observer", { event: "completed", status: "done" }, count + 3);
   journal.writeState({ n: count }, { schemaVersion: 1, runId, loopId: "fixture", status: "completed", iteration: count, tokens: 0, usd: 0, updatedAt: count + 2 });
   return journal;
 }
@@ -24,8 +25,8 @@ describe("journal-derived operator read model", () => {
     const base = tmp();
     completed(base, "r1", 2);
     const model = readRun(base, "r1");
-    expect(model).toMatchObject({ loopId: "fixture", runId: "r1", status: "completed", health: "healthy", integrity: "verified", iteration: 2, state: { n: 2 }, eventCount: 4 });
-    expect(model.timeline.at(-1)?.summary).toContain("termination");
+    expect(model).toMatchObject({ loopId: "fixture", runId: "r1", status: "completed", health: "healthy", integrity: "verified", iteration: 2, state: { n: 2 }, eventCount: 5 });
+    expect(model.timeline.at(-1)?.summary).toContain("completion observer done");
     expect(model.source.events).toContain("events.jsonl");
   });
 

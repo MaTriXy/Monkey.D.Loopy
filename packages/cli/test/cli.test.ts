@@ -79,10 +79,39 @@ describe("loopc run() — dispatch + commands", () => {
     const result = await capture(["quickstart", d]);
     expect(result.code).toBe(0);
     expect(result.out).toContain("first loop complete");
+    expect(result.out).toContain("Scorecard: 100/100");
+    expect(result.out).toContain("signal: oracle · grounding: external");
+    expect(result.out).toContain("completed hook");
     expect(existsSync(join(d, "hello-loopy.loop.yaml"))).toBe(true);
+    expect(existsSync(join(d, "verify-fixtures.json"))).toBe(true);
     expect(existsSync(join(d, "run", ".loopy", "runs", "default", "events.jsonl"))).toBe(true);
+    const yaml = readFileSync(join(d, "hello-loopy.loop.yaml"), "utf8");
+    expect(yaml).toContain("signal: oracle");
+    expect(yaml).toContain('save: { done: "$.done", out: "$" }');
+    const events = readFileSync(join(d, "run", ".loopy", "runs", "default", "events.jsonl"), "utf8");
+    expect(events).toContain('"type":"observer"');
+    expect(events).toContain('"event":"completed","status":"done"');
     expect(existsSync(join(d, "artifact", "standalone", "runtime.bundle.mjs"))).toBe(true);
+    const artifact = join(d, "artifact", "standalone");
+    const artifactRun = spawnSync(process.execPath, ["loop.mjs", "run"], { cwd: artifact, encoding: "utf8" });
+    expect(artifactRun.status, artifactRun.stderr).toBe(0);
+    expect(JSON.parse(artifactRun.stdout)).toMatchObject({ status: "completed", state: { done: true } });
+    const artifactEvents = readFileSync(join(artifact, ".loopy", "runs", "default", "events.jsonl"), "utf8");
+    expect(artifactEvents).toContain('"type":"observer"');
+    expect(artifactEvents).toContain('"event":"completed","status":"done"');
     expect(await run(["quickstart", d])).toBe(1);
+  });
+
+  it("rejects malformed or unknown verification fixture data", async () => {
+    const d = tmp();
+    const spec = join(d, "tiny.yaml");
+    writeFileSync(spec, TINY_SHELL);
+    const malformed = join(d, "malformed.json");
+    writeFileSync(malformed, "{");
+    await expect(run(["verify", spec, "--fixtures", malformed])).rejects.toThrow("invalid verification fixture JSON");
+    const unknown = join(d, "unknown.json");
+    writeFileSync(unknown, JSON.stringify({ filesystem: { done: true } }));
+    await expect(run(["score", spec, "--fixtures", unknown])).rejects.toThrow("unknown verification fixture key");
   });
 
   it("lists and instantiates verified recipes with provenance in every target lock", async () => {

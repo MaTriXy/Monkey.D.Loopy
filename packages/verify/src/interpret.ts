@@ -6,7 +6,7 @@
  * compiled artifact.
  */
 import { evaluate, parseGuard, parseInterpolations, type EvalContext } from "@loopyc/core";
-import type { ExitAction, Gate, LoopSpec, OnDone, Step } from "@loopyc/core";
+import type { ExitAction, Gate, HookAction, LoopSpec, OnDone, Step } from "@loopyc/core";
 import type { LoopCtx, RuntimeConfig } from "@loopyc/runtime";
 
 /** Group gates by the step id they fire after; gates with no `after` run once at the body end.
@@ -139,6 +139,18 @@ async function execExit(action: ExitAction, ctx: LoopCtx): Promise<void> {
   } else await ctx.agent({ harness: action.harness ?? "llm", prompt: interp(action.prompt ?? "", ctx, {}) });
 }
 
+async function execHook(action: HookAction, ctx: LoopCtx): Promise<void> {
+  if (action.kind === "shell") await ctx.shell(interp(action.cmd, ctx, {}));
+  else {
+    await ctx.http({
+      method: action.request.method,
+      url: interp(action.request.url, ctx, {}),
+      headers: mapValues(action.request.headers, (v) => interp(v, ctx, {})),
+      body: value(action.request.body, ctx, {}),
+    });
+  }
+}
+
 function mapValues<T, U>(obj: Record<string, T> | undefined, fn: (v: T) => U): Record<string, U> | undefined {
   if (!obj) return undefined;
   return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fn(v)]));
@@ -166,6 +178,7 @@ export function interpretLoop(spec: LoopSpec): RuntimeConfig {
       for (const g of trailing) await fireGate(g, ctx, {}); // after-less gates fire once per iteration
     },
     onExit: spec.terminate.on_exit ? (ctx) => execExit(spec.terminate.on_exit!, ctx) : undefined,
+    onComplete: spec.observe?.hooks?.completed ? (ctx) => execHook(spec.observe!.hooks!.completed!, ctx) : undefined,
   };
 }
 

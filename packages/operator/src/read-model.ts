@@ -93,6 +93,7 @@ function eventSummary(event: JournalEvent): string {
     case "effect_recovery": return `uncertain effect ${String(event.data.action)}`;
     case "stop_requested": return "graceful stop acknowledged";
     case "stop_cleared": return "stopped run resumed";
+    case "observer": return `completion observer ${String(event.data.status ?? "recorded")}`;
     case "failed": return `failed: ${String(event.data.error ?? "unknown error")}`;
     case "parked": return `sleeping until ${String(event.data.wakeAt)}`;
   }

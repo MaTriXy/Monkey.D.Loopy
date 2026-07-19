@@ -84,9 +84,11 @@ designed out or made visible instead of debugged later.
 npx --yes @loopyc/cli@latest quickstart            # Node ≥ 22
 ```
 
-That one safe command validates and scores a starter LoopSpec, runs it to completion, inspects its
-durable journal, and emits a zero-install standalone artifact under `./loopy-quickstart/`. It needs
-no model, API key, or external service and refuses to overwrite a non-empty directory.
+That one safe command validates and scores an honest **100/100** starter LoopSpec, runs it to
+completion, records its completion observer, inspects its durable journal, and emits a zero-install
+standalone artifact under `./loopy-quickstart/`. Deterministic verification fixtures model the same
+structured shell evidence without executing side effects during proof. It needs no model, API key,
+or external service and refuses to overwrite a non-empty directory.
 
 When you are ready to author real work:
 
@@ -150,7 +152,7 @@ proved:
 Scorecard: 100/100  (A)
   ██████████ termination safety   30/30  — signal: oracle · grounding: external
   ██████████ caps                 25/25  — explicit, no_progress, budget
-  ██████████ observability        15/15  — trace: journal · hooks/notify: configured
+  ██████████ observability        15/15  — trace: journal · observer: completed hook
   ██████████ resumability         15/15  — stable
   ██████████ determinism          15/15  — deterministic
 ```
@@ -160,6 +162,11 @@ exit predicate reads. `grounding: external` means an http/shell fact decides whe
 stops; `grounding: agent` means the model grades its own work — and the score is capped
 accordingly, no matter what the signal label claims. Relabeling a judge as a `state-predicate`
 makes the score go *down*, not up.
+
+When a dry-run needs representative effect data, pass a data-only JSON fixture file with
+`--fixtures`. Verification returns those values from mocked shell/http/agent effects; it never
+executes the real effect. The quickstart emits its fixture alongside the spec so its 100-point
+claim is reproducible and inspectable.
 
 ## Examples
 
@@ -487,11 +494,12 @@ project.
 
 The command performs the real product sequence:
 
-1. Writes an editable `hello-loopy.loop.yaml`.
+1. Writes an editable `hello-loopy.loop.yaml` and data-only `verify-fixtures.json`.
 2. Validates termination, caps, and expression reachability.
 3. Dry-run verifies boundedness, determinism, and resume stability, then prints the scorecard.
-4. Executes one safe local shell step and reaches the declared termination predicate.
-5. Reads the resulting event-sourced journal.
+4. Executes one safe local shell step, reaches an externally grounded oracle predicate, and runs
+   a completion observer.
+5. Reads the resulting event-sourced journal, including the observer outcome.
 6. Compiles a vendored standalone artifact that runs with plain Node—no package install required.
 
 The default result is:
@@ -499,6 +507,7 @@ The default result is:
 ```text
 loopy-quickstart/
 ├── hello-loopy.loop.yaml
+├── verify-fixtures.json            # deterministic dry-run effect result
 ├── run/.loopy/runs/default/       # durable journal and run metadata
 └── artifact/standalone/
     ├── loop.mjs
@@ -510,22 +519,27 @@ loopy-quickstart/
 Open the spec and journal before moving on. They are the two core contracts: the spec says what is
 allowed to happen, and the journal records what actually happened.
 
-## Why the starter scores 91, not 100
+## Why the starter scores 100
 
-The starter is deliberately honest about what its tiny local demonstration proves:
+The starter earns every point from behavior that is both implemented and regression-tested:
 
 | Dimension | Points | Reason |
 |---|---:|---|
-| Termination safety | 25.5/30 | A deterministic state predicate stops it, but no independent external system acts as an oracle. |
+| Termination safety | 30/30 | A shell-produced structured fact feeds an `oracle` predicate; the verifier classifies that evidence chain as external. |
 | Caps | 25/25 | Iteration, no-progress, token, cost, and wall-clock bounds are explicit. |
-| Observability | 10.5/15 | The durable journal is enabled; no notification or lifecycle hook is configured for the local demo. |
+| Observability | 15/15 | The durable journal is enabled and an executable `completed` hook records its started/done or started/failed outcome. |
 | Resumability | 15/15 | Restart-per-iteration verification reaches the same result. |
 | Determinism | 15/15 | Independent mocked runs converge on the same state and status. |
 
-Those raw points total **91/100**. A production loop can earn 100 only when its exit predicate is
-fed by authoritative external evidence and it has both durable tracing and a configured observer
-(a lifecycle hook or notification). Do not relabel a predicate as an oracle just to change the
-number; Loopy traces the evidence feeding termination and caps unsupported claims.
+The fixture file returns the same structured result from the dry-run shell mock, so verification
+remains deterministic and side-effect-free. The real run executes the local command. This does
+not pretend that a local command is a remote production authority; it proves the mechanism:
+termination is based on effect evidence rather than an unconditional mutation or agent self-report.
+
+The observer is best-effort by design. Its outcome is durable in the journal, but an observer
+failure cannot rewrite an already successful loop as failed. Do not relabel a predicate as an
+oracle or add inert metadata merely to change the number: Loopy traces termination writers and
+only awards observer credit to an executable completion hook or active notification contract.
 
 ## Regression-tested onboarding contract
 
@@ -534,10 +548,10 @@ The repository runs this same journey against packed npm tarballs in CI. The gat
 | Contract | Evidence |
 |---|---|
 | No source checkout | CLI and MCP are installed only from packed public packages. |
-| One safe entry command | `loopc quickstart` reaches a completed run without a model or external API. |
+| One safe entry command | `loopc quickstart` reaches an honest 100/100 completed run without a model or external API. |
 | Real proof boundaries | Validation, verification, scoring, execution, and inspection all succeed. |
-| Durable evidence | The clean workspace contains the journal event stream. |
-| Portable result | The standalone artifact contains a vendored runtime and needs no install. |
+| Durable evidence | The clean workspace contains effect, termination, and observer journal events. |
+| Portable result | The standalone artifact contains a vendored runtime, needs no install, and is executed in the packed-package gate. |
 
 This keeps the first-run promise executable: documentation changes cannot silently drift away from
 the package users actually install.
@@ -611,7 +625,7 @@ any code is emitted. Canonical types live in
 | `schedule` | | `{ mode: manual\|cron\|watch\|forever, cron? }`. |
 | `retry` | | `{ max, backoff_ms }` — transient http/shell/agent failures retry with exponential backoff (default no retry). |
 | `gates` | | Durable human-approval gates `{ after?, when?, ask, strategy?, auto_approve_in? }` — lowered to an inline, fail-closed `ctx.breakpoint()` after the named step (standalone + babysitter). |
-| `observe` | | `{ trace: journal\|none, hooks?, notify? }`. |
+| `observe` | | Durable tracing plus executable lifecycle hooks; see [observe](#observe). |
 | `target` | | Default compile target + emitted surfaces: `{ runtime: standalone\|babysitter\|claude-code\|claude-native\|n8n, emit: [cli, skill, doctor] }`. |
 | `provenance` | | `{ factory_version, source, run_id }` (baked into the artifact). |
 
@@ -699,6 +713,33 @@ trips the `ungrounded-exit` warning and the scorecard caps the termination dimen
 the self-assessment ceiling — an honest `llm-judge`/`self-assess` label scores *higher*
 than an inflated one. To upgrade a loop's grade, ground the exit: let a shell exit code,
 an http status, or a scan count decide, not the agent's own report.
+
+## observe
+
+```yaml
+observe:
+  trace: journal
+  hooks:
+    completed:
+      kind: shell
+      cmd: "./record-completion.sh"
+```
+
+`trace` controls the scorecard's durable-trace declaration. `hooks.completed` is a strict action:
+either `{ kind: shell, cmd: <non-empty string> }` or `{ kind: http, request: <HttpRequest> }`.
+Unknown hook names, empty actions, and shell/http field mismatches are rejected during parsing.
+
+The standalone runtime attempts this hook once after it has journaled natural termination. It
+appends an `observer` event with `started`, then `done` or `failed`. The hook is post-result:
+failure is visible and durable but cannot rewrite a successful loop result. A process crash after
+`started` may leave the delivery outcome uncertain; the runtime does not blindly retry it and does
+not claim exactly-once external delivery. Other compile targets currently report
+`completion-observer` as unsupported in their capability warnings rather than silently promising
+standalone semantics.
+
+The scorecard awards observer credit only for an executable completion hook or an active top-level
+`notify` contract with at least one channel. Arbitrary legacy `observe.notify` metadata is inert and
+does not score.
 
 ## caps (mandatory)
 
@@ -827,29 +868,34 @@ Run the two-tier validator. Prints errors (compile-blocking) and warnings. Exit 
 loopc validate deploy-watch.yaml
 ```
 
-### `loopc verify <spec.yaml> [--fix]`
+### `loopc verify <spec.yaml> [--fix] [--fixtures <file.json>]`
 Dry-run the loop through the real runtime with **mocked effects** (no side effects). Proves it
 is **bounded under caps** and **deterministic on replay**, and reports whether it terminates
-naturally under empty mocks. `--fix` writes explicit caps into the file if it relied on
-auto-injected ones. Exit 1 if not bounded/deterministic/resume-stable.
+naturally. By default mocks return `{}`. `--fixtures` supplies deterministic, data-only results
+for shell/http/agent mocks, for example `{ "shell": { "done": true } }`; it never enables real
+I/O. `--fix` writes explicit caps into the file if it relied on auto-injected ones. Exit 1 if not
+bounded/deterministic/resume-stable.
 
 ```bash
 loopc verify deploy-watch.yaml --fix
+loopc verify deploy-watch.yaml --fixtures verify-fixtures.json
 ```
 
-### `loopc score <spec.yaml>`
+### `loopc score <spec.yaml> [--fixtures <file.json>]`
 Run verify, then grade five weighted dimensions (termination safety, caps, observability,
-resumability, determinism) into a 0–100 letter grade.
+resumability, determinism) into a 0–100 letter grade. The fixture format and side-effect boundary
+are identical to `verify`.
 
 ```bash
-loopc score deploy-watch.yaml
+loopc score deploy-watch.yaml --fixtures verify-fixtures.json
 ```
 
 ### `loopc compile <spec.yaml> [--target standalone,babysitter,claude-code,claude-native,n8n|all] [--out <dir>] [--vendor]`
 Validate, then lower the spec to runnable artifact(s). Refuses to compile an invalid spec.
 Target defaults to the spec's `target.runtime` (or `standalone`); `--target all` emits every
 target. Output goes to `<out>/<target>/` (default `out/<id>/<target>/`). Prints any capability
-warnings (e.g. soft budget enforcement / `http→curl` on the babysitter target).
+warnings (e.g. soft budget enforcement / `http→curl` on the babysitter target, or a standalone-only
+completion observer requested for another target).
 
 `--vendor` (standalone target only) makes the artifact **zero-install**: it bundles
 `@loopyc/runtime` into a single local `runtime.bundle.mjs` (via esbuild), rewrites `loop.mjs` to
@@ -1094,9 +1140,16 @@ await runtime.doctor(); // preflight checks
   terminate: (ctx) => boolean,         // exit predicate (read-only)
   fingerprint?: (ctx) => string,       // no-progress signal (read-only)
   onExit?:   (ctx) => Promise<void>,   // runs once on natural termination
+  onComplete?: (ctx, result) => Promise<void>, // best-effort post-success observer
   gates?: unknown[],
 }
 ```
+
+`onExit` is part of the loop's terminal work and uses durable effects. `onComplete` is deliberately
+different: generated standalone artifacts use it for `observe.hooks.completed` after termination
+has already succeeded. Its shell/http action is attempted directly, and its `observer` journal
+events record `started` followed by `done` or `failed`. An exception is swallowed after journaling,
+so notification/telemetry availability cannot turn completed work into a failed run.
 
 ### `RuntimeOptions`
 
@@ -1219,7 +1272,7 @@ Under `.loopy/runs/<runId>/`:
 - `events.jsonl` — append-one-line-per-event, each with a **chained sha256** checksum.
   Event types: `run_start` (carries `baseState`), `effect` (write-ahead `pending` then `done`),
   `effect_recovery`, `iteration_snapshot` (state + fingerprint), `parked` (`wakeAt`), `cap`,
-  `stop_requested`, `stop_cleared`, `terminated`, `failed`.
+  `stop_requested`, `stop_cleared`, `terminated`, `observer` (`started`/`done`/`failed`), `failed`.
 - `state.json` — derived state cache (debuggable; the journal is the source of truth).
 - `meta.json` — `{ status, iteration, tokens, usd, eventCount, lastChecksum, ... }`.
 - `lock` — a PID lockfile held for the duration of a run (stale-PID reclaimable).
@@ -1245,6 +1298,9 @@ Under `.loopy/runs/<runId>/`:
   `fail` → `failed`, `exit-clean` → `stopped`, `breakpoint` → `paused`.
 - **Breakpoints** fail closed by default; an approved one is journaled, an unapproved one stays
   unresolved so a later run re-evaluates (resumable, not auto-denied).
+- **Completion observers** run only after natural termination. Their failure is journaled and
+  non-fatal. A crash after `observer: started` can leave external delivery uncertain; the runtime
+  avoids automatic duplicate delivery and makes no exactly-once claim.
 
 ## Durability guarantees & limitations
 
@@ -1253,9 +1309,9 @@ completed effects; explicit resolution of the uncertain window; journal-safe gra
 deterministic replay (given a deterministic `iterate`); locale-independent, corruption- and
 truncation-evident journal.
 
-The runtime does not promise exactly-once delivery to external systems. Choosing `retry` after an
-uncertain effect explicitly accepts at-least-once risk; `assume-done` requires external proof and a
-supplied result.
+The runtime does not promise exactly-once delivery to external systems, including completion
+observers. Choosing `retry` after an uncertain durable effect explicitly accepts at-least-once
+risk; `assume-done` requires external proof and a supplied result.
 
 Transient effect failures are **retried** with exponential backoff per `retry: { max, backoff_ms }`
 (or the `effectRetries` option); only an exhausted retry is terminal. The MCP `run_loop` runs

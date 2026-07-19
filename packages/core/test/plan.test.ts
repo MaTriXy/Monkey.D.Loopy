@@ -64,6 +64,30 @@ describe("standalone adapter", () => {
   it("matches the golden snapshot", () => {
     expect(fileMap.get("loop.mjs")).toMatchSnapshot();
   });
+
+  it("lowers a completion observer into executable standalone runtime configuration", () => {
+    const parsed = processRaw({
+      loopspec: "0.1",
+      id: "observed",
+      pattern: "react",
+      state: { vars: { done: { type: "boolean", init: false } } },
+      body: [{ id: "work", kind: "shell", cmd: ":", on_done: { set: { done: true } } }],
+      terminate: { signal: "state-predicate", until: "${state.done == true}" },
+      caps: { max_iterations: 3 },
+      observe: { trace: "journal", hooks: { completed: { kind: "shell", cmd: "./record.sh ${state.done}" } } },
+    });
+    expect(parsed.validation!.ok).toBe(true);
+    const loop = planLoopExport(parsed.spec!, "standalone").files.find((file) => file.relativePath === "loop.mjs")!.contents;
+    expect(loop).toContain("export async function onComplete(ctx)");
+    expect(loop).toContain("await ctx.shell(`./record.sh ${state?.done}`)");
+    expect(loop).toContain("  onComplete,");
+    expect(planLoopExport(parsed.spec!, "standalone").warnings).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("completion-observer")])
+    );
+    expect(planLoopExport(parsed.spec!, "n8n").warnings).toContain(
+      "'completion-observer' is unsupported on target 'n8n' and will be lowered (see generated notes)."
+    );
+  });
 });
 
 describe("standalone vendor mode (zero-install bundle)", () => {
