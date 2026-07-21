@@ -8,7 +8,7 @@ npm i -g @loopyc/cli
 npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.6.1` reports its synchronized factory version with `loopc --version`.
+Release `0.7.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 

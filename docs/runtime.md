@@ -59,7 +59,7 @@ so notification/telemetry availability cannot turn completed work into a failed 
 | `effectRetryBackoffMs` | `spec.retry.backoff_ms ?? 1000` | base backoff between retries |
 | `effectEnv` | inherit process env | when set, shell subprocesses use ONLY this env (scrubbed) |
 | `approveCaps` | `false` | approve a pending cap-breakpoint on resume (reset its counter + continue) |
-| `agentHarnesses` | `internal`, `claude-code` | `{ <name>: (req) => Promise<AgentResult> }` |
+| `agentHarnesses` | `internal`, `llm`, `claude-code`, `codex`, `opencode`, `antigravity`, `cursor-agent`, `pi`, `cli` | `{ <name>: (req) => Promise<AgentResult> }` |
 | `effects` | real http/shell | `{ http?, shell? }` overrides (for tests/mocks) |
 
 ### `ctx` (passed to `iterate`/`terminate`/`fingerprint`)
@@ -93,12 +93,15 @@ instead — `body` is the parsed JSON (or raw text) — so the loop can read the
   - **`opencode`** — `opencode run <prompt>`.
   - **`antigravity`** — `agy -p <prompt> --yes`.
   - **`cursor-agent`** — `cursor-agent -p --force <prompt>`.
+  - **`pi`** — `pi -p --mode json --no-session <prompt>`; its JSON event stream supplies the
+    final assistant result plus trusted aggregate token and cost usage.
   - **`cli`** — the universal escape hatch: drive **any** agent CLI, with **your exact flags**, via
     `LOOPY_AGENT_CMD` (e.g. `"codex exec"`, `"opencode run"`, `"agy -p"`, `"aider --message"`,
     `"amp -x"`). The prompt is appended as one final argument (execFile — never shell-interpolated).
   Point a named harness at an alternate binary with `LOOPY_<NAME>_BIN` (e.g. `LOOPY_CODEX_BIN`).
-  Non-`claude-code` CLIs return JSON (optionally ```json-fenced) as the result object, else plain
-  text at `$.result` (`unwrapAgentText`). `BUILTIN_HARNESS_NAMES` lists them all.
+  Text-only CLIs return JSON (optionally ```json-fenced) as the result object, else plain text at
+  `$.result` (`unwrapAgentText`). The `pi` harness parses NDJSON `message_end` events and meters only
+  their trusted usage envelopes. `BUILTIN_HARNESS_NAMES` lists every built-in harness.
 
 Register your own via `createRuntime(config, { agentHarnesses: { myHarness: async (req) => ({...}) } })`.
 The exported `resolveLlm()` / `chatComplete()` are reusable provider-agnostic helpers.
@@ -129,7 +132,7 @@ reasoning models. Model-supplied `usage` is ignored — only the trusted provide
 [`pricing.ts`](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/packages/runtime/src/pricing.ts): a per-model table (`MODEL_PRICING`, USD per
 1M input/output tokens), overridable with `LOOPY_LLM_PRICE_IN` / `LOOPY_LLM_PRICE_OUT`, and it
 prefers a provider-reported `usage.cost` (e.g. OpenRouter) when present. The `claude-code` harness
-reports `total_cost_usd`. If a model can't be priced, `doctor` warns rather than letting the $ cap
+reports `total_cost_usd`; the `pi` harness sums each assistant event's `usage.cost.total`. If a model can't be priced, `doctor` warns rather than letting the $ cap
 be a silent no-op (token + wallclock caps still apply). Exposed helpers: `priceUsd`,
 `normalizeModel`, `isCostMeterable`, `MODEL_PRICING`.
 

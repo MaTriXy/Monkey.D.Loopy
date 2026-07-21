@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/runtime",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "The durable execution engine for Monkey D Loopy standalone loop artifacts: event-sourced journal, deterministic replay, idempotent effects, hard caps, durable sleep + breakpoints.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

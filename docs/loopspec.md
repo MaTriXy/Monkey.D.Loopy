@@ -52,7 +52,7 @@ validated LoopSpec.
 ## Step kinds (closed set — no raw code)
 
 ```yaml
-- { id, kind: agent, harness, prompt, allowed-tools?, save?, on_done? }   # harness: llm | claude-code | codex | opencode | antigravity | cursor-agent | cli | internal
+- { id, kind: agent, harness, prompt, allowed-tools?, save?, on_done? }   # harness: llm | claude-code | codex | opencode | antigravity | cursor-agent | pi | cli | internal
 - { id, kind: shell, cmd, save?, on_done? }                               # runs a shell command
 - { id, kind: http,  request: { method, url, headers?, body? }, envelope?, save?, on_done? }
 - { id, kind: breakpoint, ask, strategy?, auto_approve_in? }              # durable human gate

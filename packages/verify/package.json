@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/verify",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Dry-run verification (bounded-under-caps + replay-determinism) and scorecard grading for LoopSpecs, plus a codegen-free spec interpreter.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

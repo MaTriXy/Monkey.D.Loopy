@@ -258,7 +258,8 @@ Agent steps are **provider- and tool-agnostic** — choose at runtime, nothing i
   or point it with `LOOPY_LLM_*`. Cost is metered per call against the `usd` budget cap.
 - **Any coding agent.** For a full file-editing, tool-running harness, drive **any** coding-agent
   CLI with your exact flags via `LOOPY_AGENT_CMD`. No harness is the default — pick the tool you
-  run; nothing is hardcoded.
+  run; nothing is hardcoded. Named harnesses include Claude Code, Codex, OpenCode, Antigravity,
+  Cursor Agent, and `pi`; pi's JSON event stream contributes trusted token and cost usage.
 - **Explicit agent limits.** Configure built-in harnesses with `LOOPY_AGENT_TIMEOUT_MS` and
   `LOOPY_AGENT_MAX_BUFFER`. `doctor` reports the effective values, and a tripped limit names the
   exact control instead of looking like a generic tool failure.
@@ -332,4 +333,4 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.6.1` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
+Release `0.7.0` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
