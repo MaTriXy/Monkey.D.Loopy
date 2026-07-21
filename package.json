@@ -1,7 +1,7 @@
 {
   "name": "monkey-d-loopy",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
