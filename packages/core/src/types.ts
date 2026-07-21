@@ -114,7 +114,7 @@ export interface AgentStep extends StepBase {
   kind: "agent";
   /** Harness that owns the inner ReAct turn. Built-ins (none is a default): `internal`, `llm`
    *  (provider-agnostic), and the coding-agent CLIs `claude-code` / `codex` / `opencode` /
-   *  `antigravity` / `cursor-agent`, plus a generic `cli` (any tool via LOOPY_AGENT_CMD). */
+   *  `antigravity` / `cursor-agent` / `pi`, plus a generic `cli` (any tool via LOOPY_AGENT_CMD). */
   harness: string;
   prompt: string;
   "allowed-tools"?: string[];

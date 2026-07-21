@@ -22,6 +22,7 @@ export {
   execShell,
   unwrapClaudeResult,
   unwrapAgentText,
+  unwrapPiResult,
   builtinHarnesses,
   BUILTIN_HARNESS_NAMES,
   resolveLlm,

@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/cli",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "loopc — the Monkey D Loopy command-line factory.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
