@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/core",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Pure, zero-I/O brain of Monkey D Loopy: the LoopSpec IR, validator, and planner.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

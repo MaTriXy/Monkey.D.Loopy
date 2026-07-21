@@ -343,7 +343,7 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.7.0` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
+Release `0.7.1` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
 
 ---
 
@@ -815,7 +815,7 @@ npm i -g @loopyc/cli
 npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.7.0` reports its synchronized factory version with `loopc --version`.
+Release `0.7.1` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
@@ -2215,7 +2215,7 @@ Keep PRs independently reviewable. Do not combine the roadmap into one platform 
 | P5.1 | `feature/guarded-evolution` | P1, P2, P3 | candidate/gates/approval/rollback |
 
 The built-in `pi` harness ([#5](https://github.com/MaTriXy/Monkey.D.Loopy/issues/5)) shipped as
-an independent `0.7.0` feature after the release baseline. It is useful but is not a dependency
+an independent `0.7.1` feature after the release baseline. It is useful but is not a dependency
 for the operator architecture.
 
 ## 7. Cross-cutting verification
