@@ -491,7 +491,7 @@ Keep PRs independently reviewable. Do not combine the roadmap into one platform 
 | P5.1 | `feature/guarded-evolution` | P1, P2, P3 | candidate/gates/approval/rollback |
 
 The built-in `pi` harness ([#5](https://github.com/MaTriXy/Monkey.D.Loopy/issues/5)) shipped as
-an independent `0.7.0` feature after the release baseline. It is useful but is not a dependency
+an independent `0.7.1` feature after the release baseline. It is useful but is not a dependency
 for the operator architecture.
 
 ## 7. Cross-cutting verification

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 — 2026-07-21
+
+- Raised the deterministic eval test budget to 15 seconds so slower Node 24 release runners do
+  not fail a fully passing property pipeline at Vitest's 5-second default timeout.
+
 ## 0.7.0 — 2026-07-21
 
 - Added a first-class `pi` coding-agent harness using headless JSON event-stream mode and
