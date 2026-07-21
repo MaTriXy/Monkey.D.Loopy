@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/operator",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Local-first operator, journal read model, scheduler, and control center for Monkey D Loopy.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",

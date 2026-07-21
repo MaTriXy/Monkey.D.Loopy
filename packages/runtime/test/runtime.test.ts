@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, existsSync, appendFileSync, chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { chatComplete, createRuntime, execHttp, execShell, resolveAgentExecLimits, resolveLlm, unwrapClaudeResult, unwrapAgentText, builtinHarnesses, BUILTIN_HARNESS_NAMES, Journal, priceUsd, normalizeModel, isCostMeterable, type RuntimeConfig } from "../src/index.js";
+import { chatComplete, createRuntime, execHttp, execShell, resolveAgentExecLimits, resolveLlm, unwrapClaudeResult, unwrapAgentText, unwrapPiResult, builtinHarnesses, BUILTIN_HARNESS_NAMES, Journal, priceUsd, normalizeModel, isCostMeterable, type RuntimeConfig } from "../src/index.js";
 
 function tmp(): string {
   return mkdtempSync(join(tmpdir(), "loopy-rt-"));
@@ -856,7 +856,7 @@ describe("durability fixes (audit wave 7)", () => {
 
 describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not claude-only)", () => {
   afterEach(() => {
-    for (const k of ["LOOPY_CODEX_BIN", "LOOPY_AGENT_CMD", "LOOPY_AGENT_TIMEOUT_MS", "LOOPY_AGENT_MAX_BUFFER"]) delete process.env[k];
+    for (const k of ["LOOPY_CODEX_BIN", "LOOPY_PI_BIN", "LOOPY_AGENT_CMD", "LOOPY_AGENT_TIMEOUT_MS", "LOOPY_AGENT_MAX_BUFFER"]) delete process.env[k];
     vi.unstubAllGlobals();
   });
 
@@ -868,7 +868,7 @@ describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not
   };
 
   it("ships first-class coding-agent harnesses beyond claude-code", () => {
-    for (const n of ["internal", "llm", "claude-code", "codex", "opencode", "antigravity", "cursor-agent", "cli"]) {
+    for (const n of ["internal", "llm", "claude-code", "codex", "opencode", "antigravity", "cursor-agent", "pi", "cli"]) {
       expect(BUILTIN_HARNESS_NAMES, n).toContain(n);
       expect(typeof builtinHarnesses[n]).toBe("function");
     }
@@ -885,6 +885,61 @@ describe("tool-agnostic agent harnesses (codex / opencode / gemini / cli — not
     expect(
       unwrapAgentText("```json\n{\"ok\":1,\"usage\":{\"tokens\":999999,\"usd\":999999}}\n```")
     ).toEqual({ ok: 1 });
+  });
+
+  it("unwrapPiResult returns the final assistant result with trusted aggregate usage", () => {
+    const stdout = [
+      { type: "session", version: 3, id: "test", cwd: "/tmp" },
+      {
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "working" }],
+          usage: { totalTokens: 30, cost: { total: 0.03 } },
+          stopReason: "toolUse",
+        },
+      },
+      {
+        type: "message_end",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: '{"done":true,"answer":"ok","usage":{"tokens":0,"usd":0}}' }],
+          usage: { totalTokens: 70, cost: { total: 0.07 } },
+          stopReason: "stop",
+        },
+      },
+      { type: "agent_end", messages: [] },
+    ].map((event) => JSON.stringify(event)).join("\n");
+
+    expect(unwrapPiResult(stdout)).toEqual({
+      done: true,
+      answer: "ok",
+      usage: { tokens: 100, usd: 0.1 },
+    });
+  });
+
+  it("unwrapPiResult rejects malformed streams and streams without an assistant result", () => {
+    expect(() => unwrapPiResult("not-json\n")).toThrow(/pi JSON stream line 1/i);
+    expect(() => unwrapPiResult('{"type":"agent_end","messages":[]}')).toThrow(/assistant message/i);
+  });
+
+  it("the pi harness uses headless JSON mode, ephemeral sessions, and LOOPY_PI_BIN", async () => {
+    process.env.LOOPY_PI_BIN = agentFixture(`
+      const text = JSON.stringify({ args: process.argv.slice(2) });
+      const message = {
+        role: "assistant",
+        content: [{ type: "text", text }],
+        usage: { totalTokens: 12, cost: { total: 0.004 } },
+        stopReason: "stop"
+      };
+      process.stdout.write(JSON.stringify({ type: "message_end", message }) + "\\n");
+    `);
+
+    const result = await builtinHarnesses["pi"]!({ harness: "pi", prompt: "hello-pi" });
+    expect(result).toEqual({
+      args: ["-p", "--mode", "json", "--no-session", "hello-pi"],
+      usage: { tokens: 12, usd: 0.004 },
+    });
   });
 
   it("a named CLI harness (codex) shells out via execFile, with a per-tool binary override", async () => {

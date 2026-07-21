@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 2026-07-21
+
+- Added a first-class `pi` coding-agent harness using headless JSON event-stream mode and
+  ephemeral sessions, with the standard `LOOPY_PI_BIN` binary override.
+- Parse pi's final assistant result while aggregating trusted per-turn token and cost usage for
+  runtime budget caps; model-authored usage remains unable to alter the meter.
+- Added deterministic argv, NDJSON parsing, malformed-stream, multi-turn metering, documentation,
+  and packed-release coverage for the new harness.
+
 ## 0.6.1 — 2026-07-18
 
 - Upgraded the safe quickstart to an evidence-backed 100/100: deterministic verification fixtures

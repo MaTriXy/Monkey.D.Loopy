@@ -219,10 +219,91 @@ export function unwrapAgentText(stdout: string): AgentResult {
   return { result: stdout.trim() };
 }
 
+type PiUsage = {
+  input?: number;
+  output?: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+  totalTokens?: number;
+  cost?: { total?: number };
+};
+
+type PiAssistantMessage = {
+  role: "assistant";
+  content?: { type?: string; text?: string }[];
+  usage?: PiUsage;
+  stopReason?: string;
+  errorMessage?: string;
+};
+
+/** Unwrap pi's `--mode json` event stream and meter only usage from trusted assistant envelopes. */
+export function unwrapPiResult(stdout: string): AgentResult {
+  let finalMessage: PiAssistantMessage | undefined;
+  let tokens = 0;
+  let usd = 0;
+  let hasTokens = false;
+  let hasUsd = false;
+
+  const lines = stdout.split(/\r?\n/).filter((line) => line.trim());
+  for (const [index, line] of lines.entries()) {
+    let event: unknown;
+    try {
+      event = JSON.parse(line!);
+    } catch {
+      throw new Error(`pi JSON stream line ${index + 1} is not valid JSON`);
+    }
+    if (!event || typeof event !== "object") continue;
+    const record = event as { type?: unknown; message?: unknown };
+    if (record.type !== "message_end" || !record.message || typeof record.message !== "object") continue;
+    const message = record.message as PiAssistantMessage;
+    if (message.role !== "assistant") continue;
+
+    finalMessage = message;
+    const usage = message.usage;
+    if (usage) {
+      const tokenParts = [usage.input, usage.output, usage.cacheRead, usage.cacheWrite]
+        .filter((value): value is number => Number.isFinite(value) && value! >= 0);
+      const totalTokens = Number.isFinite(usage.totalTokens) && usage.totalTokens! >= 0
+        ? usage.totalTokens
+        : tokenParts.length
+          ? tokenParts.reduce((sum, value) => sum + value, 0)
+          : undefined;
+      if (totalTokens !== undefined) {
+        tokens += totalTokens;
+        hasTokens = true;
+      }
+      if (Number.isFinite(usage.cost?.total) && usage.cost!.total! >= 0) {
+        usd += usage.cost!.total!;
+        hasUsd = true;
+      }
+    }
+  }
+
+  if (!finalMessage) throw new Error("pi JSON stream did not contain an assistant message");
+  if (finalMessage.stopReason === "error" || finalMessage.stopReason === "aborted") {
+    throw new Error(`pi assistant ${finalMessage.stopReason}: ${finalMessage.errorMessage ?? "unknown error"}`);
+  }
+
+  const text = (finalMessage.content ?? [])
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("");
+  if (!text.trim()) throw new Error("pi final assistant message did not contain text");
+
+  const value = unwrapAgentText(text);
+  if (hasTokens || hasUsd) {
+    value.usage = {
+      tokens: hasTokens ? tokens : undefined,
+      usd: hasUsd ? usd : undefined,
+    };
+  }
+  return value;
+}
+
 /**
  * A coding-agent CLI harness spec: the binary, how to build its argv from the step, and how to
  * unwrap its stdout. This is the seam that keeps the agent layer TOOL-AGNOSTIC — Claude Code is
- * just one entry; Codex, opencode, Antigravity, Cursor (and anything via the generic `cli` harness) are peers,
+ * just one entry; Codex, opencode, Antigravity, Cursor, pi (and anything via the generic `cli` harness) are peers,
  * never a lock to a single vendor.
  */
 interface AgentCli {
@@ -233,7 +314,7 @@ interface AgentCli {
 
 /**
  * Built-in coding-agent CLIs — the 2026 top tier: Claude Code, OpenAI Codex, Antigravity (Google's
- * successor to the retired Gemini CLI), Cursor, and OpenCode. Each runs headless via execFile (no
+ * successor to the retired Gemini CLI), Cursor, OpenCode, and pi. Each runs headless via execFile (no
  * shell). The argv are the verified non-interactive forms (checked against each CLI's `--help`,
  * except antigravity which follows its published docs). Because a loop harness is UNATTENDED, CLIs
  * that would otherwise stop for an approval prompt run in auto-approve mode (antigravity --yes,
@@ -265,6 +346,8 @@ const AGENT_CLIS: Record<string, AgentCli> = {
   antigravity: { bin: "agy", buildArgs: (req) => ["-p", req.prompt, "--yes"], unwrap: unwrapAgentText },
   // Cursor Agent — `-p/--print` is the non-interactive/script mode; --force auto-allows commands.
   "cursor-agent": { bin: "cursor-agent", buildArgs: (req) => ["-p", "--force", req.prompt], unwrap: unwrapAgentText },
+  // pi — JSON event-stream mode exposes the final assistant result plus trusted token/cost usage.
+  pi: { bin: "pi", buildArgs: (req) => ["-p", "--mode", "json", "--no-session", req.prompt], unwrap: unwrapPiResult },
 };
 
 function agentExecOptions(limits: AgentExecLimits) {
@@ -624,7 +707,7 @@ const llmHarness: AgentHarness = async (req) => {
 export const builtinHarnesses: Record<string, AgentHarness> = {
   internal: internalHarness, // no-op (deterministic; for tests/CI)
   llm: llmHarness, // provider-agnostic OpenAI-compatible client; configure via env
-  // Coding-agent CLIs — first-class peers, NOT claude-only (claude-code / codex / opencode / antigravity / cursor-agent).
+  // Coding-agent CLIs — first-class peers, NOT claude-only (claude-code / codex / opencode / antigravity / cursor-agent / pi).
   ...Object.fromEntries(Object.entries(AGENT_CLIS).map(([name, cli]) => [name, makeCliHarness(name, cli)])),
   cli: genericCliHarness, // drive ANY agent CLI via LOOPY_AGENT_CMD (the universal escape hatch)
 };
