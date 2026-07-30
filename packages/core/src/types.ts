@@ -20,7 +20,8 @@ export type LoopPattern =
   | "loop-until-dry"
   | "map-reduce"
   | "poll-until"
-  | "cron";
+  | "cron"
+  | "gauntlet";
 
 /** Runtime targets a LoopSpec can be lowered to. */
 export type RuntimeTarget = "standalone" | "babysitter" | "claude-code" | "claude-native" | "n8n";
@@ -94,13 +95,16 @@ export interface HttpRequest {
 }
 
 /** Mutations applied to state after a step completes. */
+export interface MutationExpression { $expr: string; }
+export type MutationValue = null | string | number | boolean | MutationValue[] | { [key: string]: MutationValue } | MutationExpression;
+
 export interface OnDone {
   /** Increment a numeric state var by 1. */
   incr?: string;
   /** Set state vars to literal values or interpolated expressions. */
-  set?: Record<string, unknown>;
+  set?: Record<string, MutationValue>;
   /** Append a value to a list state var (enables map-reduce accumulation). */
-  append?: Record<string, unknown>;
+  append?: Record<string, MutationValue>;
 }
 
 interface StepBase {
@@ -129,6 +133,8 @@ export interface ShellStep extends StepBase {
   cmd: string;
   /** When present, `cmd` + `args` run as an argv (no shell) — safer for untrusted data. */
   args?: string[];
+  /** Normalize a trusted judge's transport envelope before any state extraction. */
+  normalize?: "judge-envelope";
   /** json-path extractions from stdout (parsed as JSON) into state vars. */
   save?: Record<string, string>;
   on_done?: OnDone;

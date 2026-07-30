@@ -7,7 +7,7 @@
  * from the embedded contract and must honor caps itself. Capability warnings stay soft.
  */
 import type { Adapter, PlanResult, PlannedFile } from "./types.js";
-import { capabilityWarnings } from "./types.js";
+import { capabilityWarnings, judgeEnvelopeWarnings } from "./types.js";
 import type { LoopSpec, Step } from "../types.js";
 
 function skillSlug(id: string): string {
@@ -255,6 +255,6 @@ export const claudeNativeAdapter: Adapter = {
       { relativePath: "README.md", contents: emitReadme(spec, slug), kind: "doc" },
       { relativePath: "loop.lock", contents: json(lock) + "\n", kind: "provenance" },
     ];
-    return { target: "claude-native", files, warnings: capabilityWarnings(spec, "claude-native") };
+    return { target: "claude-native", files, warnings: [...capabilityWarnings(spec, "claude-native"), ...judgeEnvelopeWarnings(spec, "claude-native")] };
   },
 };

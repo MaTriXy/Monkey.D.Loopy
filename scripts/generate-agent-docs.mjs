@@ -34,6 +34,12 @@ const sources = [
     description: "Schema, steps, expressions, termination grounding, caps, and validation gates.",
   },
   {
+    title: "Gauntlet workflows",
+    file: "docs/gauntlet.md",
+    url: `${site}/gauntlet`,
+    description: "Opinionated selection guidance, Creative versus Verified grounding, workstreams, tradeoffs, and user-facing explanation.",
+  },
+  {
     title: "CLI reference",
     file: "docs/cli.md",
     url: `${site}/cli`,
@@ -104,7 +110,7 @@ ${sources
 ## Source and releases
 
 - [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
-- [v${version} release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v${version}): Current documented release.
+- [Published releases](https://github.com/MaTriXy/Monkey.D.Loopy/releases): Public release history; the repository remains canonical for unpushed or unreleased work such as documentation generated from a local v${version} tree.
 `;
 
 const fullSections = await Promise.all(

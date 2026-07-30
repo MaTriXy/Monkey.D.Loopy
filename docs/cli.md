@@ -8,7 +8,7 @@ npm i -g @loopyc/cli
 npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.7.1` reports its synchronized factory version with `loopc --version`.
+Release `0.8.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
@@ -52,6 +52,8 @@ exclusive. Writes to `<id>.loop.yaml` unless `--out` is given.
 ```bash
 loopc new deploy-watch --blueprint poll-until --out deploy-watch.yaml
 loopc new repo-check --recipe repo-health-doctor
+loopc new my-launch --blueprint gauntlet
+loopc new my-launch --recipe verified-gauntlet
 loopc new poller --from-shell "curl -s $URL/health" --until '${state.out.ready == true}'
 ```
 

@@ -5,7 +5,7 @@
  * 1:1 (same expr engine, same runtime), so a loop that verifies behaves like the
  * compiled artifact.
  */
-import { evaluate, parseGuard, parseInterpolations, type EvalContext } from "@loopyc/core";
+import { evaluate, normalizeJudgeEnvelope, parseGuard, parseInterpolations, type EvalContext } from "@loopyc/core";
 import type { ExitAction, Gate, HookAction, LoopSpec, OnDone, Step } from "@loopyc/core";
 import type { LoopCtx, RuntimeConfig } from "@loopyc/runtime";
 
@@ -44,6 +44,19 @@ function value(v: unknown, ctx: LoopCtx, scope: Record<string, unknown>): unknow
   return typeof v === "string" ? interp(v, ctx, scope) : v;
 }
 
+function mutationValue(v: unknown, ctx: LoopCtx, scope: Record<string, unknown>): unknown {
+  if (typeof v === "string") return interp(v, ctx, scope);
+  if (Array.isArray(v)) return v.map((item) => mutationValue(item, ctx, scope));
+  if (v && typeof v === "object") {
+    const entries = Object.entries(v as Record<string, unknown>);
+    if (entries.length === 1 && entries[0]![0] === "$expr" && typeof entries[0]![1] === "string") {
+      return evaluate(parseGuard(entries[0]![1]), evalCtx(ctx, scope));
+    }
+    return Object.fromEntries(entries.map(([key, item]) => [key, mutationValue(item, ctx, scope)]));
+  }
+  return v;
+}
+
 function applySave(save: Record<string, string> | undefined, src: unknown, ctx: LoopCtx): void {
   for (const [k, path] of Object.entries(save ?? {})) ctx.state[k] = ctx.jsonpath(src, path);
 }
@@ -51,10 +64,10 @@ function applySave(save: Record<string, string> | undefined, src: unknown, ctx: 
 function applyOnDone(onDone: OnDone | undefined, ctx: LoopCtx, scope: Record<string, unknown>): void {
   if (!onDone) return;
   if (onDone.incr) ctx.state[onDone.incr] = (ctx.state[onDone.incr] as number) + 1;
-  for (const [k, v] of Object.entries(onDone.set ?? {})) ctx.state[k] = value(v, ctx, scope);
+  for (const [k, v] of Object.entries(onDone.set ?? {})) ctx.state[k] = mutationValue(v, ctx, scope);
   for (const [k, v] of Object.entries(onDone.append ?? {})) {
     // matches the emitted `state["k"].push(...)` — list vars are init'd to arrays (validator-enforced)
-    (ctx.state[k] as unknown[]).push(value(v, ctx, scope));
+    (ctx.state[k] as unknown[]).push(mutationValue(v, ctx, scope));
   }
 }
 
@@ -91,7 +104,8 @@ async function execStep(step: Step, ctx: LoopCtx, scope: Record<string, unknown>
         const cmd = step.args
           ? { command: interp(step.cmd, ctx, scope), args: step.args.map((a) => interp(a, ctx, scope)) }
           : interp(step.cmd, ctx, scope);
-        const out = await ctx.shell(cmd);
+        const raw = await ctx.shell(cmd);
+        const out = step.normalize === "judge-envelope" ? normalizeJudgeEnvelope(raw) : raw;
         applySave(step.save, out, ctx);
         applyOnDone(step.on_done, ctx, scope);
         break;

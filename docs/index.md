@@ -20,6 +20,9 @@ hero:
     - theme: alt
       text: Browse recipes
       link: /recipes
+    - theme: alt
+      text: Explore Gauntlet
+      link: /gauntlet
 
 features:
   - icon: 🧱

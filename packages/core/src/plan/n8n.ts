@@ -10,7 +10,7 @@
  * cap enforcement) are flagged in the README + node notes and in the capability matrix.
  */
 import type { Adapter, PlanResult, PlannedFile } from "./types.js";
-import { capabilityWarnings } from "./types.js";
+import { capabilityWarnings, judgeEnvelopeWarnings } from "./types.js";
 import { parseDuration } from "../duration.js";
 import { parseGuard, type ExprNode } from "../expr.js";
 import type { LoopSpec, Step } from "../types.js";
@@ -292,6 +292,6 @@ export const n8nAdapter: Adapter = {
         kind: "provenance",
       },
     ];
-    return { target: "n8n", files, warnings: capabilityWarnings(spec, "n8n") };
+    return { target: "n8n", files, warnings: [...capabilityWarnings(spec, "n8n"), ...judgeEnvelopeWarnings(spec, "n8n")] };
   },
 };

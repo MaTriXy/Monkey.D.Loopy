@@ -102,7 +102,7 @@ export function createServer(): McpServer {
 
   server.tool(
     "list_blueprints",
-    "List the built-in starting-point loop blueprints (one per pattern: react, plan-execute-reflect, evaluator-optimizer, loop-until-dry, map-reduce, poll-until, cron).",
+    "List the built-in starting-point loop blueprints, including the gauntlet sequential builder/critic workflow.",
     {},
     async () => text(listBlueprints().map((b) => `${b.name.padEnd(22)} ${b.description}`).join("\n"))
   );
@@ -131,7 +131,7 @@ export function createServer(): McpServer {
       blueprint: z.string().optional(),
       recipe: z.string().optional().describe("verified recipe name from list_recipes"),
       pattern: z
-        .enum(["react", "plan-execute-reflect", "evaluator-optimizer", "loop-until-dry", "map-reduce", "poll-until", "cron"])
+        .enum(["react", "plan-execute-reflect", "evaluator-optimizer", "loop-until-dry", "map-reduce", "poll-until", "cron", "gauntlet"])
         .optional(),
     },
     async ({ id, blueprint, recipe, pattern }) => {

@@ -132,6 +132,14 @@ describe("loopback API and control center security", () => {
     const health = await fetch(`${address.url}/api/v1/health`, { headers: auth });
     expect(health.status).toBe(200);
     expect(health.headers.get("access-control-allow-origin")).toBeNull();
+    expect((await fetch(`${address.url}/api/v1/catalog`)).status).toBe(401);
+    const catalog = await fetch(`${address.url}/api/v1/catalog`, { headers: auth });
+    expect(catalog.status).toBe(200);
+    const workflows = (await catalog.json() as { workflows: Array<{ name: string; score: number; grade: string }> }).workflows;
+    expect(workflows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "gauntlet", score: 87, grade: "B" }),
+      expect.objectContaining({ name: "verified-gauntlet", score: 100, grade: "A" }),
+    ]));
 
     expect((await fetch(`${address.url}/api/v1/loops`, { headers: { ...auth, Origin: "https://evil.example" } })).status).toBe(403);
     expect((await fetch(`${address.url}/api/v1/loops`, { method: "POST", headers: auth, body: "x".repeat(65_537) })).status).toBe(413);

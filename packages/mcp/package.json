@@ -1,6 +1,6 @@
 {
   "name": "@loopyc/mcp",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "loopc-mcp — Model Context Protocol server exposing the Monkey D Loopy factory to agents (schema, scaffold, validate, verify, compile, run, inspect).",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -34,7 +34,7 @@
     "@loopyc/infer": "workspace:*",
     "@loopyc/runtime": "workspace:*",
     "@loopyc/verify": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.24.1"
   },
   "engines": {

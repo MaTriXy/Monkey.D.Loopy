@@ -20,10 +20,11 @@ interface FixtureExpectation {
   status: "completed" | "stopped";
   reason?: string;
   agent_calls: number;
+  hostile_text_reaches_agent?: boolean;
 }
 
 interface RecipeFixture {
-  scenario: "success" | "no-op" | "cap" | "malformed-evidence" | "prompt-injection";
+  scenario: string;
   inputs: Record<string, unknown>;
   effect_results: unknown[];
   expect: FixtureExpectation;
@@ -96,8 +97,11 @@ async function runFixture(recipe: Recipe, relativePath: string): Promise<string 
         return `${prefix}: actionable agent prompt does not preserve the prompt-injection boundary`;
       }
     }
-    if (fixture.scenario === "prompt-injection" && agentCalls !== 0) {
-      return `${prefix}: hostile evidence reached an agent despite an external no-op signal`;
+    if (fixture.expect.hostile_text_reaches_agent !== undefined) {
+      const hostileTextReachedAgent = prompts.some((prompt) => /ignore\s+(?:all\s+)?(?:prior|previous)\s+instructions|delete\s+(?:all\s+)?files/i.test(prompt));
+      if (hostileTextReachedAgent !== fixture.expect.hostile_text_reaches_agent) {
+        return `${prefix}: expected hostile_text_reaches_agent=${fixture.expect.hostile_text_reaches_agent}, got ${hostileTextReachedAgent}`;
+      }
     }
     if (result.iteration > recipe.spec.caps.max_iterations) {
       return `${prefix}: runtime exceeded max_iterations (${result.iteration} > ${recipe.spec.caps.max_iterations})`;

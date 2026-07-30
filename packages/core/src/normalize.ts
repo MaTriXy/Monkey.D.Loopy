@@ -23,6 +23,7 @@ const PATTERN_MAX_ITERATIONS: Record<LoopPattern, number> = {
   "map-reduce": 100,
   "poll-until": 288, // ~24h at one check / 5m
   cron: 100,
+  gauntlet: 8,
 };
 
 function defaultCaps(pattern: LoopPattern, mode: string | undefined): Caps {

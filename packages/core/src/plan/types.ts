@@ -202,3 +202,12 @@ export function capabilityWarnings(spec: LoopSpec, target: RuntimeTarget): strin
   }
   return warnings;
 }
+
+/** Prose/scaffold targets cannot enforce the trusted-judge transport boundary at runtime. */
+export function judgeEnvelopeWarnings(spec: LoopSpec, target: RuntimeTarget): string[] {
+  const hasNormalizer = (steps: typeof spec.body): boolean => steps.some((step) =>
+    step.kind === "shell" ? step.normalize === "judge-envelope" : step.kind === "reduce" && hasNormalizer(step.body)
+  );
+  if (!hasNormalizer(spec.body) || !(["claude-code", "claude-native", "n8n"] as RuntimeTarget[]).includes(target)) return [];
+  return [`'judge-envelope' normalization is not enforced on target '${target}'; oracle semantics are not guaranteed and must not be claimed.`];
+}

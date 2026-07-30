@@ -57,6 +57,10 @@ is the fallback. Desktop, single-column tablet, horizontally scrollable loop nav
 responsive run details, keyboard focus, reduced motion, and narrow phone layouts are represented in
 the stylesheet.
 
+Authenticated `GET /api/v1/catalog` is read-only and returns built-in blueprint and recipe
+metadata (pattern, score, grade, grounding, schedule, and exact CLI handoff command). Gauntlet
+entries are featured first; CLI and MCP remain the authoring authorities.
+
 ## Scheduling and guarded controls
 
 Host cron/systemd/launchd/GitHub Actions files remain supported and are the default authority when

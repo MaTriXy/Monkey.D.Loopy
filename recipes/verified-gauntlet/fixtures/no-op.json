@@ -1,0 +1,1 @@
+{"scenario":"no-op","inputs":{"goal":"publish a polished artifact","bar":"all checks pass","judge_command":"trusted-judge"},"effect_results":[{"status":"no-op","evidence":{"fingerprint":"none","workstreams":[],"summary":"nothing to do"}}],"expect":{"status":"completed","agent_calls":0}}

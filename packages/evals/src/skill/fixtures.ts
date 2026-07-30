@@ -38,5 +38,13 @@ export const FIXTURES: SkillFixture[] = [
   { id: "summarize", nl: "Summarize each item in this list, then combine the results.", expectedPatterns: ["map-reduce"], minTier: "state-predicate", minScore: 55, golden: bp("map-reduce") },
   { id: "plan-exec", nl: "Plan the task, execute the next step, reflect, and repeat until it's complete.", expectedPatterns: ["plan-execute-reflect"], minTier: "self-assess", minScore: 55, golden: bp("plan-execute-reflect") },
   { id: "digest", nl: "Build and send a daily digest on a schedule.", expectedPatterns: ["cron"], minTier: "state-predicate", minScore: 55, golden: bp("cron") },
+  {
+    id: "launch-gauntlet",
+    nl: "Prepare one product launch package across implementation, UX, documentation, and evidence. Give every workstream a fresh independent critic, revise failures, then review the integrated package against the launch bar.",
+    expectedPatterns: ["gauntlet"],
+    minTier: "llm-judge",
+    minScore: 80,
+    golden: bp("gauntlet"),
+  },
   { id: "react-goal", nl: "Keep taking actions toward the goal until it's met.", expectedPatterns: ["react"], minTier: "self-assess", minScore: 55, golden: bp("react") },
 ];

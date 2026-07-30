@@ -5,7 +5,7 @@
  * Enforcement is agent-followed (soft); the capability matrix flags this honestly.
  */
 import type { Adapter, PlanResult, PlannedFile } from "./types.js";
-import { capabilityWarnings } from "./types.js";
+import { capabilityWarnings, judgeEnvelopeWarnings } from "./types.js";
 import type { LoopSpec, Step } from "../types.js";
 
 function whenSuffix(step: Step): string {
@@ -114,6 +114,6 @@ export const claudeCodeAdapter: Adapter = {
         kind: "provenance",
       },
     ];
-    return { target: "claude-code", files, warnings: capabilityWarnings(spec, "claude-code") };
+    return { target: "claude-code", files, warnings: [...capabilityWarnings(spec, "claude-code"), ...judgeEnvelopeWarnings(spec, "claude-code")] };
   },
 };
