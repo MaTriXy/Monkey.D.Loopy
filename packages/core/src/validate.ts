@@ -189,6 +189,24 @@ export function validate(normalized: NormalizedSpec): ValidationResult {
     }
   };
 
+  /** Mutation values alone support native expression wrappers. Keep HTTP bodies and other
+   * structured payloads literal/interpolated for backwards-compatible safety. */
+  const checkMutationValue = (value: unknown, path: string, scope: RefScope): void => {
+    if (typeof value === "string") return checkTemplate(value, path, scope);
+    if (Array.isArray(value)) return value.forEach((item, index) => checkMutationValue(item, `${path}[${index}]`, scope));
+    if (!value || typeof value !== "object") return;
+    const entries = Object.entries(value as Record<string, unknown>);
+    if ("$expr" in (value as Record<string, unknown>)) {
+      if (entries.length !== 1 || typeof (value as Record<string, unknown>).$expr !== "string") {
+        err("bad-expr", `${path}: a $expr mutation wrapper must contain only a string $expr field`, path);
+        return;
+      }
+      checkGuard((value as Record<string, string>).$expr!, path, scope);
+      return;
+    }
+    for (const [key, item] of entries) checkMutationValue(item, `${path}.${key}`, scope);
+  };
+
   /** Record that a step writes `varName`, tracking whether that write is unconditional/live. */
   const recordWrite = (varName: string, w: WriterLiveness): void => {
     mutatedVars.add(varName);
@@ -236,7 +254,7 @@ export function validate(normalized: NormalizedSpec): ValidationResult {
       } else {
         recordWrite(varName, w);
       }
-      if (typeof value === "string") checkTemplate(value, `${path}.on_done.set.${varName}`, scope);
+      checkMutationValue(value, `${path}.on_done.set.${varName}`, scope);
     }
     for (const [varName, value] of Object.entries(onDone?.append ?? {})) {
       const decl = spec.state?.vars?.[varName];
@@ -248,7 +266,7 @@ export function validate(normalized: NormalizedSpec): ValidationResult {
         }
         recordWrite(varName, w);
       }
-      if (typeof value === "string") checkTemplate(value, `${path}.on_done.append.${varName}`, scope);
+      checkMutationValue(value, `${path}.on_done.append.${varName}`, scope);
     }
   };
 

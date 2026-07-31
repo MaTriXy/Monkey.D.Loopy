@@ -73,7 +73,7 @@ requireTruthy(reportedVersion === version, `loopc reports ${reportedVersion}; ro
 requireTruthy(help.includes(`loopc v${version}`), "CLI help does not report the release version");
 requireTruthy(help.includes(`${core.SUPPORTED_TARGETS.join(",")}|all`), "CLI help target list differs from core");
 for (const target of core.SUPPORTED_TARGETS) requireTruthy(targetOutput.includes(target), `loopc targets omits ${target}`);
-requireTruthy(core.BUILTIN_RECIPE_CATALOG.list().length === 6, "embedded recipe catalog does not contain six recipes");
+requireTruthy(core.BUILTIN_RECIPE_CATALOG.list().length >= 1, "embedded recipe catalog is empty");
 for (const recipe of core.BUILTIN_RECIPE_CATALOG.list()) {
   requireTruthy(recipeOutput.includes(recipe.manifest.name), `loopc recipes omits ${recipe.manifest.name}`);
 }

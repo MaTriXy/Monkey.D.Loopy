@@ -15,6 +15,7 @@ model's own report does (priced accordingly).
 | [`issue-triage.yaml`](issue-triage.yaml) | map-reduce | Label each issue in a batch, then combine into one triage summary | state-predicate · structural | 85 B |
 | [`nightly-digest.yaml`](nightly-digest.yaml) | cron | Every morning: fetch metrics, summarize, deliver to a webhook | state-predicate · structural | 85 B |
 | [`release-notes.yaml`](release-notes.yaml) | evaluator-optimizer | Draft release notes; a rubric judge grades until 90+ | llm-judge · agent | 82 B |
+| [`gauntlet.yaml`](gauntlet.yaml) | gauntlet | Scaffold the sequential builder/critic Gauntlet workflow | llm-judge · agent | raw 86.5 · official 87 B |
 
 The spread is deliberate. The three 96s never let the agent grade its own work — a shell
 exit code or a scan count decides. `release-notes` scores lower **because** its judge is a

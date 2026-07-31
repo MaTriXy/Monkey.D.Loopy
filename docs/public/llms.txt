@@ -14,6 +14,7 @@
 - [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended agent workflow, MCP pattern, context endpoints, and safety boundaries.
 - [First bounded loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart): Clean-room install, safe one-command proof, generated files, and production handoff.
 - [LoopSpec v0.1](https://matrixy.github.io/Monkey.D.Loopy/loopspec): Schema, steps, expressions, termination grounding, caps, and validation gates.
+- [Gauntlet workflows](https://matrixy.github.io/Monkey.D.Loopy/gauntlet): Opinionated selection guidance, Creative versus Verified grounding, workstreams, tradeoffs, and user-facing explanation.
 - [CLI reference](https://matrixy.github.io/Monkey.D.Loopy/cli): Every loopc command and the standard validate, verify, score, compile flow.
 - [Verified recipes](https://matrixy.github.io/Monkey.D.Loopy/recipes): Supported outcome-oriented starting points with provenance and safety contracts.
 - [Durable runtime](https://matrixy.github.io/Monkey.D.Loopy/runtime): Runtime API, provider-agnostic harnesses, cost metering, journals, and resume semantics.
@@ -26,4 +27,4 @@
 ## Source and releases
 
 - [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
-- [v0.7.1 release](https://github.com/MaTriXy/Monkey.D.Loopy/releases/tag/v0.7.1): Current documented release.
+- [Published releases](https://github.com/MaTriXy/Monkey.D.Loopy/releases): Public release history; the repository remains canonical for unpushed or unreleased work such as documentation generated from a local v0.8.0 tree.

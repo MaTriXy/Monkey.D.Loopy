@@ -5,9 +5,11 @@
  * IR can express each pattern. The value of the factory compounds with the gallery.
  */
 
+import type { LoopPattern } from "./types.js";
+export const PUBLIC_LOOP_PATTERNS: readonly LoopPattern[] = ["react", "plan-execute-reflect", "evaluator-optimizer", "loop-until-dry", "map-reduce", "poll-until", "cron", "gauntlet"];
 export interface Blueprint {
   name: string;
-  pattern: string;
+  pattern: LoopPattern;
   description: string;
   yaml: string;
 }
@@ -283,6 +285,118 @@ caps:
 schedule: { mode: cron, cron: "0 9 * * *" }
 `;
 
+const GAUNTLET = `loopspec: "0.1"
+id: gauntlet
+meta:
+  name: gauntlet
+  description: Agent-grounded sequential builder/critic gauntlet with artifact inspection.
+pattern: gauntlet
+inputs:
+  goal: { type: string, required: true }
+  bar: { type: string, required: true }
+  references: { type: json, required: true }
+  artifact_path: { type: string, default: output/artifact }
+  threshold: { type: number, default: 90 }
+  smoothing: { type: boolean, default: true }
+state:
+  store: journal
+  vars:
+    workstreams: { type: list, init: [] }
+    review_log: { type: list, init: [] }
+    review_history: { type: list, init: [] }
+    passed_count: { type: int, init: 0 }
+    last_score: { type: number, init: 0 }
+    last_gap: { type: string, init: "" }
+    latest_review: { type: json, init: null }
+    final_score: { type: number, init: 0 }
+    final_gap: { type: string, init: "" }
+    rounds: { type: int, init: 0 }
+    decomposed: { type: boolean, init: false }
+body:
+  - id: decompose
+    when: "\${state.decomposed == false}"
+    kind: agent
+    harness: cli
+    allowed-tools: [Read]
+    prompt: >-
+      Inspect the real artifact at \${inputs.artifact_path} read-only. Decompose goal \${inputs.goal}
+      against bar \${inputs.bar} and references \${inputs.references}. Return JSON {workstreams:[{id,title,scope}]}.
+    save: { workstreams: "$.workstreams" }
+    on_done: { set: { decomposed: true } }
+  - id: reset-round
+    kind: shell
+    cmd: ":"
+    on_done: { set: { passed_count: 0, final_score: 0, final_gap: "" }, incr: rounds }
+  - id: workstreams
+    kind: reduce
+    over: "\${state.workstreams || ''}"
+    as: workstream
+    body:
+      - id: build-workstream
+        kind: agent
+        harness: cli
+        allowed-tools: [Read, Edit, Bash]
+        prompt: >-
+          Work only within declared scope \${workstream.scope} for \${workstream.title}. Improve the real
+          artifact at \${inputs.artifact_path} toward \${inputs.goal}; prior reviews: \${state.review_history}.
+      - id: critique-workstream
+        kind: agent
+        harness: cli
+        allowed-tools: [Read]
+        prompt: >-
+          Fresh read-only critique: inspect the real artifact at \${inputs.artifact_path}, score workstream
+          \${workstream.title} against \${inputs.bar}. Return JSON {score,gap,evidence}.
+        save: { latest_review: "$", last_score: "$.score", last_gap: "$.gap" }
+        on_done:
+          append:
+            review_log: "\${workstream.title}: \${state.last_score}/\${inputs.threshold} — \${state.last_gap}"
+            review_history:
+              workstream:
+                id: { $expr: workstream.id }
+                title: { $expr: workstream.title }
+                scope: { $expr: workstream.scope }
+              critic:
+                score: { $expr: state.latest_review.score }
+                gap: { $expr: state.latest_review.gap }
+                evidence: { $expr: state.latest_review.evidence }
+      - id: count-pass
+        when: "\${state.last_score >= inputs.threshold}"
+        kind: shell
+        cmd: ":"
+        on_done: { incr: passed_count }
+  - id: smooth
+    when: "\${state.workstreams.length > 0 && state.passed_count == state.workstreams.length && inputs.smoothing == true}"
+    kind: agent
+    harness: cli
+    allowed-tools: [Read, Edit, Bash]
+    prompt: "Integrate and smooth the real artifact at \${inputs.artifact_path}; preserve all cleared workstreams."
+  - id: holistic-review
+    when: "\${state.workstreams.length > 0 && state.passed_count == state.workstreams.length}"
+    kind: agent
+    harness: cli
+    allowed-tools: [Read]
+    prompt: "Fresh read-only holistic review of \${inputs.artifact_path} against \${inputs.bar}. Return JSON {score,gap}."
+    save: { final_score: "$.score", final_gap: "$.gap" }
+terminate:
+  signal: llm-judge
+  until: "\${state.workstreams.length > 0 && state.final_score >= inputs.threshold}"
+caps:
+  max_iterations: 8
+  no_progress: { fingerprint: "\${state.passed_count + ':' + state.last_score + ':' + state.final_score}", max_repeats: 3 }
+  budget: { tokens: 240000, usd: 8, wallclock: "2h" }
+  on_cap_exceeded: breakpoint
+schedule: { mode: manual }
+artifacts:
+  include: ["output/**"]
+  exclude: ["**/.env*", "**/.git/**", "**/node_modules/**", "**/*secret*", "**/package-lock.json", "**/pnpm-lock.yaml"]
+  max_files: 100
+  max_bytes: 10000000
+notify: { policy: never, channels: [] }
+observe:
+  trace: journal
+  hooks: { completed: { kind: shell, cmd: "test -e \${inputs.artifact_path}" } }
+`;
+
 const BLUEPRINTS: Record<string, Blueprint> = {
   react: { name: "react", pattern: "react", description: "Reason-act-observe until the goal is met.", yaml: REACT },
   "plan-execute-reflect": {
@@ -316,10 +430,17 @@ const BLUEPRINTS: Record<string, Blueprint> = {
     yaml: POLL_UNTIL,
   },
   cron: { name: "cron", pattern: "cron", description: "One-shot run fired on a host schedule.", yaml: CRON },
+  gauntlet: { name: "gauntlet", pattern: "gauntlet", description: "Use for one substantial artifact with multiple reviewable workstreams: fresh builders, independent critics, then holistic review.", yaml: GAUNTLET },
 };
 
 export function listBlueprints(): Blueprint[] {
-  return Object.values(BLUEPRINTS);
+  const blueprints = Object.values(BLUEPRINTS);
+  for (const pattern of PUBLIC_LOOP_PATTERNS) {
+    if (blueprints.filter((blueprint) => blueprint.pattern === pattern).length !== 1) {
+      throw new Error(`blueprint catalog must contain exactly one canonical '${pattern}' blueprint`);
+    }
+  }
+  return blueprints;
 }
 
 export function getBlueprint(name: string): Blueprint | undefined {

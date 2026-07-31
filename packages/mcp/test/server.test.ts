@@ -51,7 +51,11 @@ describe("loopc-mcp", () => {
   it("get_loop_schema returns the authoring guide", async () => {
     const client = await connected();
     const res = await client.callTool({ name: "get_loop_schema", arguments: {} });
-    expect(firstText(res)).toContain("LoopSpec");
+    const guide = firstText(res);
+    expect(guide).toContain("LoopSpec");
+    expect(guide).toContain("Choosing a pattern");
+    expect(guide).toContain("Do not choose Gauntlet merely because the task is important");
+    expect(guide).toContain("Creative's 87/B is an honest workflow-safety score");
   });
 
   it("validate_loop accepts a blueprint and rejects an unbounded loop", async () => {
@@ -103,6 +107,15 @@ describe("loopc-mcp", () => {
     const client = await connected();
     const res = await client.callTool({ name: "new_loop", arguments: { id: "my-loop", blueprint: "react" } });
     expect(firstText(res)).toContain("id: my-loop");
+  });
+
+  it("discovers Gauntlet and returns the exact same generated blueprint LoopSpec as CLI", async () => {
+    const client = await connected();
+    const listed = await client.callTool({ name: "list_blueprints", arguments: {} });
+    expect(firstText(listed)).toContain("gauntlet");
+    expect(firstText(listed)).toContain("multiple reviewable workstreams");
+    const created = await client.callTool({ name: "new_loop", arguments: { id: "my-gauntlet", blueprint: "gauntlet" } });
+    expect(firstText(created)).toBe(getBlueprint("gauntlet")!.yaml.replace(/^id:.*$/m, "id: my-gauntlet"));
   });
 
   it("lists and instantiates verified recipes with durable provenance", async () => {

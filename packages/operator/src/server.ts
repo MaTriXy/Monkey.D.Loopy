@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadSpecFromYaml, terminationGrounding, type LoopSpec } from "@loopyc/core";
+import { BUILTIN_RECIPE_CATALOG, listBlueprints, loadSpecFromYaml, terminationGrounding, type LoopSpec, type LoopPattern } from "@loopyc/core";
 import { scoreLoop, verifyLoop } from "@loopyc/verify";
 import { OPERATOR_API_VERSION, listRuns } from "./read-model.js";
 import { OperatorRegistry, type LoopRegistration } from "./registry.js";
@@ -38,6 +38,26 @@ export interface OperatorServerHandle {
   token: string;
   start(): Promise<{ host: string; port: number; url: string }>;
   stop(): Promise<void>;
+}
+
+export interface WorkflowCatalogResponse {
+  apiVersion: "1";
+  workflows: Array<{ kind: "blueprint" | "recipe"; name: string; title: string; summary: string; pattern: LoopPattern; grounding: string; score: number; grade: string; schedule: string; featured: boolean; commandTemplate: string }>;
+}
+
+async function buildWorkflowCatalog(): Promise<WorkflowCatalogResponse> {
+  const workflows: WorkflowCatalogResponse["workflows"] = [];
+  for (const blueprint of listBlueprints()) {
+    const loaded = loadSpecFromYaml(blueprint.yaml);
+    if (!loaded.spec) continue;
+    const scorecard = scoreLoop(loaded.spec, await verifyLoop(loaded.spec, loaded.capsInjected ?? false));
+    workflows.push({ kind: "blueprint", name: blueprint.name, title: blueprint.name, summary: blueprint.description, pattern: blueprint.pattern, grounding: terminationGrounding(loaded.spec).class, score: scorecard.total, grade: scorecard.grade, schedule: loaded.spec.schedule?.mode ?? "manual", featured: blueprint.name === "gauntlet", commandTemplate: `loopc new my-launch --blueprint ${blueprint.name}` });
+  }
+  for (const recipe of BUILTIN_RECIPE_CATALOG.list()) {
+    const scorecard = scoreLoop(recipe.spec, await verifyLoop(recipe.spec, false));
+    workflows.push({ kind: "recipe", name: recipe.manifest.name, title: recipe.manifest.title, summary: recipe.manifest.summary, pattern: recipe.spec.pattern, grounding: terminationGrounding(recipe.spec).class, score: scorecard.total, grade: scorecard.grade, schedule: recipe.manifest.schedule.mode, featured: recipe.manifest.name === "verified-gauntlet", commandTemplate: `loopc new my-launch --recipe ${recipe.manifest.name}` });
+  }
+  return { apiVersion: "1", workflows: workflows.sort((a, b) => Number(b.featured) - Number(a.featured) || a.name.localeCompare(b.name)) };
 }
 
 function secureEqual(actual: string | undefined, expected: string): boolean {
@@ -99,7 +119,7 @@ async function loopOverview(loop: LoopRegistration, controller: OperatorRunContr
       score = scoreLoop(loaded.spec, report).total;
       grounding = terminationGrounding(loaded.spec).class;
       loadedSpec = loaded.spec;
-      spec = { signal: loaded.spec.terminate.signal, caps: loaded.spec.caps, schedule: loaded.spec.schedule };
+      spec = { signal: loaded.spec.terminate.signal, caps: loaded.spec.caps, schedule: loaded.spec.schedule, pattern: loaded.spec.pattern, meta: loaded.spec.meta, inputs: loaded.spec.inputs };
     }
   }
   const runs = listRuns(loop.path);
@@ -176,6 +196,7 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
   const scheduler = options.scheduler ?? new OperatorScheduler(controller);
   const token = options.token ?? registry.ensureToken();
   const assetsDir = options.assetsDir ?? DEFAULT_ASSETS;
+  const workflowCatalog = buildWorkflowCatalog();
 
   const server = createHttpServer(async (req, res) => {
     try {
@@ -297,6 +318,10 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
 
       if (url.pathname === "/api/v1/health") {
         json(res, 200, { apiVersion: OPERATOR_API_VERSION, ok: true, loopback: true, scheduler: true });
+        return;
+      }
+      if (url.pathname === "/api/v1/catalog") {
+        json(res, 200, await workflowCatalog);
         return;
       }
       if (url.pathname === "/api/v1/loops") {

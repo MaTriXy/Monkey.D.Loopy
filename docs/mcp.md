@@ -75,7 +75,7 @@ also embeddable in-process via the SDK's `InMemoryTransport` (see
 |---|---|---|
 | `get_loop_schema` | — | The LoopSpec authoring guide. **Read this first.** |
 | `list_blueprints` | — | The built-in blueprints (one per pattern). |
-| `new_loop` | `id`, `blueprint?`, `pattern?` | A scaffolded LoopSpec YAML. |
+| `new_loop` | `id`, `blueprint?`, `recipe?`, `pattern?` (including `gauntlet`) | A scaffolded LoopSpec YAML. |
 | `validate_loop` | `yaml` | Validator diagnostics; `isError` when invalid. |
 | `verify_loop` | `yaml` | Dry-run report (bounded/deterministic/resume-stable) + scorecard. No side effects. |
 | `compile_loop` | `yaml`, `target?` (`standalone`, `babysitter`, `claude-code`, `claude-native`, `n8n`, or `all`), `out?` | Writes files when `out` is given; otherwise returns the planned files inline. |

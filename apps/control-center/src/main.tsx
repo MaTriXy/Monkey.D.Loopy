@@ -1,6 +1,14 @@
 import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import {
+  copyWorkflowCommand,
+  materializeWorkflowCommand,
+  orderWorkflows,
+  projectGauntletRunStatus,
+  projectGauntletState,
+  type WorkflowSummary,
+} from "./gauntlet";
 
 type Status = "completed" | "waiting" | "paused" | "uncertain" | "stopped" | "failed" | "unknown";
 interface Run {
@@ -45,12 +53,11 @@ interface Loop {
   artifacts?: { files: Array<{ path: string; size: number; mime: string; sha256: string; modifiedAt: number; localUrl: string }>; totalBytes: number; truncated: boolean; diagnostics: string[] };
   score?: number;
   grounding?: string;
-  spec?: { signal?: string; caps?: Record<string, unknown>; schedule?: Record<string, unknown> };
+  spec?: { signal?: string; caps?: Record<string, unknown>; schedule?: Record<string, unknown>; pattern?: string; meta?: Record<string, unknown>; inputs?: Record<string, { default?: unknown }> };
   revisions?: Revision[];
   runs: Run[];
   source: { artifact: string; spec: string };
 }
-
 function badge(value: string): string {
   if (["completed", "healthy", "verified", "external", "active"].includes(value)) return "good";
   if (["failed", "error", "corrupt", "truncated", "uncertain", "rejected"].includes(value)) return "bad";
@@ -67,6 +74,9 @@ function relativeTime(ts?: number): string {
 
 function App() {
   const [loops, setLoops] = useState<Loop[]>([]);
+  const [catalog, setCatalog] = useState<WorkflowSummary[]>([]);
+  const [newLoopId, setNewLoopId] = useState("my-launch");
+  const [announcement, setAnnouncement] = useState("");
   const [selectedId, setSelectedId] = useState<string>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -80,6 +90,8 @@ function App() {
       const response = await fetch("/api/v1/loops", { credentials: "same-origin" });
       if (!response.ok) throw new Error(response.status === 401 ? "Open the tokenized URL printed by loopyd ui." : `API returned ${response.status}`);
       const payload = await response.json() as { loops: Loop[] };
+      const catalogResponse = await fetch("/api/v1/catalog", { credentials: "same-origin" });
+      if (catalogResponse.ok) setCatalog(orderWorkflows((await catalogResponse.json() as { workflows: WorkflowSummary[] }).workflows));
       setLoops(payload.loops);
       setSelectedId((current) => current ?? payload.loops[0]?.id);
       setError(undefined);
@@ -100,6 +112,12 @@ function App() {
 
   const selected = useMemo(() => loops.find((loop) => loop.id === selectedId), [loops, selectedId]);
   const run = selected?.runs.toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+  const gauntlet = useMemo(
+    () => selected?.spec?.pattern === "gauntlet"
+      ? projectGauntletState(run?.state, selected.spec.inputs && Object.fromEntries(Object.entries(selected.spec.inputs).map(([key, value]) => [key, value.default])))
+      : undefined,
+    [run?.state, selected?.spec?.inputs, selected?.spec?.pattern],
+  );
   const healthy = loops.filter((loop) => loop.runs.every((candidate) => candidate.health === "healthy")).length;
   const attention = loops.length - healthy;
 
@@ -133,6 +151,7 @@ function App() {
     `${action} revision`,
   );
   const rollback = () => selected && void mutate(`/api/v1/loops/${selected.id}/evolution/rollback`, { reason }, "rollback revision");
+  const copyCommand = (command: string) => void copyWorkflowCommand((value) => navigator.clipboard.writeText(value), command).then(setAnnouncement);
 
   return <main>
     <header className="topbar">
@@ -148,6 +167,16 @@ function App() {
     </section>
 
     {error && <div className="error" role="alert">{error}</div>}
+    <p className="sr-only" aria-live="polite">{announcement}</p>
+    {catalog.length > 0 && <section className="workflow-gallery" aria-labelledby="gallery-title">
+      <div><p className="eyebrow">Workflow gallery</p><h2 id="gallery-title">Start a bounded workflow</h2></div>
+      <label className="gallery-loop-id"><span>New loop ID</span><input value={newLoopId} onChange={(event) => setNewLoopId(event.target.value)} aria-describedby="loop-id-help" aria-invalid={!materializeWorkflowCommand(catalog[0]!.commandTemplate, newLoopId)} /></label>
+      <p id="loop-id-help" className="gallery-help">Lowercase letters and numbers separated by single hyphens.</p>
+      <div className="gallery-grid">{catalog.map((workflow) => {
+        const command = materializeWorkflowCommand(workflow.commandTemplate, newLoopId);
+        return <article key={`${workflow.kind}-${workflow.name}`} className="gallery-card"><p>{workflow.kind} · {workflow.pattern}</p><h3>{workflow.title}</h3><p>{workflow.summary}</p><small>{workflow.grounding} grounding · {workflow.score} {workflow.grade} · {workflow.schedule}</small><code>{command ?? "Enter a valid loop ID"}</code><button disabled={!command} onClick={() => command && copyCommand(command)} aria-label={command ? `Copy ${command}` : `Enter a valid loop ID before copying ${workflow.title}`}>Copy loopc command</button></article>;
+      })}</div>
+    </section>}
     {loading ? <div className="empty">Reading verified journals…</div> : loops.length === 0 ? <div className="empty"><b>No loops installed.</b><span>Run <code>loopyd install ./out/my-loop/standalone</code> to add one without changing the artifact.</span></div> :
       <div className="workspace">
         <nav className="loop-list" aria-label="Installed loops">
@@ -229,6 +258,14 @@ function App() {
           </section>
           {run ? <>
             <div className="run-title"><div><h3>Latest run · {run.runId}</h3><p>{run.iteration} iterations · {run.tokens.toLocaleString()} tokens · ${run.usd.toFixed(4)}</p></div><div className="badges"><span className={badge(run.status)}>{run.status}</span><span className={badge(run.integrity)}>{run.integrity}</span></div></div>
+            {gauntlet && <section className="gauntlet-board" aria-labelledby="gauntlet-title">
+              <div><p className="eyebrow">{gauntlet.variant} Gauntlet</p><h3 id="gauntlet-title">Round {gauntlet.round} · {gauntlet.stage}</h3></div>
+              <dl className="facts"><div><dt>Workstreams</dt><dd>{gauntlet.workstreams.length}</dd></div>{gauntlet.passed !== undefined && <div><dt>Cleared</dt><dd>{gauntlet.passed}</dd></div>}{gauntlet.score !== undefined && <div><dt>Score</dt><dd>{gauntlet.score}{gauntlet.threshold !== undefined ? ` / ${gauntlet.threshold}` : ""}</dd></div>}<div><dt>{projectGauntletRunStatus(run.iteration, run.tokens, run.usd).iteration}</dt><dd>{projectGauntletRunStatus(run.iteration, run.tokens, run.usd).budget}</dd></div></dl>
+              {gauntlet.summary && <p>{gauntlet.summary}</p>}
+              {gauntlet.workstreams.length > 0 && <ul className="gauntlet-streams">{gauntlet.workstreams.map((stream) => <li key={stream.id}><b>{stream.title}</b><span>{stream.scope} · {stream.gap}</span></li>)}</ul>}
+              {selected.artifacts?.files.length ? <p><b>Allowlisted artifacts:</b> {selected.artifacts.files.slice(0, 5).map((artifact, index) => <span key={artifact.path}>{index ? " · " : ""}<a href={artifact.localUrl}>{artifact.path}</a></span>)}</p> : null}
+              {gauntlet.gaps.length > 0 && <p><b>Largest gaps:</b> {gauntlet.gaps.join(" · ")}</p>}
+            </section>}
             {run.integrityDetail && <div className="integrity" role="status">{run.integrityDetail}</div>}
             <ol className="timeline" role="list">
               {run.timeline.toReversed().slice(0, 12).map((event) => <li key={event.seq}><span className="dot" /><div><b>{event.summary}</b><small>#{event.seq} · {new Date(event.ts).toLocaleString()} · {event.type}</small></div></li>)}

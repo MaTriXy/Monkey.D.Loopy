@@ -1,7 +1,7 @@
 {
   "name": "monkey-d-loopy",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -42,6 +42,9 @@
     "onlyBuiltDependencies": ["esbuild"],
     "overrides": {
       "bundle-require>esbuild": "^0.28.1",
+      "fast-uri": ">=3.1.4",
+      "postcss": ">=8.5.18",
+      "@hono/node-server": ">=2.0.5",
       "tsup>esbuild": "^0.28.1",
       "vitepress>vite": "^6.4.3"
     }

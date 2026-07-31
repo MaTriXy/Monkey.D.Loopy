@@ -15,7 +15,7 @@ any code is emitted. Canonical types live in
 |---|---|---|
 | `loopspec` | ✓ | Format version — `"0.1"`. |
 | `id` | ✓ | Identifier; matches `[A-Za-z0-9_.:-]+` (lowered into code/comments). |
-| `pattern` | ✓ | `react` · `plan-execute-reflect` · `evaluator-optimizer` · `loop-until-dry` · `map-reduce` · `poll-until` · `cron`. |
+| `pattern` | ✓ | `react` · `plan-execute-reflect` · `evaluator-optimizer` · `loop-until-dry` · `map-reduce` · `poll-until` · `cron` · `gauntlet`. |
 | `body` | ✓ | The iteration: a non-empty list of steps. |
 | `terminate` | ✓ | Exit predicate + signal tier (see below). |
 | `caps` | auto | Limits. Auto-injected per-pattern if omitted; set them explicitly. |
@@ -69,6 +69,9 @@ extractions into state; `agent` `save` reads the harness's structured result env
   the HTTP status of a JSON response. Default (omitted) keeps the body-direct shape.
 - **`on_done`**: `{ incr: <var> }` | `{ set: { <var>: value-or-${expr} } }` | `{ append: { <listVar>: value-or-${expr} } }`
   (`append` into a `list` var is how `reduce` accumulates per-item results.)
+  Mutation values may preserve native types and recursively evaluate a safe expression with
+  `{ $expr: "state.review" }`; the wrapper must contain exactly that one string field. This is
+  intentionally limited to `on_done.set` and `on_done.append`—HTTP bodies stay data.
 
 ## Expression language (`${...}`)
 

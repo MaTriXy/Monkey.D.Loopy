@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 — 2026-07-30
+
+- Added the first-class `gauntlet` pattern, creative builder/critic blueprint, and recursive native
+  mutation `$expr` wrappers with interpreter and compiler parity.
+- Added the oracle-grounded `verified-gauntlet` recipe, trusted argv judge boundary, fixtures, CLI/
+  MCP discovery, and operator workflow catalog support.
+- Added Gauntlet documentation and updated release parity to derive the recipe catalog size.
+
 ## 0.7.1 — 2026-07-21
 
 - Raised the deterministic eval test budget to 15 seconds so slower Node 24 release runners do

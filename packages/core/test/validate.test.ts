@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBlueprint, listBlueprints, loadSpecFromYaml, processRaw } from "../src/index.js";
+import { getBlueprint, listBlueprints, loadSpecFromYaml, processRaw, PUBLIC_LOOP_PATTERNS } from "../src/index.js";
 
 function codes(raw: unknown): string[] {
   const r = processRaw(raw);
@@ -20,10 +20,27 @@ const validBase = {
 };
 
 describe("validator hard gates", () => {
+  it("ships exactly one canonical blueprint for every public pattern", () => {
+    const blueprints = listBlueprints();
+    expect(blueprints).toHaveLength(PUBLIC_LOOP_PATTERNS.length);
+    expect(blueprints.map((blueprint) => blueprint.pattern).sort()).toEqual([...PUBLIC_LOOP_PATTERNS].sort());
+  });
   it("passes a well-formed spec", () => {
     const r = processRaw(validBase);
     expect(r.validation!.ok).toBe(true);
     expect(r.spec).toBeDefined();
+  });
+
+  it("accepts recursive native mutation expressions but rejects mixed wrappers", () => {
+    const good = {
+      ...validBase,
+      state: { vars: { done: { type: "boolean", init: false }, payload: { type: "json", init: null } } },
+      body: [{ id: "w", kind: "agent", harness: "cli", prompt: "do", on_done: { set: { done: true, payload: { score: { $expr: "iteration + 1" }, tags: [false, null] } } } }],
+    };
+    expect(processRaw(good).validation!.ok).toBe(true);
+    const bad = structuredClone(good) as Record<string, unknown>;
+    (((bad.body as Array<Record<string, unknown>>)[0]!.on_done as Record<string, unknown>).set as Record<string, unknown>).payload = { $expr: "iteration", extra: true };
+    expect(codes(bad)).toContain("bad-expr");
   });
 
   it("refuses a spec with no termination predicate", () => {
@@ -401,5 +418,26 @@ describe("blueprint catalog", () => {
   it("the poll-until blueprint is the deploy-watch example", () => {
     const r = loadSpecFromYaml(getBlueprint("poll-until")!.yaml);
     expect(r.spec!.id).toBe("deploy-watch");
+  });
+});
+
+describe("recursive native mutation expressions", () => {
+  const mutationBase = {
+    ...validBase,
+    state: { vars: { done: { type: "boolean", init: false }, payload: { type: "json", init: null }, values: { type: "list", init: [] } } },
+    body: [{ id: "write", kind: "shell", cmd: ":", on_done: { set: { done: true, payload: { nested: { value: { $expr: "iteration + 1" } } }, }, append: { values: [{ $expr: "state.payload" }] } } }],
+  };
+
+  it("accepts nested set/append wrappers and legacy string interpolation", () => {
+    const result = processRaw({ ...mutationBase, body: [{ id: "write", kind: "shell", cmd: ":", on_done: { set: { done: true, payload: { text: "round ${iteration}", nested: { value: { $expr: "iteration + 1" } } } }, append: { values: { $expr: "state.payload" } } } }] });
+    expect(result.validation!.ok).toBe(true);
+  });
+
+  it("rejects malformed wrappers and references outside the active scope", () => {
+    for (const value of [{ $expr: 1 }, { $expr: "iteration", extra: true }, { $expr: "state.missing" }, { $expr: "workstream.id" }]) {
+      const result = processRaw({ ...mutationBase, body: [{ id: "write", kind: "shell", cmd: ":", on_done: { set: { done: true, payload: value } } }] });
+      expect(result.validation!.ok, JSON.stringify(result.validation?.errors)).toBe(false);
+      expect(result.validation!.errors.some((error) => error.code === "bad-expr" || error.code === "bad-ref")).toBe(true);
+    }
   });
 });
