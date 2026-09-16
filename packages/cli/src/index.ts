@@ -434,10 +434,17 @@ async function bundleRuntime(): Promise<string> {
   // import.meta.resolve is unavailable (e.g. Vitest's SSR transform), which resolves fine against
   // the in-repo workspace exports.
   const metaResolve = (import.meta as unknown as { resolve?: (s: string) => string }).resolve;
-  const entry =
-    typeof metaResolve === "function"
+  let entry: string;
+  try {
+    entry = typeof metaResolve === "function"
       ? fileURLToPath(metaResolve("@loopyc/runtime"))
       : createRequire(import.meta.url).resolve("@loopyc/runtime");
+  } catch (error) {
+    // Vite's module runner exposes a resolve function that throws instead of
+    // omitting it. Keep real ESM resolution failures visible in published builds.
+    if (!(error instanceof Error) || error.message !== '[module runner] "import.meta.resolve" is not supported.') throw error;
+    entry = createRequire(import.meta.url).resolve("@loopyc/runtime");
+  }
   const result = await build({
     entryPoints: [entry],
     bundle: true,

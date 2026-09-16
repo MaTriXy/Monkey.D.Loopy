@@ -72,6 +72,18 @@ function guardStateRefs(when: string | undefined): string[] {
   }
 }
 
+/** Collect references from every nested native mutation value, including `$expr` wrappers. */
+function mutationStateRefs(value: unknown): string[] {
+  if (typeof value === "string") return templateStateRefs(value);
+  if (Array.isArray(value)) return value.flatMap(mutationStateRefs);
+  if (!value || typeof value !== "object") return [];
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 1 && entries[0]![0] === "$expr" && typeof entries[0]![1] === "string") {
+    try { return stateRefsOf(parseGuard(entries[0]![1])); } catch { return []; }
+  }
+  return entries.flatMap(([, nested]) => mutationStateRefs(nested));
+}
+
 /** The minimal spec shape grounding needs — both the validator's pre-normalization
  *  view and a full LoopSpec satisfy it. */
 export interface GroundingInput {
@@ -115,10 +127,10 @@ export function terminationGrounding(spec: GroundingInput): TerminationGrounding
       };
       if (od.incr) structuralWrite(od.incr, []);
       for (const [v, val] of Object.entries(od.set ?? {})) {
-        structuralWrite(v, typeof val === "string" ? templateStateRefs(val) : []);
+        structuralWrite(v, mutationStateRefs(val));
       }
       for (const [v, val] of Object.entries(od.append ?? {})) {
-        structuralWrite(v, typeof val === "string" ? templateStateRefs(val) : []);
+        structuralWrite(v, mutationStateRefs(val));
       }
     }
   };

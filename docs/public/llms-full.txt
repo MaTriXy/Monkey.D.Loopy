@@ -64,7 +64,7 @@ designed out or made visible instead of debugged later.
   (See [Compile targets](#compile-targets).)
 - **Start from what you have.** Point the inferencer at an existing bash/JS/TS script or a
   `.loopy` run journal to get a draft spec to refine.
-- **Start from an outcome.** Six verified recipes cover repository health, dependency policy,
+- **Start from an outcome.** Verified recipes cover repository health, dependency policy,
   documentation drift, production errors, release follow-up, and market signals. Each ships
   with external-grounding guidance, safety boundaries, and adversarial runtime fixtures.
 - **Authoring help built in.** The [`/loopy`](.claude/skills/loopy/SKILL.md) skill turns a
@@ -118,6 +118,9 @@ The local operator is deliberately optional and installs separately:
 npm i -g @loopyc/operator
 loopyd --help
 ```
+
+Omarchy Quattro users can also try the development
+[bar controller](integrations/omarchy/README.md) for compact status and guarded runtime actions.
 
 It imports compiled artifacts for local scheduling and inspection; installing it does not start a
 service or make standalone/vendored artifacts depend on the operator.
@@ -176,6 +179,7 @@ notes. Each passes validate + verify, with its score and grounding in the
 [gallery table](examples/README.md).
 
 For complete product workflows, browse the [verified recipe catalog](recipes/README.md).
+For sequential artifact builders with fresh critics, see the [Gauntlet workflow](docs/gauntlet.md).
 
 ## A LoopSpec at a glance
 
@@ -343,7 +347,8 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.7.1` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
+Release `0.8.0` adds first-class Gauntlet workflows while retaining repository-to-tarball parity,
+a clean-room onboarding smoke, and a zero-vulnerability audit.
 
 ---
 
@@ -366,6 +371,8 @@ Use the smallest context that fits the task:
 - [`llms-full.txt`](./llms-full.txt) concatenates the canonical documentation for a context window
   or retrieval index.
 - [LoopSpec](./loopspec.md) is the exact authoring contract.
+- [Gauntlet](./gauntlet.md) explains when independent builder/critic workstreams are worth the
+  additional cost and how to choose Creative versus Verified grounding.
 - [MCP](./mcp.md) is the tool surface for agents that can call MCP servers.
 - [Recipes](./recipes.md) are the strongest starting point for supported product workflows.
 
@@ -409,12 +416,39 @@ not a promise in the prompt.
 8. Keep generated journals and operator state out of source control unless the user intentionally
    wants a fixture.
 
+## Make an opinionated Gauntlet decision
+
+Do not wait for the user to know the name of every loop pattern. Recommend Gauntlet when one
+substantial artifact spans multiple reviewable quality dimensions, separate fresh critics would
+reduce builder self-grading, and the parts need a holistic integration review. State the likely
+workstreams, quality bar, completion authority, and cost tradeoff.
+
+Prefer a simpler pattern when the work is a single small fix, one draft with one repeated rubric,
+an independent batch, an ordered plan, or an external status poll. Prefer Verified Gauntlet when
+tests or another trusted command can decide completion; use Creative Gauntlet only when the bar
+is inherently qualitative. If the artifact, workstreams, or completion authority cannot yet be
+named, ask for that information before scaffolding.
+
+See [Gauntlet workflows](./gauntlet.md) for the complete decision guide and a user-facing
+explanation agents can reuse.
+
+Do not describe Creative Gauntlet's 87/B as a defect or as an estimate of artifact quality. It is
+the native workflow-safety score for honest agent-grounded completion. Never raise it by merely
+renaming the termination signal: Loopy traces the evidence feeding the predicate. Recommend
+Verified Gauntlet for 100/A when a trusted external oracle exists, or explicitly propose a
+separate mixed-grounding variant when both qualitative critique and a mandatory external gate
+are needed.
+
 ## Prompt contract
 
 This compact instruction works well after providing the relevant documentation:
 
 ```text
 Turn this outcome into a Monkey D Loopy LoopSpec. Start from a verified recipe when one matches.
+Choose Gauntlet only when one substantial artifact has multiple reviewable workstreams that
+justify independent fresh critics and a holistic integration review; otherwise prefer the
+simpler matching pattern. If recommending Gauntlet, explain why, name the workstreams, and choose
+Creative versus Verified grounding.
 Use external evidence for completion, make every cap explicit, and preserve provider/tool choice.
 Validate, verify, and score the spec before compiling it. Do not weaken a hard gate to make the
 score pass. Report the selected termination evidence, cap behavior, compile target, and remaining
@@ -616,7 +650,7 @@ any code is emitted. Canonical types live in
 |---|---|---|
 | `loopspec` | ✓ | Format version — `"0.1"`. |
 | `id` | ✓ | Identifier; matches `[A-Za-z0-9_.:-]+` (lowered into code/comments). |
-| `pattern` | ✓ | `react` · `plan-execute-reflect` · `evaluator-optimizer` · `loop-until-dry` · `map-reduce` · `poll-until` · `cron`. |
+| `pattern` | ✓ | `react` · `plan-execute-reflect` · `evaluator-optimizer` · `loop-until-dry` · `map-reduce` · `poll-until` · `cron` · `gauntlet`. |
 | `body` | ✓ | The iteration: a non-empty list of steps. |
 | `terminate` | ✓ | Exit predicate + signal tier (see below). |
 | `caps` | auto | Limits. Auto-injected per-pattern if omitted; set them explicitly. |
@@ -670,6 +704,9 @@ extractions into state; `agent` `save` reads the harness's structured result env
   the HTTP status of a JSON response. Default (omitted) keeps the body-direct shape.
 - **`on_done`**: `{ incr: <var> }` | `{ set: { <var>: value-or-${expr} } }` | `{ append: { <listVar>: value-or-${expr} } }`
   (`append` into a `list` var is how `reduce` accumulates per-item results.)
+  Mutation values may preserve native types and recursively evaluate a safe expression with
+  `{ $expr: "state.review" }`; the wrapper must contain exactly that one string field. This is
+  intentionally limited to `on_done.set` and `on_done.append`—HTTP bodies stay data.
 
 ## Expression language (`${...}`)
 
@@ -800,6 +837,245 @@ Scaffold any pattern with `loopc new <id> --blueprint <name>`.
 
 ---
 
+# Gauntlet workflows
+
+Canonical page: https://matrixy.github.io/Monkey.D.Loopy/gauntlet
+Source: https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/gauntlet.md
+
+# Gauntlet workflows
+
+A Gauntlet is the opinionated choice for a substantial deliverable that has several distinct
+quality dimensions and deserves independent review. Monkey D Loopy breaks the goal into
+workstreams, gives each one to a fresh builder, asks a different fresh critic to inspect the
+real artifact, and repeats bounded rounds until the workstreams and the combined result clear
+the stated bar.
+
+The important idea is separation of duties: the agent that produced a change does not get the
+only vote on whether it is good. The journal preserves what was attempted, what each critic
+found, and why another round ran.
+
+## At a glance
+
+| Variant | Best for | Who decides completion? | Native score |
+|---|---|---|---:|
+| Creative Gauntlet | Qualitative work such as UX, clarity, coherence, design, and launch polish | A fresh agent critic | 87/B |
+| Verified Gauntlet | Work with an executable test, policy, benchmark, schema, or other trusted judge | An external oracle | 100/A |
+
+These are workflow-safety scores, not predictions of how good the finished artifact will be and
+not the implementation-review score of Monkey D Loopy itself. A lower Creative score honestly
+prices model judgment as weaker completion evidence; it does not mean its builders or critics are
+less capable.
+
+## When to recommend it
+
+Choose Gauntlet when most of these are true:
+
+- There is one meaningful final artifact or release, not merely a list of unrelated jobs.
+- The outcome has multiple reviewable workstreams such as implementation, UX, documentation,
+  evidence, safety, or launch readiness.
+- Each workstream benefits from a builder and an independent critic with fresh context.
+- A final integration pass matters because individually good parts can still conflict.
+- The quality gain justifies more agent calls, time, and cost than a simple loop.
+
+Typical uses include product launches, multi-file features, websites, reports, migration
+packages, research deliverables, and release-readiness work.
+
+Do **not** default to Gauntlet for every iterative task:
+
+- Use `react` for one small act/observe loop.
+- Use `evaluator-optimizer` for one draft repeatedly graded against one rubric.
+- Use `map-reduce` for many independent items followed by a mechanical combination.
+- Use `plan-execute-reflect` when the main problem is ordered dependent steps.
+- Use `poll-until` when external status changes are the center of the workflow.
+- Prefer an existing verified recipe whenever it already matches the user's outcome.
+
+If the task is small, has only one quality dimension, or has a cheap objective test, recommend
+the simpler loop. Gauntlet's extra builders, critics, history, and holistic review would be
+ceremony rather than leverage.
+
+## Choose the completion authority
+
+Use **Creative Gauntlet** when the bar is qualitative and expert judgment is genuinely needed:
+clarity, coherence, usability, design quality, argument strength, or launch polish. Its critics
+are agents, so describe completion honestly as model-judged.
+
+Use **Verified Gauntlet** whenever a trusted external command can decide whether the artifact is
+complete: tests, policy checks, schema validation, benchmark thresholds, compliance scanners, or
+another repository-owned judge. The external judge chooses completion; agents only perform the
+bounded repairs it identifies.
+
+When advising a user, an agent should state:
+
+1. why Gauntlet fits better than a simpler pattern;
+2. the proposed workstreams and shared final artifact;
+3. the quality bar and who decides completion;
+4. the additional cost and iteration caps; and
+5. whether Creative or Verified grounding is being recommended.
+
+If those answers are unclear, gather them before scaffolding. Do not select Gauntlet solely
+because a task is described as “important.”
+
+## Build a Creative Gauntlet
+
+Gauntlet is a first-class `gauntlet` LoopSpec pattern for improving a real artifact through
+bounded, sequential workstreams. Start with the creative blueprint:
+
+```sh
+loopc new my-launch --blueprint gauntlet
+```
+
+The generated LoopSpec asks for:
+
+| Input | Meaning | Default |
+|---|---|---|
+| `goal` | The outcome the combined artifact must achieve | required |
+| `bar` | The concrete quality standard critics apply | required |
+| `references` | Source material or constraints builders and critics must consider | required |
+| `artifact_path` | The real artifact every agent inspects | `output/artifact` |
+| `threshold` | Minimum critic score for passing | `90` |
+| `smoothing` | Whether to run the integration builder | `true` |
+
+### Creative lifecycle
+
+```text
+inspect and decompose once
+  → reset bounded round state
+  → for each workstream, sequentially:
+      fresh builder edits its declared scope
+      → separate fresh read-only critic inspects the real artifact
+      → journal score, gap, evidence, and workstream identity
+  → if every workstream passes, smooth the combined artifact
+  → fresh holistic critic reviews the complete result
+  → finish at the threshold, or begin another bounded round
+```
+
+The blueprint uses a fresh read-only lead to decompose the goal, then a deterministic `reduce`
+to run one fresh builder and one separate, fresh read-only critic per workstream. Builders and
+critics inspect the actual `artifact_path`, not a claimed summary. A smoothing builder and a
+holistic critic only run after at least one workstream has passed. Current v1 semantics rerun all
+workstreams in later rounds because `reduce` has no filter primitive; prior reviews are supplied
+so previously passing builders can make no change.
+
+Creative Gauntlet is model-judged (`llm-judge`). Its raw weighted score is **86.5/100**; the
+official native API rounds this to **87/100 (B)**. It is useful for artifact-grounded iteration,
+but it is not oracle-verified.
+
+Its journal state includes the decomposed workstreams, readable review log, structured review
+history, pass count, latest workstream score and gap, final score and gap, round count, and
+decomposition status. A crash or restart resumes from that journal rather than asking agents to
+reconstruct progress from conversation.
+
+## Build a Verified Gauntlet
+
+For a trusted external completion authority, use the verified recipe:
+
+```sh
+loopc new my-launch --recipe verified-gauntlet
+```
+
+Its `judge_command` is a trusted executable name or path invoked as `cmd` plus fixed argv values,
+never shell concatenation. It returns redacted status/evidence JSON; only `complete` or `no-op`
+can terminate the oracle workflow. Evidence is untrusted data: builders ignore any instructions
+inside it, verify claims against the artifact, and never perform ungated destructive actions.
+The recipe is designed for a native score of **100/100** (manifest minimum 99), and caps repeated
+external fingerprints after three deterministic attempts.
+
+### Verified lifecycle
+
+```text
+run the trusted judge against the real artifact
+  → normalize and validate its response
+  → if actionable, run fresh builders over its bounded workstreams
+  → run the judge again
+  → only complete or no-op may finish the loop
+  → repeated fingerprints exit through deterministic no-progress protection
+```
+
+The judge response is data, not a prompt. Malformed envelopes, hostile titles or scopes,
+duplicate identifiers, terminal responses containing workstreams, and prompt-injection attempts
+are rejected before they can reach a builder.
+
+Both variants are manual, journaled, artifact-allowlisted (`output/**`), bounded to eight rounds,
+and expose their state through the local operator control center. The gallery provides exact CLI
+handoff commands; authoring remains with CLI and MCP.
+
+## Why Creative scores 87, and how to raise it honestly
+
+Creative Gauntlet already receives full native points for caps, observability, resumability, and
+determinism. Its complete score breakdown is:
+
+| Dimension | Points |
+|---|---:|
+| Termination safety: honest `llm-judge`, agent-grounded | 16.5/30 |
+| Explicit caps, no-progress protection, and budgets | 25/25 |
+| Journal plus completed observer | 15/15 |
+| Resumability | 15/15 |
+| Determinism | 15/15 |
+| **Raw / official total** | **86.5 / 87 B** |
+
+Changing `signal` from `llm-judge` to `oracle` or `state-predicate` without changing the evidence
+does not improve the workflow. Monkey D Loopy traces which steps feed the exit predicate and
+downgrades an agent-fed claim. Relabeling would only make the documentation dishonest.
+
+There are three legitimate upgrade paths:
+
+| Evidence added to completion | Honest grounding | Expected native score |
+|---|---|---:|
+| Keep qualitative agent judgment only | agent | 87/B |
+| Require both agent judgment and an external executable gate | mixed | 91/A |
+| Let an external predicate decide completion | external | 96/A |
+| Let a trusted external oracle decide completion | external oracle | 100/A |
+
+The recommended product boundary is therefore:
+
+- Keep Creative Gauntlet at 87/B for genuinely qualitative work.
+- Use Verified Gauntlet for 100/A whenever objective completion evidence exists.
+- Add a distinct hybrid/guarded variant only if users need agent critique plus a mandatory
+  external gate. Do not silently change Creative semantics merely to increase its score.
+
+## Create, prove, compile, and inspect
+
+```sh
+# Scaffold one variant
+loopc new my-launch --blueprint gauntlet
+# or: loopc new my-launch --recipe verified-gauntlet
+
+# Prove the contract before any real execution
+loopc validate my-launch.yaml
+loopc verify my-launch.yaml
+loopc score my-launch.yaml
+
+# Compile the narrowest required target
+loopc compile my-launch.yaml --target standalone --out ./out
+
+# After a run, inspect the durable journal
+loopc inspect ./out
+```
+
+CLI and MCP can both discover and scaffold the variants. The Operator catalog features them
+first and displays grounding, score, grade, schedule, and the exact creation command. The
+Gauntlet board projects rounds, workstreams, cleared count, score and threshold, largest gaps,
+budget use, and allowlisted artifacts from journal state.
+
+Standalone and Babysitter enforce native mutation and judge-envelope behavior. Claude Code,
+Claude Native, and n8n remain useful compilation targets but surface explicit warnings where
+they cannot enforce the same oracle semantics; agents must preserve those warnings when advising
+users.
+
+## Explanation agents can give users
+
+Use this short explanation when introducing the recommendation:
+
+> A Gauntlet divides one substantial deliverable into reviewable workstreams. Fresh builders
+> improve each part, separate fresh critics inspect the actual artifact, and a final review checks
+> that the parts work together. It costs more than a simple loop, so we use it when independent
+> review and cross-workstream quality are worth that cost.
+
+Follow it with the proposed workstreams and the completion authority. The explanation is not a
+substitute for those concrete decisions.
+
+---
+
 # CLI reference
 
 Canonical page: https://matrixy.github.io/Monkey.D.Loopy/cli
@@ -815,7 +1091,7 @@ npm i -g @loopyc/cli
 npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.7.1` reports its synchronized factory version with `loopc --version`.
+Release `0.8.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
@@ -859,6 +1135,8 @@ exclusive. Writes to `<id>.loop.yaml` unless `--out` is given.
 ```bash
 loopc new deploy-watch --blueprint poll-until --out deploy-watch.yaml
 loopc new repo-check --recipe repo-health-doctor
+loopc new my-launch --blueprint gauntlet
+loopc new my-launch --recipe verified-gauntlet
 loopc new poller --from-shell "curl -s $URL/health" --until '${state.out.ready == true}'
 ```
 
@@ -1432,7 +1710,7 @@ also embeddable in-process via the SDK's `InMemoryTransport` (see
 |---|---|---|
 | `get_loop_schema` | — | The LoopSpec authoring guide. **Read this first.** |
 | `list_blueprints` | — | The built-in blueprints (one per pattern). |
-| `new_loop` | `id`, `blueprint?`, `pattern?` | A scaffolded LoopSpec YAML. |
+| `new_loop` | `id`, `blueprint?`, `recipe?`, `pattern?` (including `gauntlet`) | A scaffolded LoopSpec YAML. |
 | `validate_loop` | `yaml` | Validator diagnostics; `isError` when invalid. |
 | `verify_loop` | `yaml` | Dry-run report (bounded/deterministic/resume-stable) + scorecard. No side effects. |
 | `compile_loop` | `yaml`, `target?` (`standalone`, `babysitter`, `claude-code`, `claude-native`, `n8n`, or `all`), `out?` | Writes files when `out` is given; otherwise returns the planned files inline. |
@@ -1498,6 +1776,8 @@ corpus covers 100 runs and 10,000 events with a two-second startup gate.
 loopyd install ./out/my-loop/standalone
 loopyd up --background
 loopyd status
+loopyd snapshot
+loopyd control <loop> <run|step|pause|stop|resume|approve> [--run-id <id>] [--reason <text>]
 loopyd list
 loopyd handoff my-loop operator --reason "disabled the host timer"
 loopyd step my-loop --run-id scheduled-check
@@ -1521,12 +1801,20 @@ for HTML, events, and JSON reads. The tokenized UI bootstrap is exchanged for an
 SameSite=Strict cookie and redirected to a clean URL. Cross-origin requests, unsupported methods,
 path traversal, and bodies over 64 KiB are rejected; CORS is never opened implicitly.
 
+`GET /api/v1/summary` is the bounded read model for compact local control surfaces. `loopyd
+snapshot` retrieves it without exposing the bearer token, while `loopyd control` sends run actions
+through the same authenticated API and operator controller used by the full web UI.
+
 The React/Vite control center is bundled into `@loopyc/operator`. It shows installed loop cards,
 score, grounding, termination/caps, scheduler authority, run integrity, cost, state, and a reverse
 timeline with the journal source path. Server-sent events trigger refreshes and five-second polling
 is the fallback. Desktop, single-column tablet, horizontally scrollable loop navigation, container-
 responsive run details, keyboard focus, reduced motion, and narrow phone layouts are represented in
 the stylesheet.
+
+Authenticated `GET /api/v1/catalog` is read-only and returns built-in blueprint and recipe
+metadata (pattern, score, grade, grounding, schedule, and exact CLI handoff command). Gauntlet
+entries are featured first; CLI and MCP remain the authoring authorities.
 
 ## Scheduling and guarded controls
 
@@ -2215,7 +2503,7 @@ Keep PRs independently reviewable. Do not combine the roadmap into one platform 
 | P5.1 | `feature/guarded-evolution` | P1, P2, P3 | candidate/gates/approval/rollback |
 
 The built-in `pi` harness ([#5](https://github.com/MaTriXy/Monkey.D.Loopy/issues/5)) shipped as
-an independent `0.7.1` feature after the release baseline. It is useful but is not a dependency
+an independent `0.8.0` feature after the release baseline. It is useful but is not a dependency
 for the operator architecture.
 
 ## 7. Cross-cutting verification

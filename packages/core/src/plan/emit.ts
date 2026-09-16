@@ -64,3 +64,17 @@ export function emitValue(value: unknown): string {
   if (typeof value === "string") return emitTemplate(value);
   return JSON.stringify(value ?? null);
 }
+
+/** Recursive native values are intentionally restricted to on_done mutations. */
+export function emitMutationValue(value: unknown): string {
+  if (typeof value === "string") return emitTemplate(value);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 1 && entries[0]![0] === "$expr" && typeof entries[0]![1] === "string") {
+      return emitJsExpr(parseGuard(entries[0]![1]));
+    }
+    return `{ ${entries.map(([k, v]) => `${JSON.stringify(k)}: ${emitMutationValue(v)}`).join(", ")} }`;
+  }
+  if (Array.isArray(value)) return `[${value.map(emitMutationValue).join(", ")}]`;
+  return JSON.stringify(value ?? null);
+}

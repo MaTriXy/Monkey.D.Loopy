@@ -53,6 +53,8 @@ export {
   type EvalContext,
 } from "./expr.js";
 export { terminationGrounding, type GroundingClass, type GroundingInput, type TerminationGrounding } from "./grounding.js";
+export { normalizeJudgeEnvelope, type JudgeEnvelope, type JudgeWorkstream } from "./judge-envelope.js";
+export { GAUNTLET_WORKSTREAM_ID_RE, isGauntletWorkstreamId } from "./gauntlet-id.js";
 export { parseDuration, isValidDuration } from "./duration.js";
 export { toToon, LOOPSPEC_GUIDE } from "./toon.js";
-export { listBlueprints, getBlueprint, type Blueprint } from "./catalog.js";
+export { listBlueprints, getBlueprint, PUBLIC_LOOP_PATTERNS, type Blueprint } from "./catalog.js";

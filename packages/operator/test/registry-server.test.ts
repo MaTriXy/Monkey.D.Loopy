@@ -132,6 +132,20 @@ describe("loopback API and control center security", () => {
     const health = await fetch(`${address.url}/api/v1/health`, { headers: auth });
     expect(health.status).toBe(200);
     expect(health.headers.get("access-control-allow-origin")).toBeNull();
+    expect((await fetch(`${address.url}/api/v1/catalog`)).status).toBe(401);
+    const catalog = await fetch(`${address.url}/api/v1/catalog`, { headers: auth });
+    expect(catalog.status).toBe(200);
+    const workflows = (await catalog.json() as { workflows: Array<{ name: string; score: number; grade: string }> }).workflows;
+    expect(workflows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "gauntlet", score: 87, grade: "B" }),
+      expect.objectContaining({ name: "verified-gauntlet", score: 100, grade: "A" }),
+    ]));
+
+    const summary = await fetch(`${address.url}/api/v1/summary`, { headers: auth });
+    expect(summary.status).toBe(200);
+    const summaryPayload = await summary.json() as { loops: Array<{ id: string; status: string; latestRun: { runId: string; timeline?: unknown } }> };
+    expect(summaryPayload.loops[0]).toMatchObject({ id: "fixture", status: "completed", latestRun: { runId: "default" } });
+    expect(summaryPayload.loops[0]!.latestRun.timeline).toBeUndefined();
 
     expect((await fetch(`${address.url}/api/v1/loops`, { headers: { ...auth, Origin: "https://evil.example" } })).status).toBe(403);
     expect((await fetch(`${address.url}/api/v1/loops`, { method: "POST", headers: auth, body: "x".repeat(65_537) })).status).toBe(413);
@@ -196,6 +210,38 @@ describe("loopback API and control center security", () => {
     expect(dispatch.status).toBe(202);
     await vi.waitFor(() => expect(handle.controller.readState().loops.fixture?.lastOutcome).toBe("waiting"));
     expect(readFileSync(registry.paths.audit, "utf8")).toContain('"runId":"api-step"');
+  });
+
+  it("bridges compact local control clients through authenticated snapshot and action commands", async () => {
+    const root = tmp();
+    const registryRoot = join(root, "operator");
+    const registry = new OperatorRegistry(registryRoot);
+    registry.install(artifact(root));
+    const controller = new OperatorRunController({
+      registry,
+      runtimeOptions: () => ({ agentHarnesses: { internal: async () => ({ text: "done" }) } }),
+    });
+    const handle = createOperatorServer({ registry, controller, port: 0 });
+    servers.push(handle);
+    const address = await handle.start();
+    registry.writePort(address.port);
+    writeFileSync(registry.paths.pid, `${process.pid}\n`);
+    const previous = process.env.LOOPY_OPERATOR_HOME;
+    process.env.LOOPY_OPERATOR_HOME = registryRoot;
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...values) => void lines.push(values.join(" ")));
+    try {
+      expect(await runOperatorCli(["snapshot"])).toBe(0);
+      expect(JSON.parse(lines.at(-1)!).loops[0]).toMatchObject({ id: "fixture", latestRun: { runId: "default" } });
+      expect(await runOperatorCli(["control", "fixture", "step", "--run-id", "omarchy-step", "--actor", "omarchy-plugin"])).toBe(0);
+      expect(JSON.parse(lines.at(-1)!)).toMatchObject({ accepted: true, action: "step", runId: "omarchy-step" });
+      await vi.waitFor(() => expect(controller.readState().loops.fixture?.lastOutcome).toBe("waiting"));
+      expect(readFileSync(registry.paths.audit, "utf8")).toContain('"actor":"omarchy-plugin"');
+    } finally {
+      log.mockRestore();
+      if (previous === undefined) delete process.env.LOOPY_OPERATOR_HOME;
+      else process.env.LOOPY_OPERATOR_HOME = previous;
+    }
   });
 
   it("keeps evolution isolated until an authenticated decision and supports exact rollback through the API", async () => {

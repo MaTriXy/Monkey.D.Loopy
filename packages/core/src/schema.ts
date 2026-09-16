@@ -21,10 +21,14 @@ const hookAction = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("http"), request: httpRequest }).strict(),
 ]);
 
+const mutationValue: z.ZodType<unknown> = z.lazy(() => z.union([
+  z.null(), z.string(), z.number(), z.boolean(), z.array(mutationValue),
+  z.record(mutationValue),
+]));
 const onDone = z.object({
   incr: z.string().optional(),
-  set: z.record(z.unknown()).optional(),
-  append: z.record(z.unknown()).optional(),
+  set: z.record(mutationValue).optional(),
+  append: z.record(mutationValue).optional(),
 });
 
 const stepBase = {
@@ -47,6 +51,7 @@ const shellStep = z.object({
   kind: z.literal("shell"),
   cmd: z.string().min(1),
   args: z.array(z.string()).optional(),
+  normalize: z.literal("judge-envelope").optional(),
   save: z.record(z.string()).optional(),
   on_done: onDone.optional(),
 });
@@ -159,6 +164,7 @@ export const LoopSpecSchema = z
       "map-reduce",
       "poll-until",
       "cron",
+      "gauntlet",
     ]),
     provenance: z
       .object({

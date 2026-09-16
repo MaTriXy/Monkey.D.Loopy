@@ -54,7 +54,7 @@ designed out or made visible instead of debugged later.
   (See [Compile targets](#compile-targets).)
 - **Start from what you have.** Point the inferencer at an existing bash/JS/TS script or a
   `.loopy` run journal to get a draft spec to refine.
-- **Start from an outcome.** Six verified recipes cover repository health, dependency policy,
+- **Start from an outcome.** Verified recipes cover repository health, dependency policy,
   documentation drift, production errors, release follow-up, and market signals. Each ships
   with external-grounding guidance, safety boundaries, and adversarial runtime fixtures.
 - **Authoring help built in.** The [`/loopy`](.claude/skills/loopy/SKILL.md) skill turns a
@@ -108,6 +108,9 @@ The local operator is deliberately optional and installs separately:
 npm i -g @loopyc/operator
 loopyd --help
 ```
+
+Omarchy Quattro users can also try the development
+[bar controller](integrations/omarchy/README.md) for compact status and guarded runtime actions.
 
 It imports compiled artifacts for local scheduling and inspection; installing it does not start a
 service or make standalone/vendored artifacts depend on the operator.
@@ -166,6 +169,7 @@ notes. Each passes validate + verify, with its score and grounding in the
 [gallery table](examples/README.md).
 
 For complete product workflows, browse the [verified recipe catalog](recipes/README.md).
+For sequential artifact builders with fresh critics, see the [Gauntlet workflow](docs/gauntlet.md).
 
 ## A LoopSpec at a glance
 
@@ -333,4 +337,5 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.7.1` also gates on repository-to-tarball parity, a clean-room onboarding smoke, and a zero-vulnerability audit.
+Release `0.8.0` adds first-class Gauntlet workflows while retaining repository-to-tarball parity,
+a clean-room onboarding smoke, and a zero-vulnerability audit.

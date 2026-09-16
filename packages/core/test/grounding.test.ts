@@ -84,6 +84,21 @@ describe("termination grounding classification", () => {
     expect(g.class).toBe("external");
   });
 
+  it("does not let nested mutation expressions erase agent taint", () => {
+    const g = ground({
+      ...base,
+      state: { vars: { score: { type: "int", init: 0 }, result: { type: "json", init: null }, done: { type: "boolean", init: false } } },
+      terminate: { signal: "oracle", until: "${state.done == true}" },
+      body: [
+        { id: "grade", kind: "agent", harness: "cli", prompt: "p", save: { score: "$.score" } },
+        { id: "copy", kind: "shell", cmd: ":", on_done: { set: { result: { nested: [{ $expr: "state.score" }] } } } },
+        { id: "finish", kind: "shell", cmd: ":", when: "${state.result == true}", on_done: { set: { done: true } } },
+      ],
+    });
+    expect(g.class).toBe("agent");
+    expect(g.agentFed).toEqual(["done"]);
+  });
+
   it("iteration-only predicates are structural", () => {
     const g = ground({
       ...base,

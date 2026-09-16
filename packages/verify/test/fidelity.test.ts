@@ -25,11 +25,11 @@ function harnessNames(steps: Step[], acc = new Set<string>()): Set<string> {
   return acc;
 }
 
-type EffectOverride = { http?: (req: HttpRequestSpec) => Promise<unknown>; shell?: () => Promise<unknown> };
+type EffectOverride = { http?: (req: HttpRequestSpec) => Promise<unknown>; shell?: (command: unknown) => Promise<unknown>; agent?: AgentHarness };
 
 function mkOpts(spec: LoopSpec, cwd: string, effects?: EffectOverride) {
   const mock = async () => ({}) as unknown;
-  const mockHarness: AgentHarness = async () => ({});
+  const mockHarness: AgentHarness = effects?.agent ?? (async () => ({}));
   const agentHarnesses: Record<string, AgentHarness> = { internal: mockHarness, "claude-code": mockHarness };
   for (const n of harnessNames(spec.body)) agentHarnesses[n] = mockHarness;
   return {
@@ -96,6 +96,86 @@ describe("interpreter ≡ generated standalone code (M2 fidelity)", () => {
   }
 });
 
+describe("creative Gauntlet execution", () => {
+  const spec = loadSpecFromYaml(getBlueprint("gauntlet")!.yaml).spec!;
+
+  it("runs decomposition, sequential builder/critic, smoothing, holistic review and completion observer", async () => {
+    const calls: string[] = [];
+    const shellCalls: unknown[] = [];
+    const replies = [
+      { workstreams: [{ id: "copy", title: "Copy", scope: "output/artifact" }] },
+      {},
+      { score: 95, gap: "", evidence: "artifact checked" },
+      {},
+      { score: 95, gap: "", evidence: "integrated" },
+    ];
+    const effects: EffectOverride = {
+      agent: async (request) => { calls.push(request.prompt); return replies.shift() ?? {}; },
+      shell: async (command) => { shellCalls.push(command); return {}; },
+    };
+    const dir = mkdtempSync(TMP_PREFIX);
+    try {
+      const result = await createRuntime(interpretLoop(spec), mkOpts(spec, dir, effects)).run();
+      expect(result.status).toBe("completed");
+      expect(calls).toHaveLength(5);
+      expect(calls[1]).toContain("Work only within declared scope");
+      expect(calls[2]).toContain("Fresh read-only critique");
+      expect(result.state.review_history).toEqual([{
+        workstream: { id: "copy", title: "Copy", scope: "output/artifact" },
+        critic: { score: 95, gap: "", evidence: "artifact checked" },
+      }]);
+      expect(result.state.rounds).toBe(1);
+      expect(shellCalls).toContain(":");
+      expect(shellCalls).toContain("test -e output/artifact");
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("does not permit malformed or empty decomposition to terminate vacuously", async () => {
+    for (const decomposition of [{}, { workstreams: [] }]) {
+      let builders = 0;
+      const effects: EffectOverride = {
+        agent: async (request) => { if (request.prompt.includes("Work only within")) builders++; return decomposition; },
+        shell: async () => ({}),
+      };
+      const dir = mkdtempSync(TMP_PREFIX);
+      try {
+        const result = await createRuntime(interpretLoop(spec), mkOpts(spec, dir, effects)).run();
+        expect(result.status).toBe("paused");
+        expect(result.reason).toBe("no_progress");
+        expect(builders).toBe(0);
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+  });
+
+  it("reruns every workstream on a later round and retains both structured reviews", async () => {
+    const calls: string[] = [];
+    const replies = [
+      { workstreams: [{ id: "copy", title: "Copy", scope: "output/artifact" }] },
+      {},
+      { score: 70, gap: "needs proof", evidence: "round one" },
+      {},
+      { score: 95, gap: "", evidence: "round two" },
+      {},
+      { score: 96, gap: "", evidence: "integrated" },
+    ];
+    const dir = mkdtempSync(TMP_PREFIX);
+    try {
+      const result = await createRuntime(interpretLoop(spec), mkOpts(spec, dir, {
+        agent: async (request) => { calls.push(request.prompt); return replies.shift() ?? {}; },
+        shell: async () => ({}),
+      })).run();
+      expect(result.status).toBe("completed");
+      expect(result.state.rounds).toBe(2);
+      expect(calls.filter((prompt) => prompt.includes("Work only within declared scope"))).toHaveLength(2);
+      expect(calls.filter((prompt) => prompt.includes("Fresh read-only critique"))).toHaveLength(2);
+      expect(result.state.review_history).toEqual([
+        { workstream: { id: "copy", title: "Copy", scope: "output/artifact" }, critic: { score: 70, gap: "needs proof", evidence: "round one" } },
+        { workstream: { id: "copy", title: "Copy", scope: "output/artifact" }, critic: { score: 95, gap: "", evidence: "round two" } },
+      ]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
 describe("envelope http fidelity (interpreter ≡ generated)", () => {
   // The mock returns DIFFERENT shapes for an enveloped vs a body-direct call, so this fails
   // loudly if either path drops the `envelope` flag (the save json-paths would then diverge).
@@ -132,6 +212,23 @@ describe("envelope http fidelity (interpreter ≡ generated)", () => {
     expect(interp.state.code).toBe(503);
     expect(interp.state.done).toBe(true);
     expect(gen.status).toBe(interp.status);
+    expect(stable(gen.state)).toBe(stable(interp.state));
+  });
+});
+
+describe("native mutation object fidelity (interpreter ≡ generated)", () => {
+  it("preserves nested objects, arrays, nulls, and $expr values without wrapper drift", async () => {
+    const spec = processRaw({
+      loopspec: "0.1", id: "mutation-object-fid", pattern: "react",
+      state: { vars: { done: { type: "boolean", init: false }, payload: { type: "json", init: null } } },
+      body: [{ id: "set-payload", kind: "shell", cmd: ":", on_done: { set: { done: true, payload: { count: { $expr: "iteration + 1" }, nested: { message: "round ${iteration}", values: [false, null, { $expr: "iteration" }] } } } } }],
+      terminate: { signal: "state-predicate", until: "${state.done == true}" }, caps: { max_iterations: 3 },
+    }).spec!;
+    const base = mkdtempSync(TMP_PREFIX);
+    const interp = await createRuntime(interpretLoop(spec), mkOpts(spec, join(base, "i"))).run();
+    const gen = await runGenerated(spec, join(base, "g"));
+    rmSync(base, { recursive: true, force: true });
+    expect(interp.state.payload).toEqual({ count: 1, nested: { message: "round 0", values: [false, null, 0] } });
     expect(stable(gen.state)).toBe(stable(interp.state));
   });
 });

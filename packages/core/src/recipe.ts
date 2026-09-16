@@ -62,6 +62,8 @@ export const RecipeManifestSchema = z.object({
     cap: relativePath,
     malformed_evidence: relativePath,
     prompt_injection: relativePath,
+    actionable_hostile_evidence: relativePath.optional(),
+    hostile_workstream: relativePath.optional(),
   }).strict(),
 }).strict();
 

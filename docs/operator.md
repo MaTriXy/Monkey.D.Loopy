@@ -27,6 +27,8 @@ corpus covers 100 runs and 10,000 events with a two-second startup gate.
 loopyd install ./out/my-loop/standalone
 loopyd up --background
 loopyd status
+loopyd snapshot
+loopyd control <loop> <run|step|pause|stop|resume|approve> [--run-id <id>] [--reason <text>]
 loopyd list
 loopyd handoff my-loop operator --reason "disabled the host timer"
 loopyd step my-loop --run-id scheduled-check
@@ -50,12 +52,20 @@ for HTML, events, and JSON reads. The tokenized UI bootstrap is exchanged for an
 SameSite=Strict cookie and redirected to a clean URL. Cross-origin requests, unsupported methods,
 path traversal, and bodies over 64 KiB are rejected; CORS is never opened implicitly.
 
+`GET /api/v1/summary` is the bounded read model for compact local control surfaces. `loopyd
+snapshot` retrieves it without exposing the bearer token, while `loopyd control` sends run actions
+through the same authenticated API and operator controller used by the full web UI.
+
 The React/Vite control center is bundled into `@loopyc/operator`. It shows installed loop cards,
 score, grounding, termination/caps, scheduler authority, run integrity, cost, state, and a reverse
 timeline with the journal source path. Server-sent events trigger refreshes and five-second polling
 is the fallback. Desktop, single-column tablet, horizontally scrollable loop navigation, container-
 responsive run details, keyboard focus, reduced motion, and narrow phone layouts are represented in
 the stylesheet.
+
+Authenticated `GET /api/v1/catalog` is read-only and returns built-in blueprint and recipe
+metadata (pattern, score, grade, grounding, schedule, and exact CLI handoff command). Gauntlet
+entries are featured first; CLI and MCP remain the authoring authorities.
 
 ## Scheduling and guarded controls
 

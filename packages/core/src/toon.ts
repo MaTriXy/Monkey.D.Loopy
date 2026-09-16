@@ -56,7 +56,7 @@ if omitted, but you should set them deliberately).
 ## Required fields
 - loopspec: "0.1"
 - id: kebab-case identifier
-- pattern: react | plan-execute-reflect | evaluator-optimizer | loop-until-dry | map-reduce | poll-until | cron
+- pattern: react | plan-execute-reflect | evaluator-optimizer | loop-until-dry | map-reduce | poll-until | cron | gauntlet
 - body: list of steps (>=1)
 - terminate: { signal, until }   # signal: oracle > state-predicate > llm-judge > self-assess
 
@@ -76,6 +76,24 @@ if omitted, but you should set them deliberately).
   Operators: == != < <= > >= && || ! and or not in + - * / %  (no function calls).
 - save uses json-path: { stateVar: "$.path.into.response" }   (agent save reads the agent's result envelope)
 - on_done: { incr: stateVar } | { set: { stateVar: value-or-\${expr} } } | { append: { listVar: value-or-\${expr} } }
+
+## Choosing a pattern
+- Start from a verified recipe when one matches the outcome.
+- gauntlet: one substantial final artifact spans multiple reviewable quality dimensions; use
+  fresh builders plus separate fresh critics and a holistic integration review. Recommend it
+  only when that independent review is worth additional calls, time, and cost.
+- evaluator-optimizer: one draft is repeatedly graded against one rubric.
+- map-reduce: many independent items are processed and then mechanically combined.
+- plan-execute-reflect: ordered dependent steps are the main challenge.
+- poll-until: an external status transition drives the loop.
+- react: one comparatively simple act/observe cycle.
+- Creative Gauntlet uses agent judgment for qualitative bars. Verified Gauntlet is preferred
+  whenever a trusted external command can decide completion.
+- Creative's 87/B is an honest workflow-safety score, not an artifact-quality estimate. Do not
+  relabel an agent-fed exit as state-predicate or oracle to inflate it; choose Verified for 100/A
+  or explicitly design a mixed-grounding external gate.
+- Do not choose Gauntlet merely because the task is important. Before scaffolding, be able to
+  name the shared artifact, proposed workstreams, quality bar, completion authority, and cost caps.
 
 ## Caps (mandatory)
 - caps: { max_iterations, no_progress?: { fingerprint, max_repeats }, budget?: { tokens, usd, wallclock }, on_cap_exceeded?: fail|breakpoint|exit-clean }

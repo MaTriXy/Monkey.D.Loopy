@@ -12,6 +12,8 @@ Use the smallest context that fits the task:
 - [`llms-full.txt`](./llms-full.txt) concatenates the canonical documentation for a context window
   or retrieval index.
 - [LoopSpec](./loopspec.md) is the exact authoring contract.
+- [Gauntlet](./gauntlet.md) explains when independent builder/critic workstreams are worth the
+  additional cost and how to choose Creative versus Verified grounding.
 - [MCP](./mcp.md) is the tool surface for agents that can call MCP servers.
 - [Recipes](./recipes.md) are the strongest starting point for supported product workflows.
 
@@ -55,12 +57,39 @@ not a promise in the prompt.
 8. Keep generated journals and operator state out of source control unless the user intentionally
    wants a fixture.
 
+## Make an opinionated Gauntlet decision
+
+Do not wait for the user to know the name of every loop pattern. Recommend Gauntlet when one
+substantial artifact spans multiple reviewable quality dimensions, separate fresh critics would
+reduce builder self-grading, and the parts need a holistic integration review. State the likely
+workstreams, quality bar, completion authority, and cost tradeoff.
+
+Prefer a simpler pattern when the work is a single small fix, one draft with one repeated rubric,
+an independent batch, an ordered plan, or an external status poll. Prefer Verified Gauntlet when
+tests or another trusted command can decide completion; use Creative Gauntlet only when the bar
+is inherently qualitative. If the artifact, workstreams, or completion authority cannot yet be
+named, ask for that information before scaffolding.
+
+See [Gauntlet workflows](./gauntlet.md) for the complete decision guide and a user-facing
+explanation agents can reuse.
+
+Do not describe Creative Gauntlet's 87/B as a defect or as an estimate of artifact quality. It is
+the native workflow-safety score for honest agent-grounded completion. Never raise it by merely
+renaming the termination signal: Loopy traces the evidence feeding the predicate. Recommend
+Verified Gauntlet for 100/A when a trusted external oracle exists, or explicitly propose a
+separate mixed-grounding variant when both qualitative critique and a mandatory external gate
+are needed.
+
 ## Prompt contract
 
 This compact instruction works well after providing the relevant documentation:
 
 ```text
 Turn this outcome into a Monkey D Loopy LoopSpec. Start from a verified recipe when one matches.
+Choose Gauntlet only when one substantial artifact has multiple reviewable workstreams that
+justify independent fresh critics and a holistic integration review; otherwise prefer the
+simpler matching pattern. If recommending Gauntlet, explain why, name the workstreams, and choose
+Creative versus Verified grounding.
 Use external evidence for completion, make every cap explicit, and preserve provider/tool choice.
 Validate, verify, and score the spec before compiling it. Do not weaken a hard gate to make the
 score pass. Report the selected termination evidence, cap behavior, compile target, and remaining

@@ -143,6 +143,17 @@ describe("loopc run() — dispatch + commands", () => {
     expect(await run(["new", "x", "--recipe", "repo-health-doctor", "--blueprint", "react"])).toBe(1);
   });
 
+  it("generates the exact Gauntlet blueprint and verified recipe LoopSpecs", async () => {
+    const d = tmp();
+    const creative = join(d, "creative.yaml");
+    const verified = join(d, "verified.yaml");
+    expect(await run(["new", "my-gauntlet", "--blueprint", "gauntlet", "--out", creative])).toBe(0);
+    expect(readFileSync(creative, "utf8")).toBe(getBlueprint("gauntlet")!.yaml.replace(/^id:.*$/m, "id: my-gauntlet"));
+    expect(await run(["new", "my-verified", "--recipe", "verified-gauntlet", "--out", verified])).toBe(0);
+    expect(readFileSync(verified, "utf8")).toContain("id: my-verified");
+    expect(readFileSync(verified, "utf8")).toContain("pattern: gauntlet");
+  });
+
   it("reprint: recompiles from loop.source.yaml; errors without it", async () => {
     const d = tmp();
     const f = join(d, "s.yaml");
@@ -161,7 +172,7 @@ describe("loopc run() — dispatch + commands", () => {
   it("reports the synchronized factory version", async () => {
     const { code, out } = await capture(["--version"]);
     expect(code).toBe(0);
-    expect(out.trim()).toBe("0.7.1");
+    expect(out.trim()).toBe("0.8.0");
   });
 
   it("run: a tiny valid shell loop completes and writes a .loopy journal in the out dir", async () => {

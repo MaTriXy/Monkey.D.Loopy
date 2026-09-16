@@ -1,0 +1,1 @@
+{"scenario":"malformed-evidence","inputs":{"goal":"publish a polished artifact","bar":"all checks pass","judge_command":"trusted-judge"},"effect_results":[{"status":"bogus","evidence":null},{"status":"bogus","evidence":null},{"status":"bogus","evidence":null}],"expect":{"status":"stopped","reason":"no_progress","agent_calls":0}}

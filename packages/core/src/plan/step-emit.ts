@@ -1,5 +1,5 @@
 /** Shared step-level emit helpers (save/on_done/http-request lowering). */
-import { emitTemplate, emitValue } from "./emit.js";
+import { emitMutationValue, emitTemplate, emitValue } from "./emit.js";
 import type { HttpRequest, OnDone } from "../types.js";
 
 export { emitGuard, emitJsExpr, emitTemplate, emitValue } from "./emit.js";
@@ -29,10 +29,10 @@ export function emitOnDone(onDone: OnDone | undefined, ind: string, lines: strin
   if (!onDone) return;
   if (onDone.incr) lines.push(`${ind}${stateRef(onDone.incr)} = ${stateRef(onDone.incr)} + 1;`);
   for (const [varName, value] of Object.entries(onDone.set ?? {})) {
-    lines.push(`${ind}${stateRef(varName)} = ${emitValue(value)};`);
+    lines.push(`${ind}${stateRef(varName)} = ${emitMutationValue(value)};`);
   }
   for (const [varName, value] of Object.entries(onDone.append ?? {})) {
-    lines.push(`${ind}${stateRef(varName)}.push(${emitValue(value)});`);
+    lines.push(`${ind}${stateRef(varName)}.push(${emitMutationValue(value)});`);
   }
 }
 

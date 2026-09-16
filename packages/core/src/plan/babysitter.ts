@@ -63,6 +63,17 @@ function __curl(req) {
   return "curl " + flags.join(" ");
 }
 function __tryJson(t) { try { return JSON.parse(t); } catch { return t; } }
+function __normalizeJudgeEnvelope(value) {
+  const invalid = { status: "invalid", evidence: { fingerprint: "invalid-judge-envelope", workstreams: [], summary: "Judge envelope was invalid." } };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return invalid;
+  const { status, evidence } = value;
+  if (!["actionable", "complete", "no-op"].includes(status) || !evidence || typeof evidence !== "object" || Array.isArray(evidence)) return invalid;
+  const { fingerprint, workstreams, summary } = evidence;
+  if (typeof fingerprint !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(fingerprint) || typeof summary !== "string" || summary.length > 8192 || !Array.isArray(workstreams)) return invalid;
+  const valid = workstreams.every((item) => item && typeof item === "object" && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(item.id) && typeof item.title === "string" && /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,127}$/.test(item.title) && typeof item.scope === "string" && /^(?:[A-Za-z0-9][A-Za-z0-9._-]*)(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/.test(item.scope) && !item.scope.split("/").includes("..") && ["gap", "evidence"].every((key) => typeof item[key] === "string" && item[key].length <= 8192));
+  if (!valid || new Set(workstreams.map((item) => item.id)).size !== workstreams.length || (status === "actionable" && !workstreams.length) || (status !== "actionable" && workstreams.length)) return invalid;
+  return { status, evidence: { fingerprint, workstreams, summary } };
+}
 function __httpEnv(raw) {
   // Reconstruct { status, ok, headers, body } from a curl whose -w writeout appended
   // "__LOOPY_HTTP__<status>__LOOPY_SEP__<header_json>" after the body. JS does the parsing,
@@ -178,6 +189,10 @@ function emitStepsBaby(steps: Step[], ind: string, gates: Map<string, Gate[]>): 
   return steps.map((s) => emitStepBaby(s, ind, gates)).join("\n");
 }
 
+function hasJudgeNormalizer(steps: Step[]): boolean {
+  return steps.some((step) => step.kind === "shell" ? step.normalize === "judge-envelope" : step.kind === "reduce" && hasJudgeNormalizer(step.body));
+}
+
 function emitStepBaby(step: Step, ind: string, gates: Map<string, Gate[]>): string {
   const ind2 = ind + "  ";
   const open = step.when ? `${ind}if (${emitGuard(step.when)}) {` : `${ind}{`;
@@ -210,7 +225,8 @@ function emitInnerBaby(step: Step, ind: string, gates: Map<string, Gate[]>): str
       const cmdExpr = step.args
         ? `[__sq(${emitTemplate(step.cmd)}), ${step.args.map((a) => `__sq(${emitTemplate(a)})`).join(", ")}].join(" ")`
         : emitTemplate(step.cmd);
-      lines.push(`${ind}const __res = await ctx.task(__shellTask, { title: ${JSON.stringify(step.id)}, command: ${cmdExpr} });`);
+      lines.push(`${ind}const __raw = await ctx.task(__shellTask, { title: ${JSON.stringify(step.id)}, command: ${cmdExpr} });`);
+      lines.push(`${ind}const __res = ${step.normalize === "judge-envelope" ? "__normalizeJudgeEnvelope(__raw)" : "__raw"};`);
       emitSaveBaby(step.save, "__res", ind, lines);
       emitOnDone(step.on_done, ind, lines);
       break;
@@ -282,7 +298,7 @@ function emitProcessFile(spec: LoopSpec): string {
   p.push("");
   p.push('import { defineTask } from "@a5c-ai/babysitter-sdk";');
   p.push("");
-  p.push(RUNTIME_HELPERS);
+  p.push(hasJudgeNormalizer(spec.body) ? RUNTIME_HELPERS : RUNTIME_HELPERS.replace(/function __normalizeJudgeEnvelope[\s\S]*?\n}\nfunction __httpEnv/, "function __httpEnv"));
   p.push("");
   p.push(TASK_DEFS);
   p.push("");

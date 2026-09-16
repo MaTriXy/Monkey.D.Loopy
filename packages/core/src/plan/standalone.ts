@@ -57,6 +57,10 @@ function emitStepsStandalone(steps: Step[], ind: string, gates: Map<string, Gate
   return steps.map((s) => emitStep(s, ind, gates)).join("\n");
 }
 
+function hasJudgeNormalizer(steps: Step[]): boolean {
+  return steps.some((step) => step.kind === "shell" ? step.normalize === "judge-envelope" : step.kind === "reduce" && hasJudgeNormalizer(step.body));
+}
+
 function emitStep(step: Step, ind: string, gates: Map<string, Gate[]>): string {
   const ind2 = ind + "  ";
   const open = step.when ? `${ind}if (${emitGuard(step.when)}) {` : `${ind}{`;
@@ -87,7 +91,8 @@ function emitInner(step: Step, ind: string, gates: Map<string, Gate[]>): string 
       const cmdExpr = step.args
         ? `{ command: ${emitTemplate(step.cmd)}, args: [${step.args.map((a) => emitTemplate(a)).join(", ")}] }`
         : emitTemplate(step.cmd);
-      lines.push(`${ind}const __out = await ctx.shell(${cmdExpr});`);
+      lines.push(`${ind}const __raw = await ctx.shell(${cmdExpr});`);
+      lines.push(`${ind}const __out = ${step.normalize === "judge-envelope" ? "__normalizeJudgeEnvelope(__raw)" : "__raw"};`);
       emitSave(step.save, "__out", ind, lines);
       emitOnDone(step.on_done, ind, lines);
       break;
@@ -177,6 +182,18 @@ function emitLoopFile(spec: LoopSpec, vendor = false): string {
   parts.push('import { pathToFileURL } from "node:url";');
   parts.push('import { realpathSync } from "node:fs";');
   parts.push("");
+  if (hasJudgeNormalizer(spec.body)) parts.push(`function __normalizeJudgeEnvelope(value) {
+  const invalid = { status: "invalid", evidence: { fingerprint: "invalid-judge-envelope", workstreams: [], summary: "Judge envelope was invalid." } };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return invalid;
+  const { status, evidence } = value;
+  if (!["actionable", "complete", "no-op"].includes(status) || !evidence || typeof evidence !== "object" || Array.isArray(evidence)) return invalid;
+  const { fingerprint, workstreams, summary } = evidence;
+  if (typeof fingerprint !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(fingerprint) || typeof summary !== "string" || summary.length > 8192 || !Array.isArray(workstreams)) return invalid;
+  const valid = workstreams.every((item) => item && typeof item === "object" && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(item.id) && typeof item.title === "string" && /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,127}$/.test(item.title) && typeof item.scope === "string" && /^(?:[A-Za-z0-9][A-Za-z0-9._-]*)(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/.test(item.scope) && !item.scope.split("/").includes("..") && ["gap", "evidence"].every((key) => typeof item[key] === "string" && item[key].length <= 8192));
+  if (!valid || new Set(workstreams.map((item) => item.id)).size !== workstreams.length || (status === "actionable" && !workstreams.length) || (status !== "actionable" && workstreams.length)) return invalid;
+  return { status, evidence: { fingerprint, workstreams, summary } };
+}`);
+  if (hasJudgeNormalizer(spec.body)) parts.push("");
   parts.push(`const spec = ${JSON.stringify(specMeta, null, 2)};`);
   parts.push("");
   parts.push("export function initialState() {");

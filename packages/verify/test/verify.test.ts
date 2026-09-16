@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { getBlueprint, listBlueprints, loadSpecFromYaml } from "@loopyc/core";
 import { formatScore, scoreLoop, verifyLoop } from "../src/verify.js";
 
@@ -64,6 +66,54 @@ caps: { max_iterations: 5, on_cap_exceeded: exit-clean }
 });
 
 describe("scorecard", () => {
+  it("rounds the creative Gauntlet raw weighted 86.5 score to the official native 87/B", async () => {
+    const parsed = loadSpecFromYaml(getBlueprint("gauntlet")!.yaml);
+    const card = scoreLoop(parsed.spec!, await verifyLoop(parsed.spec!, parsed.capsInjected ?? false));
+    const raw = card.dimensions.reduce((sum, dimension) => sum + dimension.score * dimension.weight, 0);
+    expect(raw).toBe(86.5);
+    expect(card).toMatchObject({ total: 87, grade: "B" });
+  });
+
+  it("keeps the public Gauntlet example semantically identical to the scored creative blueprint", async () => {
+    const exampleYaml = readFileSync(fileURLToPath(new URL("../../../examples/gauntlet.yaml", import.meta.url)), "utf8");
+    const example = loadSpecFromYaml(exampleYaml);
+    const blueprint = loadSpecFromYaml(getBlueprint("gauntlet")!.yaml);
+    expect(example.validation!.ok).toBe(true);
+    expect(example.spec).toEqual(blueprint.spec);
+    const report = await verifyLoop(example.spec!, example.capsInjected ?? false);
+    expect(scoreLoop(example.spec!, report)).toMatchObject({ total: 87, grade: "B" });
+  });
+
+  it("raises Gauntlet scores only when stronger completion evidence is actually added", async () => {
+    const creative = loadSpecFromYaml(getBlueprint("gauntlet")!.yaml).spec!;
+    const withExternalGate = structuredClone(creative);
+    if (!withExternalGate.state) throw new Error("Gauntlet blueprint must declare state");
+    withExternalGate.state.vars.external_pass = { type: "boolean", init: false };
+    withExternalGate.body.push({
+      id: "trusted-quality-gate",
+      kind: "shell",
+      cmd: "./trusted-quality-gate",
+      when: "${state.final_score >= inputs.threshold}",
+      save: { external_pass: "$.pass" },
+    });
+
+    const mixed = structuredClone(withExternalGate);
+    mixed.terminate = {
+      signal: "state-predicate",
+      until: "${state.final_score >= inputs.threshold && state.external_pass == true}",
+    };
+    const external = structuredClone(withExternalGate);
+    external.terminate = { signal: "state-predicate", until: "${state.external_pass == true}" };
+    const oracle = structuredClone(withExternalGate);
+    oracle.terminate = { signal: "oracle", until: "${state.external_pass == true}" };
+
+    const score = async (spec: typeof creative) => scoreLoop(spec, await verifyLoop(spec, false, { fixtures: { shell: { pass: true } } }));
+    expect(await score(creative)).toMatchObject({ total: 87, grade: "B" });
+    expect(await score(mixed)).toMatchObject({ total: 91, grade: "A" });
+    expect(await score(external)).toMatchObject({ total: 96, grade: "A" });
+    expect(await score(oracle)).toMatchObject({ total: 100, grade: "A" });
+  });
+
   it("awards 100 only to an externally grounded oracle with an executable completion observer", async () => {
     const parsed = loadSpecFromYaml(`loopspec: "0.1"
 id: perfect
