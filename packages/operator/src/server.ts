@@ -134,6 +134,47 @@ async function loopOverview(loop: LoopRegistration, controller: OperatorRunContr
   return { ...loop, score, grounding, spec, runs, artifacts, revisions: evolver.list(loop.id), operation: controller.readState().loops[loop.id] ?? {}, source: { artifact: loop.path, spec: source } };
 }
 
+function compactRun(run: ReturnType<typeof listRuns>[number]): Record<string, unknown> {
+  return {
+    runId: run.runId,
+    status: run.status,
+    health: run.health,
+    integrity: run.integrity,
+    iteration: run.iteration,
+    tokens: run.tokens,
+    usd: run.usd,
+    wakeAt: run.wakeAt,
+    pendingCap: run.pendingCap,
+    updatedAt: run.updatedAt,
+  };
+}
+
+/** A bounded, presentation-neutral summary for small local control surfaces. */
+export function operatorSummary(registry: OperatorRegistry, controller: OperatorRunController): Record<string, unknown> {
+  const schedule = controller.readState().loops;
+  const loops = registry.list().map((loop) => {
+    const operation = schedule[loop.id] ?? {};
+    const runs = listRuns(loop.path)
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || (a.runId < b.runId ? -1 : 1))
+      .slice(0, 8);
+    const latest = runs[0];
+    return {
+      id: loop.id,
+      schedulerAuthority: loop.schedulerAuthority,
+      status: operation.active ? "running" : latest?.status ?? "idle",
+      health: operation.active ? "healthy" : latest?.health ?? "healthy",
+      active: operation.active
+        ? { runId: operation.active.runId, action: operation.active.action, startedAt: operation.active.startedAt }
+        : undefined,
+      nextDueAt: operation.nextDueAt,
+      lastOutcome: operation.lastOutcome,
+      latestRun: latest ? compactRun(latest) : undefined,
+      runs: runs.map(compactRun),
+    };
+  });
+  return { apiVersion: OPERATOR_API_VERSION, loops };
+}
+
 function safeAsset(assetsDir: string, pathname: string): string | undefined {
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
   if (!/^[A-Za-z0-9._/-]+$/.test(relative) || relative.split("/").includes("..")) return undefined;
@@ -322,6 +363,10 @@ export function createOperatorServer(options: OperatorServerOptions = {}): Opera
       }
       if (url.pathname === "/api/v1/catalog") {
         json(res, 200, await workflowCatalog);
+        return;
+      }
+      if (url.pathname === "/api/v1/summary") {
+        json(res, 200, operatorSummary(registry, controller));
         return;
       }
       if (url.pathname === "/api/v1/loops") {

@@ -18,7 +18,7 @@
     "docs:preview": "vitepress preview docs",
     "security:audit": "pnpm audit --audit-level=low",
     "typecheck": "pnpm recipes:check && pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && node integrations/omarchy/model.test.mjs",
     "eval": "pnpm --filter @loopyc/evals eval",
     "eval:skill": "pnpm --filter @loopyc/evals eval:skill",
     "loopc": "pnpm --filter @loopyc/cli loopc",

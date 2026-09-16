@@ -34,6 +34,8 @@ loopyd evolve approve my-loop <candidate-id> --reason "reviewed gates and fixtur
 loopyd evolve rollback my-loop --reason "restore known-good revision"
 loopyd up --background                    # macOS/Linux detached local process
 loopyd status
+loopyd snapshot                           # compact authenticated JSON for local control surfaces
+loopyd control my-loop step               # route an action through the running operator
 loopyd ui                                 # print the token bootstrap URL
 loopyd down                               # graceful local shutdown
 ```

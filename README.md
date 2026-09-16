@@ -109,6 +109,9 @@ npm i -g @loopyc/operator
 loopyd --help
 ```
 
+Omarchy Quattro users can also try the development
+[bar controller](integrations/omarchy/README.md) for compact status and guarded runtime actions.
+
 It imports compiled artifacts for local scheduling and inspection; installing it does not start a
 service or make standalone/vendored artifacts depend on the operator.
 

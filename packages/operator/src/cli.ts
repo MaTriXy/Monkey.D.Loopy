@@ -13,6 +13,8 @@ const HELP = `loopyd — local Monkey D Loopy operator
 Usage:
   loopyd install <artifact-dir>
   loopyd list
+  loopyd snapshot
+  loopyd control <loop> <run|step|pause|stop|resume|approve> [--run-id <id>] [--reason <text>]
   loopyd handoff <loop> <host|operator> --reason <text>
   loopyd run|step <loop> [--run-id <id>]
   loopyd pause|stop|resume|approve <loop> --run-id <id> --reason <text>
@@ -22,7 +24,7 @@ Usage:
   loopyd up [--background] [--port <port>]
   loopyd status
   loopyd down
-  loopyd ui
+  loopyd ui [--open]
 
 No service is installed or started during npm install.`;
 
@@ -50,6 +52,29 @@ function runController(registry: OperatorRegistry): OperatorRunController {
     registry,
     onResult: (loop, spec, runId, result) => notifier.dispatch(loop, spec, runId, result, indexArtifacts(loop.path, spec.artifacts, loop.id)).then(() => undefined),
   });
+}
+
+async function operatorApi(
+  registry: OperatorRegistry,
+  pathname: string,
+  options: { method?: "GET" | "POST"; body?: Record<string, unknown> } = {},
+): Promise<number> {
+  const pid = readPid(registry);
+  if (!pid) throw new Error("operator is stopped; run `loopyd up --background` first");
+  const port = registry.readPort(Number(process.env.LOOPY_OPERATOR_PORT ?? 3210));
+  const origin = `http://127.0.0.1:${port}`;
+  const method = options.method ?? "GET";
+  const response = await fetch(`${origin}${pathname}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${registry.ensureToken()}`,
+      ...(method === "POST" ? { Origin: origin, "Content-Type": "application/json" } : {}),
+    },
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+  });
+  const output = await response.text();
+  console.log(output.trim() || JSON.stringify({ apiVersion: "1", ok: response.ok }));
+  return response.ok ? 0 : 1;
 }
 
 async function serve(registry: OperatorRegistry, port: number): Promise<number> {
@@ -89,6 +114,32 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     if (!loops.length) console.log("no loops installed");
     for (const loop of loops) console.log(`${loop.id}\t${loop.schedulerAuthority}\t${loop.path}`);
     return 0;
+  }
+  if (command === "snapshot") {
+    return operatorApi(registry, "/api/v1/summary");
+  }
+  if (command === "control") {
+    const id = argv[1];
+    const action = argv[2];
+    const allowed = ["run", "step", "pause", "stop", "resume", "approve"];
+    if (!id || !action || !allowed.includes(action)) {
+      throw new Error("usage: loopyd control <loop> <run|step|pause|stop|resume|approve> [--run-id <id>] [--reason <text>]");
+    }
+    const runId = flagValue(argv, "--run-id");
+    if (["pause", "stop", "resume", "approve"].includes(action) && !runId) {
+      throw new Error(`${action} requires --run-id <id>`);
+    }
+    const body = {
+      action,
+      actor: flagValue(argv, "--actor") ?? "local-control-client",
+      reason: flagValue(argv, "--reason") ?? "requested from local control client",
+      ...(runId ? { runId } : {}),
+    };
+    const encodedLoop = encodeURIComponent(id);
+    const pathname = action === "run" || action === "step"
+      ? `/api/v1/loops/${encodedLoop}/runs`
+      : `/api/v1/loops/${encodedLoop}/runs/${encodeURIComponent(runId!)}/actions`;
+    return operatorApi(registry, pathname, { method: "POST", body });
   }
   if (command === "handoff") {
     const id = argv[1];
@@ -193,7 +244,17 @@ export async function runOperatorCli(argv: string[]): Promise<number> {
     if (!pid) throw new Error("operator is stopped; run `loopyd up --background` first");
     const port = registry.readPort(Number(process.env.LOOPY_OPERATOR_PORT ?? 3210));
     const token = registry.ensureToken();
-    console.log(`http://127.0.0.1:${port}/?token=${encodeURIComponent(token)}`);
+    const url = `http://127.0.0.1:${port}/?token=${encodeURIComponent(token)}`;
+    if (argv.includes("--open")) {
+      const opener = process.platform === "darwin" ? "open" : "xdg-open";
+      const child = spawn(opener, [url], { detached: true, stdio: "ignore" });
+      await new Promise<void>((resolveOpen, rejectOpen) => {
+        child.once("spawn", resolveOpen);
+        child.once("error", rejectOpen);
+      });
+      child.unref();
+      console.log("opened Monkey D Loopy Control Center");
+    } else console.log(url);
     return 0;
   }
   if (command === "up" || command === "serve") {
