@@ -1,4 +1,4 @@
-/** @loopyc/infer — deterministic FactPack extraction + draft LoopSpec scaffolding. */
+/** @loopyc/infer — FactPack extraction, draft scaffolding, and optional Jev workflow recommendations. */
 import { basename } from "node:path";
 import { detectKind, extractFactPack, type FactPack, type SourceKind } from "./factpack.js";
 import { scaffoldYaml } from "./scaffold.js";
@@ -23,3 +23,4 @@ export function inferScaffold(filename: string, content: string, id?: string): I
   const factpack = extractFactPack(content, kind);
   return { kind, factpack, draftYaml: scaffoldYaml(factpack, id ?? deriveId(filename)) };
 }
+export * from "./recommend.js";

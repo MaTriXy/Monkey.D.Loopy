@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@loopyc/core": "workspace:*",
+    "@loopyc/verify": "workspace:*",
     "typescript": "^5.7.2"
   },
   "engines": {

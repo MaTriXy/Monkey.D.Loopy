@@ -193,3 +193,21 @@ describe("loopc-mcp", () => {
     expect(firstText(res)).toContain("abc123xyz");
   });
 });
+
+describe("workflow authoring MCP", () => {
+  it("recommends and designs inline without running effects", async () => {
+    const client = await connected();
+    try {
+      const result = await client.callTool({name: "recommend_workflow", arguments: {brief: {goal: "dependency security policy"}}});
+      expect(result.isError).toBeFalsy();
+      const report = firstText(result);
+      expect(JSON.parse(report).provider).toBe("offline");
+      const design = await client.callTool({name: "design_workflow", arguments: {report, selection: "recipe:dependency-guardian", id: "guard"}});
+      expect(design.isError).toBeFalsy();
+      expect(JSON.parse(firstText(design)).verification.ok).toBe(true);
+      const rejected = await client.callTool({name: "recommend_workflow", arguments: {brief: {goal:"test"},provider:"jev"}});
+      expect(rejected.isError).toBe(true);
+      expect(firstText(rejected)).toContain("allowExternal");
+    } finally {await client.close();}
+  });
+});

@@ -11,6 +11,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  WorkflowBriefSchema,
   BUILTIN_RECIPE_CATALOG,
   FACTORY_VERSION,
   formatValidation,
@@ -26,7 +27,7 @@ import {
 } from "@loopyc/core";
 import { createRuntime, Journal } from "@loopyc/runtime";
 import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
-import { inferScaffold } from "@loopyc/infer";
+import { recommendWorkflow, designWorkflow, type RecommendationReport, inferScaffold } from "@loopyc/infer";
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -92,6 +93,26 @@ function fence(s: string): string {
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "loopc-mcp", version: FACTORY_VERSION });
+
+  server.tool(
+    "recommend_workflow",
+    "Compare eligible recipes and blueprints for a goal. Offline is local lexical ranking. Jev sends only the supplied brief and catalog metadata to TypeSafe using server-side TYPESAFE_API_KEY; requires allowExternal:true. Returns a decision report; does not execute or write files. Suitability is separate from safety.",
+    { brief: WorkflowBriefSchema, provider: z.enum(["offline", "jev"]).default("offline"), model: z.string().max(100).optional(), allowExternal: z.boolean().default(false) },
+    async ({brief, provider, model, allowExternal}) => {
+      if (provider === "jev" && !allowExternal) return text("Jev sends the brief to TypeSafe. Set allowExternal:true after the user authorizes that provider, or use offline.", true);
+      try { return text(JSON.stringify(await recommendWorkflow(brief, {provider, model}), null, 2)); }
+      catch (error) { return text((error as Error).message, true); }
+    }
+  );
+  server.tool(
+    "design_workflow",
+    "Explicitly select a candidate from a saved recommendation report. Rechecks constraints, validates and mock-verifies the scaffold, and returns YAML, verification, safety score and authoring handoff inline. No real effects or file writes. Review required inputs before compiling.",
+    { report: z.string().max(512000).describe("JSON decision report returned by recommend_workflow"), selection: z.string().max(120), id: z.string().max(100) },
+    async ({report, selection, id}) => {
+      try { return text(JSON.stringify(await designWorkflow(JSON.parse(report) as RecommendationReport, selection, id), null, 2)); }
+      catch (error) { return text((error as Error).message, true); }
+    }
+  );
 
   server.tool(
     "get_loop_schema",

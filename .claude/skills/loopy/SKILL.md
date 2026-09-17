@@ -33,6 +33,17 @@ source*, and get confirmation. `verify` proves the loop is **bounded**, not that
 reproduces the original — a fabricated-but-reachable terminator passes verify yet is wrong.
 Human review is the only check for semantic fidelity.
 
+## Optional structured workflow selection
+
+When the user wants help comparing workflow structures, use `loopc recommend` (or
+`recommend_workflow`) before scaffolding. Start with a brief containing the goal, known effects,
+completion evidence, caps, and priorities. Jev requires an explicit user choice of that provider
+and `TYPESAFE_API_KEY` (`allowExternal:true` in MCP); otherwise use the labeled offline baseline.
+Explain the leading alternatives and missing information. Never treat suitability or Jev confidence
+as the workflow safety score or evidence of real-world success. Select explicitly with `loopc design`
+(or `design_workflow`), then finish the goal-specific inputs and prompt edits using its handoff.
+The scaffold is not a finished implementation. Read `docs/workflow-designer.md` for the full contract.
+
 ## Workflow
 
 1. **Read the schema first.** Run `loopc blueprints` and read the LoopSpec guide

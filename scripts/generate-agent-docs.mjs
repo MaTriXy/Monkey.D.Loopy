@@ -10,6 +10,12 @@ const { version } = JSON.parse(await readFile(path.join(root, "package.json"), "
 
 const sources = [
   {
+    title: "Workflow designer with Jev",
+    file: "docs/workflow-designer.md",
+    url: `${site}/workflow-designer`,
+    description: "Structured recommendations, hard constraints, explicit selection, Jev and offline authoring.",
+  },
+  {
     title: "Repository overview",
     file: "README.md",
     url: `${site}/`,

@@ -58,3 +58,4 @@ export { GAUNTLET_WORKSTREAM_ID_RE, isGauntletWorkstreamId } from "./gauntlet-id
 export { parseDuration, isValidDuration } from "./duration.js";
 export { toToon, LOOPSPEC_GUIDE } from "./toon.js";
 export { listBlueprints, getBlueprint, PUBLIC_LOOP_PATTERNS, type Blueprint } from "./catalog.js";
+export * from "./recommend.js";

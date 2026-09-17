@@ -4,7 +4,7 @@ export interface ParsedArgs {
   flags: Record<string, string | boolean>;
 }
 
-const BOOLEAN_FLAGS = new Set(["help", "h", "version", "all", "vendor"]);
+const BOOLEAN_FLAGS = new Set(["help", "h", "version", "all", "vendor", "json"]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const positionals: string[] = [];

@@ -11,6 +11,7 @@
 
 ## Documentation
 
+- [Workflow designer with Jev](https://matrixy.github.io/Monkey.D.Loopy/workflow-designer): Structured recommendations, hard constraints, explicit selection, Jev and offline authoring.
 - [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended agent workflow, MCP pattern, context endpoints, and safety boundaries.
 - [First bounded loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart): Clean-room install, safe one-command proof, generated files, and production handoff.
 - [LoopSpec v0.1](https://matrixy.github.io/Monkey.D.Loopy/loopspec): Schema, steps, expressions, termination grounding, caps, and validation gates.

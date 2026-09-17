@@ -57,6 +57,7 @@ export default defineConfig({
         items: [
           { text: "Why Loopy", link: "/" },
           { text: "First loop", link: "/quickstart" },
+          { text: "Workflow designer", link: "/workflow-designer" },
           { text: "Using Loopy with agents", link: "/agent-guide" },
           { text: "Verified recipes", link: "/recipes" },
           { text: "CLI reference", link: "/cli" },
