@@ -31,3 +31,12 @@ loopc verify   examples/test-green.yaml
 loopc score    examples/test-green.yaml
 loopc compile  examples/test-green.yaml --target standalone --out ./out/test-green
 ```
+
+## Jev refinement example (0.9.0)
+
+[`jev-refinement.json`](./jev-refinement.json) is a complete, credential-free input for
+`loopc refine`. It includes current/proposed workflow source, an authoring hypothesis, and mock
+fixtures. It contains no measured run evidence. The
+[workflow designer walkthrough](../docs/workflow-designer.md#run-the-checked-in-refinement-example)
+runs two offline rounds and checks lineage; see [availability](../docs/availability.md) before
+using a published package. Choose Jev explicitly to obtain a semantic comparison.

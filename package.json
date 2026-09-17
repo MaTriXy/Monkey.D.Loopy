@@ -1,7 +1,7 @@
 {
   "name": "monkey-d-loopy",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A factory for runnable, crash-resumable agent loops. Define a loop once; compile it to multiple runnable targets with termination and cost guarantees baked in.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
@@ -18,7 +18,7 @@
     "docs:preview": "vitepress preview docs",
     "security:audit": "pnpm audit --audit-level=low",
     "typecheck": "pnpm recipes:check && pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && node integrations/omarchy/model.test.mjs",
     "eval": "pnpm --filter @loopyc/evals eval",
     "eval:skill": "pnpm --filter @loopyc/evals eval:skill",
     "loopc": "pnpm --filter @loopyc/cli loopc",
@@ -36,17 +36,23 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitepress": "^1.6.4",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"],
     "overrides": {
       "bundle-require>esbuild": "^0.28.1",
-      "fast-uri": ">=3.1.4",
-      "postcss": ">=8.5.18",
+      "fast-uri": "^4.1.3",
+      "postcss": "^8.5.23",
       "@hono/node-server": ">=2.0.5",
       "tsup>esbuild": "^0.28.1",
-      "vitepress>vite": "^6.4.3"
+      "vitepress>vite": "^6.4.3",
+      "ip-address": "^10.3.1",
+      "hono": "^4.13.5",
+      "nanoid@3": "^3.3.18",
+      "browserslist": "^4.28.7",
+      "qs": "^6.16.0",
+      "baseline-browser-mapping": "^2.11.0"
     }
   }
 }

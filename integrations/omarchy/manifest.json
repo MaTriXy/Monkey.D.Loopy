@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.matrixy.monkey-d-loopy",
+  "name": "Monkey D Loopy",
+  "version": "0.1.0",
+  "author": "MaTriXy",
+  "license": "MIT",
+  "description": "Monitor and control local Monkey D Loopy runs from the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Monkey D Loopy",
+    "description": "Local loop status and guarded runtime controls",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

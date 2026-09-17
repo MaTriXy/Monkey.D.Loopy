@@ -1,7 +1,7 @@
 {
   "name": "@loopyc/infer",
-  "version": "0.8.0",
-  "description": "Deterministic FactPack extraction from existing scripts (JS/TS AST, bash) and .loopy journals → a draft LoopSpec for the /loopy skill to complete.",
+  "version": "0.9.0",
+  "description": "Deterministic FactPack extraction from existing scripts (JS/TS AST, bash) and .loopy journals \u2192 a draft LoopSpec for the /loopy skill to complete.",
   "author": "MaTriXy <elkriefy@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -37,7 +37,9 @@
   },
   "dependencies": {
     "@loopyc/core": "workspace:*",
-    "typescript": "^5.7.2"
+    "@loopyc/verify": "workspace:*",
+    "typescript": "^5.7.2",
+    "zod": "^3.24.1"
   },
   "engines": {
     "node": ">=22"

@@ -4,6 +4,7 @@
 
 ## Start here
 
+- [Feature availability](https://matrixy.github.io/Monkey.D.Loopy/availability): Check minimum versions and confirm installed CLI/MCP capabilities.
 - [Documentation home](https://matrixy.github.io/Monkey.D.Loopy/): Product overview and quickstart.
 - [First bounded loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart): Safe clean-room proof from npm to a journaled, portable artifact.
 - [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended context and tool workflow for an agent.
@@ -11,6 +12,8 @@
 
 ## Documentation
 
+- [Feature availability and release readiness](https://matrixy.github.io/Monkey.D.Loopy/availability): Versioned capabilities, installation, source setup, and publication checks. Read before selecting commands.
+- [Workflow designer with Jev](https://matrixy.github.io/Monkey.D.Loopy/workflow-designer): Recommendations, scaffold design, iterative refinement, exact request contracts, lineage, privacy, and offline behavior.
 - [Using Loopy with agents](https://matrixy.github.io/Monkey.D.Loopy/agent-guide): Recommended agent workflow, MCP pattern, context endpoints, and safety boundaries.
 - [First bounded loop](https://matrixy.github.io/Monkey.D.Loopy/quickstart): Clean-room install, safe one-command proof, generated files, and production handoff.
 - [LoopSpec v0.1](https://matrixy.github.io/Monkey.D.Loopy/loopspec): Schema, steps, expressions, termination grounding, caps, and validation gates.
@@ -27,4 +30,4 @@
 ## Source and releases
 
 - [GitHub repository](https://github.com/MaTriXy/Monkey.D.Loopy): Canonical source, examples, recipes, and issues.
-- [Published releases](https://github.com/MaTriXy/Monkey.D.Loopy/releases): Public release history; the repository remains canonical for unpushed or unreleased work such as documentation generated from a local v0.8.0 tree.
+- [Published releases](https://github.com/MaTriXy/Monkey.D.Loopy/releases): Public release history; the repository remains canonical for unpushed or unreleased work such as documentation generated from a local v0.9.0 tree.

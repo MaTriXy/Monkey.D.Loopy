@@ -109,6 +109,9 @@ npm i -g @loopyc/operator
 loopyd --help
 ```
 
+Omarchy Quattro users can also try the development
+[bar controller](integrations/omarchy/README.md) for compact status and guarded runtime actions.
+
 It imports compiled artifacts for local scheduling and inspection; installing it does not start a
 service or make standalone/vendored artifacts depend on the operator.
 
@@ -334,5 +337,21 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.8.0` adds first-class Gauntlet workflows while retaining repository-to-tarball parity,
+Release `0.9.0` adds Jev workflow design and iterative refinement while retaining repository-to-tarball parity,
 a clean-room onboarding smoke, and a zero-vulnerability audit.
+
+## Workflow recommendations with Jev
+
+Available starting with 0.9.0. Read [feature availability](docs/availability.md)
+and the [agent handoff guide](docs/agent-guide.md) before using these commands.
+
+Use `loopc recommend "goal" --provider jev --out decision.json` to compare catalog workflows,
+then `loopc design decision.json --select recipe:dependency-guardian --id dependency-watch --out ./dependency-watch`
+to create a validated scaffold and authoring handoff. Set `TYPESAFE_API_KEY` for Jev, or choose
+`--provider offline` for a local lexical baseline. Selection is explicit; suitability and workflow
+safety are separate. MCP exposes `recommend_workflow`, `design_workflow`, and `refine_workflow`.
+Use `loopc refine request.json --provider jev --out revisions/round-1` to compare concrete
+workflow revisions with feedback and run evidence; `--previous revisions/round-1/decision.json`
+links the next round. Refinement preserves protected controls and may retain the current version.
+
+See the [workflow designer guide](docs/workflow-designer.md) for briefs, constraints, privacy, limits, and examples.

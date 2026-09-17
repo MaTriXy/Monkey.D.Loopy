@@ -13,7 +13,8 @@ let the factory emit the runnable artifact.
 CLI (from the repo): `pnpm exec tsx packages/cli/src/index.ts <cmd>` — shown as `loopc <cmd>` below.
 If the `loopc-mcp` server is connected, the equivalent tools are `get_loop_schema`,
 `list_blueprints`, `new_loop`, `validate_loop`, `verify_loop`, `compile_loop`, `run_loop`,
-`inspect_run`.
+`inspect_run`, `list_recipes`, `recommend_workflow`, `design_workflow`, and `refine_workflow`.
+Check actual tool discovery and `docs/availability.md`: the Jev tools require CLI/MCP 0.9.0 or newer. Never infer tool availability from the package version alone.
 
 ## From an existing script or trace (optional step 0)
 
@@ -33,13 +34,24 @@ source*, and get confirmation. `verify` proves the loop is **bounded**, not that
 reproduces the original — a fabricated-but-reachable terminator passes verify yet is wrong.
 Human review is the only check for semantic fidelity.
 
+## Optional structured workflow selection
+
+When the user wants help comparing workflow structures, use `loopc recommend` (or
+`recommend_workflow`) before scaffolding. Start with a brief containing the goal, known effects,
+completion evidence, caps, and priorities. Jev requires an explicit user choice of that provider
+and `TYPESAFE_API_KEY` (`allowExternal:true` in MCP); otherwise use the labeled offline baseline.
+Explain the leading alternatives and missing information. Never treat suitability or Jev confidence
+as the workflow safety score or evidence of real-world success. Select explicitly with `loopc design`
+(or `design_workflow`), then finish the goal-specific inputs and prompt edits using its handoff.
+The scaffold is not a finished implementation. Read `docs/workflow-designer.md` for the full contract.
+
 ## Workflow
 
 1. **Read the schema first.** Run `loopc blueprints` and read the LoopSpec guide
    (`get_loop_schema`, or `docs/loopspec.md`). Do not guess field names.
 2. **Pick the pattern.** Match the goal to a pattern and scaffold from the closest blueprint:
    `loopc new <id> --blueprint <name>` (react · plan-execute-reflect · evaluator-optimizer ·
-   loop-until-dry · map-reduce · poll-until · cron).
+   loop-until-dry · map-reduce · poll-until · cron · gauntlet).
 3. **Draft the spec**, honoring the non-negotiables (the validator enforces these):
    - `terminate` is **required**. Choose the **strongest available exit signal**:
      `oracle` (tests/compiler/schema) > `state-predicate` (queue empty / status==green) >
@@ -196,3 +208,24 @@ Map each lost point to its fix; don't ship a C if a stronger signal or a fingerp
 - An objective oracle in `terminate` beats a judged rubric beats self-assessment.
 - If you can't make the exit reachable, the loop is wrong — rethink the state/steps.
 - Show the user the spec, the verify result + reachability proof, and the score before compiling.
+
+
+## Iterative Jev refinement
+
+When asked to improve an existing workflow, preserve its exact current YAML and collect the user's
+feedback and available run evidence. Draft 1–4 concrete revised YAML proposals; Jev scores proposals,
+it does not generate code. Use `refine_workflow` (or `loopc refine <request.json> --out <new-dir>`)
+with a brief, current YAML, proposal IDs/YAML, and feedback. Optional evidence summaries must identify
+the compared revision's digest. Never invent run observations. See `docs/workflow-designer.md` for
+the request contract and digest formula.
+
+Use the already-authorized provider; Jev transmits the supplied source, feedback and evidence.
+Keep secrets out of those fields. Offline only verifies and retains current. Preserve caps,
+completion rules, state/input contracts, permissions, gates and external effects. The refinement
+API rejects protected-control changes rather than letting a model waive them.
+
+Show changed field paths/source diff, verification, safety, scores and the selection reason. A round
+may retain current; do not promise each iteration improves quality or retry merely to obtain a
+favorable score. For a follow-up round use the exact selected YAML as current and the prior report
+as previous. Save each draft/report in a new directory. Review and test on representative tasks
+before compiling/running; refinement never activates revisions or runs real effects.
