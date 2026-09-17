@@ -111,6 +111,9 @@ Use `loopc recommend "goal" --provider jev --out decision.json` to compare catal
 then `loopc design decision.json --select recipe:dependency-guardian --id dependency-watch --out ./dependency-watch`
 to create a validated scaffold and authoring handoff. Set `TYPESAFE_API_KEY` for Jev, or choose
 `--provider offline` for a local lexical baseline. Selection is explicit; suitability and workflow
-safety are separate. MCP exposes `recommend_workflow` and `design_workflow`.
+safety are separate. MCP exposes `recommend_workflow`, `design_workflow`, and `refine_workflow`.
+Use `loopc refine request.json --provider jev --out revisions/round-1` to compare concrete
+workflow revisions with feedback and run evidence; `--previous revisions/round-1/decision.json`
+links the next round. Refinement preserves protected controls and may retain the current version.
 
 See the [workflow designer guide](./workflow-designer.md) for briefs, constraints, privacy, limits, and examples.

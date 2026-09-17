@@ -24,3 +24,4 @@ export function inferScaffold(filename: string, content: string, id?: string): I
   return { kind, factpack, draftYaml: scaffoldYaml(factpack, id ?? deriveId(filename)) };
 }
 export * from "./recommend.js";
+export * from "./refine.js";

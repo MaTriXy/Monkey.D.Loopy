@@ -34,7 +34,7 @@ import { flagString, parseArgs } from "./args.js";
 import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop, type VerifyOptions } from "@loopyc/verify";
 import { inferScaffold } from "@loopyc/infer";
 
-import { cmdRecommend, cmdDesign } from "./recommend.js";
+import { cmdRecommend, cmdDesign, cmdRefine } from "./recommend.js";
 
 const TARGET_ARG = `${SUPPORTED_TARGETS.join(",")}|all`;
 
@@ -42,6 +42,7 @@ const USAGE = `loopc v${FACTORY_VERSION} — factory for runnable agent loops
 
 Usage:
   loopc recommend ["goal"] [--brief <json>] [--provider offline|jev] [--model <id>] [--out <decision.json>] [--json]
+  loopc refine <request.json> [--provider offline|jev] --out <new-directory> [--previous <decision.json>] [--json]
   loopc design <decision.json> --select <recipe:name|blueprint:name> --id <id> --out <new-directory>
   loopc quickstart [dir]   (prove, run, inspect, and compile a safe first loop)
   loopc new <id> [--recipe <name> | --blueprint <name>] [--pattern <pattern>] [--out <file>]
@@ -76,6 +77,8 @@ export async function run(argv: string[]): Promise<number> {
   }
 
   switch (cmd) {
+    case "refine":
+      return cmdRefine(positionals[1], flags);
     case "recommend":
       return cmdRecommend(positionals[1], flags);
     case "design":

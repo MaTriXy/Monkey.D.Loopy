@@ -27,7 +27,7 @@ import {
 } from "@loopyc/core";
 import { createRuntime, Journal } from "@loopyc/runtime";
 import { formatScore, formatVerify, interpretLoop, scoreLoop, verifyLoop } from "@loopyc/verify";
-import { recommendWorkflow, designWorkflow, type RecommendationReport, inferScaffold } from "@loopyc/infer";
+import { recommendWorkflow, designWorkflow, refineWorkflow, RefinementRequestSchema, type RefinementReport, type RecommendationReport, inferScaffold } from "@loopyc/infer";
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -101,6 +101,16 @@ export function createServer(): McpServer {
     async ({brief, provider, model, allowExternal}) => {
       if (provider === "jev" && !allowExternal) return text("Jev sends the brief to TypeSafe. Set allowExternal:true after the user authorizes that provider, or use offline.", true);
       try { return text(JSON.stringify(await recommendWorkflow(brief, {provider, model}), null, 2)); }
+      catch (error) { return text((error as Error).message, true); }
+    }
+  );
+  server.tool(
+    "refine_workflow",
+    "Compare current workflow YAML with 1–4 agent/user-authored proposals using feedback and revision-attributed run evidence. Validate and mock-verify before scoring. Keeps current when improvement is unclear. Jev sends eligible YAML, brief, feedback and evidence to TypeSafe: remove embedded secrets and authorize allowExternal:true. Returns an immutable draft report with selected bytes and parent digest; never executes, activates or writes files. Supply previous report to continue the lineage.",
+    {request: RefinementRequestSchema, previous: z.string().max(1000000).optional().describe("JSON report from the previous refine_workflow call"), provider: z.enum(["offline", "jev"]).default("offline"), model: z.string().max(100).optional(), allowExternal: z.boolean().default(false)},
+    async ({request, previous, provider, model, allowExternal}) => {
+      if (provider === "jev" && !allowExternal) return text("Jev sends supplied workflow source, feedback and evidence to TypeSafe. Set allowExternal:true after user authorization, or use offline.", true);
+      try { return text(JSON.stringify(await refineWorkflow(request, {provider, model}, previous ? JSON.parse(previous) as RefinementReport : undefined), null, 2)); }
       catch (error) { return text((error as Error).message, true); }
     }
   );

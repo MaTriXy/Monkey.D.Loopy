@@ -207,3 +207,24 @@ Map each lost point to its fix; don't ship a C if a stronger signal or a fingerp
 - An objective oracle in `terminate` beats a judged rubric beats self-assessment.
 - If you can't make the exit reachable, the loop is wrong — rethink the state/steps.
 - Show the user the spec, the verify result + reachability proof, and the score before compiling.
+
+
+## Iterative Jev refinement
+
+When asked to improve an existing workflow, preserve its exact current YAML and collect the user's
+feedback and available run evidence. Draft 1–4 concrete revised YAML proposals; Jev scores proposals,
+it does not generate code. Use `refine_workflow` (or `loopc refine <request.json> --out <new-dir>`)
+with a brief, current YAML, proposal IDs/YAML, and feedback. Optional evidence summaries must identify
+the compared revision's digest. Never invent run observations. See `docs/workflow-designer.md` for
+the request contract and digest formula.
+
+Use the already-authorized provider; Jev transmits the supplied source, feedback and evidence.
+Keep secrets out of those fields. Offline only verifies and retains current. Preserve caps,
+completion rules, state/input contracts, permissions, gates and external effects. The refinement
+API rejects protected-control changes rather than letting a model waive them.
+
+Show changed field paths/source diff, verification, safety, scores and the selection reason. A round
+may retain current; do not promise each iteration improves quality or retry merely to obtain a
+favorable score. For a follow-up round use the exact selected YAML as current and the prior report
+as previous. Save each draft/report in a new directory. Review and test on representative tasks
+before compiling/running; refinement never activates revisions or runs real effects.

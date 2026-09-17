@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { getBlueprint } from "@loopyc/core";
+import { getBlueprint, loadSpecFromYaml } from "@loopyc/core";
 import { createServer } from "../src/server.js";
 
 async function connected(): Promise<Client> {
@@ -37,6 +37,25 @@ describe("loopc-mcp", () => {
     ]) {
       expect(names, n).toContain(n);
     }
+  });
+
+  it("refines offline with lineage and requires consent before sending workflow source", async () => {
+    const client = await connected();
+    try {
+      const current = getBlueprint("evaluator-optimizer")!.yaml;
+      const proposal = loadSpecFromYaml(current).spec!;
+      if (proposal.body[0]?.kind === "agent") proposal.body[0].prompt = "Use an explicit evidence checklist.";
+      const request = {brief:{goal:"Improve factual accuracy"},current,proposals:[{id:"checklist",yaml:JSON.stringify(proposal)}],feedback:"Avoid unsupported claims"};
+      const denied = await client.callTool({name:"refine_workflow",arguments:{request,provider:"jev"}});
+      expect(denied.isError).toBe(true); expect(firstText(denied)).toContain("allowExternal");
+      const first = await client.callTool({name:"refine_workflow",arguments:{request}});
+      expect(first.isError).toBeFalsy();
+      const report = JSON.parse(firstText(first));
+      expect(report.selectedId).toBe("current");
+      const second = await client.callTool({name:"refine_workflow",arguments:{request,previous:JSON.stringify(report)}});
+      expect(JSON.parse(firstText(second)).parentDigest).toBe(report.digest);
+      expect(JSON.parse(firstText(second)).round).toBe(2);
+    } finally {await client.close();}
   });
 
   it("infer_loop_scaffold drafts a spec from a bash script", async () => {

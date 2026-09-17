@@ -131,6 +131,88 @@ The dependency recipe uses an external evaluation URL; it does not silently inve
 service. Editing a goal in metadata alone does not implement it. The authoring handoff makes
 these remaining steps explicit. No shell, HTTP, or agent effects run during mock verification.
 
+## Improve a workflow over multiple rounds
+
+The refinement path is **current YAML → feedback and evidence → authored proposals → checks →
+Jev comparison → retained or revised draft → another round**. The user or coding agent writes
+1–4 concrete proposals; Jev evaluates their actual source. Loopy never rewrites prompts from a
+score, automatically runs a workflow, or activates a revision.
+
+Ask your coding agent: “Improve this workflow using the failures from the last run. Draft two
+alternatives, compare them with Jev, and show me the selected revision and its changes.” With MCP,
+the agent can use `refine_workflow` directly. With the CLI, prepare a request from files:
+
+```js
+// prepare-refinement.mjs (run with node)
+import {readFileSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const current = readFileSync('workflow/loop.yaml', 'utf8');
+const proposal = readFileSync('proposal.yaml', 'utf8');
+// Same YAML digest used by revisionDigest() in @loopyc/infer.
+const digest = createHash('sha256').update(JSON.stringify(current)).digest('hex');
+writeFileSync('refinement.json', JSON.stringify({
+  brief: {goal: 'Produce an accurate article with source-backed claims', completionEvidence: 'agent'},
+  current,
+  proposals: [{id: 'claim-checking', yaml: proposal}],
+  feedback: 'Make the evaluator identify unsupported claims and give actionable corrections.',
+  // Optional: include only observations actually obtained from this exact revision.
+  // evidence: [{revisionDigest: digest, summary: 'Describe measured results here.'}],
+  evidence: []
+}, null, 2), {mode: 0o600});
+```
+
+```sh
+node prepare-refinement.mjs
+loopc refine refinement.json --provider offline --out revisions/check-1
+loopc refine refinement.json --provider jev --out revisions/round-1
+```
+
+`--provider jev` explicitly transmits the supplied brief, eligible workflow YAML, feedback, and
+evidence to TypeSafe. Unlike catalog recommendation, this includes your workflow source: remove
+embedded secrets and unrelated/private data first. It does not discover files or read journals.
+Fixtures are used locally and are not sent to Jev. Each round makes at most one bounded API call,
+with no automatic retries; if every proposal is excluded, it makes none. Offline mode only checks
+proposals and retains the current version; it does not score semantic improvements.
+
+Each new directory includes `loop.yaml` with the **exact selected bytes**, `decision.json` with
+the complete request, changed field paths, checks, scores, model, usage and digests, optional
+`fixtures.json`, and a handoff. Existing directories are never overwritten. `--json` also prints
+the report. A retained current version is a successful review (exit 0), not a provider failure.
+
+For the next round, set `current` to `revisions/round-1/loop.yaml`, add new proposals and feedback,
+and run:
+
+```sh
+loopc refine next-refinement.json --provider jev \
+  --previous revisions/round-1/decision.json --out revisions/round-2
+```
+
+The previous report must be unchanged and its selected YAML must match the new baseline exactly.
+Each round records its number and parent digest. Keep prior directories to retain the full chain
+and to return to an earlier draft; no workflow is activated by refinement. Comparisons always
+rescore the current version alongside proposals. Scores from different rounds, briefs, or models
+are not a trend or evidence of steadily increasing quality.
+
+Before Jev sees a proposal, Loopy requires validation with explicit caps, matching brief constraints,
+mock verification, no decrease in safety score, and no loss of natural completion under the same
+fixtures. This refinement path preserves completion rules, caps, inputs, state, target, gates,
+schedules, external effects and their relative order. It permits prompts, metadata, pattern labels,
+and agent-task sequencing changes under existing agent contracts; it rejects new harness/permission/
+state-write contracts and environment references. Broader changes to those protected controls need
+separate authoring and review. These checks do not prove that arbitrary agent behavior is safe or
+that a revised prompt produces better results.
+
+Jev must prefer a proposal by at least 5 suitability points, with fit at least 2/4, no lower fit than
+the current version. Otherwise the current version stays
+selected. Provider confidence below 0.5 is a review warning, not an acceptance gate. These are conservative, uncalibrated selection rules, not a guarantee of optimization.
+Review the source diff and test the selected draft on representative tasks before execution.
+
+A request is limited to 256 KB, four proposals (48,000 characters each), 6,000 feedback characters,
+and eight evidence summaries of 4,000 characters each. Each evidence item carries the digest of a
+revision in that comparison; unknown digests are rejected. Evidence is explicitly user-supplied,
+not independently verified. Optional `fixtures` has the same `agent`, `shell`, and `http` response
+shape used by `loopc verify`. It tests mocked structural behavior, not real task quality.
+
 ## MCP and coding agents
 
 `recommend_workflow` accepts `brief`, `provider`, optional `model`, and `allowExternal`.
@@ -142,6 +224,12 @@ in MCP arguments.
 scaffold YAML, fixtures, verification, safety score, and authoring handoff inline. It writes no
 files and executes no real effects. The existing `validate_loop`, `verify_loop`, and `compile_loop`
 tools finish the authoring path after goal-specific edits.
+
+`refine_workflow` accepts `request` (the object above), optional `previous` (the previous refinement
+report serialized as JSON), `provider`, `model`, and `allowExternal`. It returns all revision checks,
+rankings, selected ID/digest and source inline. Find the selected bytes in `checks` by `selectedId`.
+Jev requires `allowExternal: true`; authorization already given for the same scope need not be
+requested again each round. Each call is one round, not an unbounded background optimization loop.
 
 The TypeSafe [agent skill](https://docs.typesafe.ai/agent-skill) can help an authoring agent
 understand TypeSafe decisions, but installation is not required to use Loopy's integration.

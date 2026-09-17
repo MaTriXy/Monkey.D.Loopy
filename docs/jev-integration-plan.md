@@ -50,3 +50,13 @@ quality comparison is separate from fixture correctness and requires a configure
 A visual designer, generative free-form LoopSpec synthesis, runtime Jev routing, and automatic
 activation are outside this authoring feature. Measure recommendation quality on labeled goals
 before claiming improvement over the existing authoring skill.
+
+
+## Iterative refinement extension
+
+Implemented: concrete current/proposal YAML comparisons, feedback and digest-attributed evidence,
+deterministic protected-control gates, same-fixture verification and safety comparisons, explicit
+incumbent retention, immutable draft directories, parent-linked rounds, CLI `refine`, and MCP
+`refine_workflow`. Jev ranks authored proposals; the coding agent/user supplies implementation edits.
+Source and evidence are sent only with explicit Jev provider selection. Offline performs checks
+without claiming optimization. Full authoring protocol and limits are in `workflow-designer.md`.

@@ -1,10 +1,10 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { recommendWorkflow, designWorkflow, writeWorkflowDesign, formatRecommendation, type RecommendationReport } from "@loopyc/infer";
+import { readFile, writeFile, lstat } from "node:fs/promises";
+import { recommendWorkflow, designWorkflow, writeWorkflowDesign, formatRecommendation, type RecommendationReport, refineWorkflow, writeWorkflowRefinement, type RefinementReport } from "@loopyc/infer";
 import { flagString } from "./args.js";
 
 async function readJson(path: string): Promise<unknown> {
   const text = await readFile(path, "utf8");
-  if (Buffer.byteLength(text) > 512_000) throw new Error("Input JSON exceeds 512 KB");
+  if (Buffer.byteLength(text) > 1_000_000) throw new Error("Input JSON exceeds 1 MB");
   return JSON.parse(text);
 }
 export async function cmdRecommend(goal: string | undefined, flags: Record<string, string | boolean>): Promise<number> {
@@ -29,5 +29,28 @@ export async function cmdDesign(file: string | undefined, flags: Record<string, 
   const design = await designWorkflow(report, selection, id);
   await writeWorkflowDesign(out, report, design);
   console.log(`Created ${out}/loop.yaml and authoring handoff.\nMock verification passed; safety ${design.safety.total}/100 (${design.safety.grade}).\nRequired inputs: ${design.requiredInputs.join(", ") || "none"}. Review ${out}/README.md before compiling or running.`);
+  return 0;
+}
+
+export async function cmdRefine(file: string | undefined, flags: Record<string, string | boolean>): Promise<number> {
+  const out = flagString(flags, "out");
+  if (!file || !out) throw new Error("usage: loopc refine <request.json> --provider offline|jev --out <new-directory> [--previous <decision.json>] [--json]");
+  const provider = flagString(flags, "provider") ?? "offline";
+  if (provider !== "jev" && provider !== "offline") throw new Error("--provider must be jev or offline");
+  try {
+    await lstat(out);
+    throw new Error("Refinement output directory already exists; choose a new directory");
+  } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const previousFile = flagString(flags, "previous");
+  const saved = previousFile ? await readJson(previousFile) as {report?: RefinementReport} : undefined;
+  const previous = saved ? (saved.report ?? saved as RefinementReport) : undefined;
+  const report = await refineWorkflow(await readJson(file), {provider, model: flagString(flags, "model")}, previous);
+  await writeWorkflowRefinement(out, report);
+  console.log(flags.json ? JSON.stringify(report, null, 2) : [
+    `Refinement round ${report.round}: ${report.reason}`,
+    ...report.checks.map(c => `${c.id}: ${c.eligible ? "checks passed" : c.issues.join("; ")}`),
+    `Created ${out}/loop.yaml and decision.json. Review the diff before running.`,
+    "Use this exact YAML as current and --previous decision.json for the next round.",
+  ].join("\n"));
   return 0;
 }

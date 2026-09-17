@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add iterative Jev refinement: concrete proposal comparison, feedback/evidence, protected-control
+  checks, incumbent retention, and immutable parent-linked drafts through CLI and MCP.
+
 - Add optional Jev workflow recommendations with strict briefs, deterministic eligibility,
   weighted suitability, explicit offline mode, and saved decision reports.
 - Add CLI/MCP selection and mock-verified scaffold creation with recipe provenance, tightened

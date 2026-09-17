@@ -32,7 +32,7 @@ export type WorkflowBrief = z.infer<typeof WorkflowBriefSchema>;
 export interface WorkflowCandidate {
   id: string;
   name: string;
-  kind: "recipe" | "blueprint";
+  kind: "recipe" | "blueprint" | "revision";
   description: string;
   pattern: string;
   grounding: string;
