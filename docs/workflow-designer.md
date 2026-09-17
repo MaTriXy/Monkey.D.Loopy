@@ -23,7 +23,8 @@ confidence. A low-fit or close ranking asks you to review the alternatives.
 
 The report displays the three leading choices and retains all eligible and excluded candidates
 in JSON. You may explicitly select any eligible candidate, including one outside the top three.
-`--json` prints the full report for tooling. No eligible candidates returns exit code 2 and still
+`--json` prints the full report for tooling. No eligible candidates, or a leading goal-fit score below
+2/4, returns no recommendation (`recommendedId: null`), exit code 2, and still
 writes the report, if requested. Invalid input or provider failure returns a nonzero exit code.
 
 ## Use Jev
@@ -89,7 +90,8 @@ harness permissions and external evidence services before real execution.
 
 Loopy filters eligibility deterministically before contacting Jev. Jev answers two five-level
 questions per eligible candidate: goal fit and minimal sufficient coordination. Loopy validates
-answer types, ranges, probability distributions, legends, usage, and score consistency, then
+answer types, ranges, probability distributions, legends, usage, and score consistency (allowing
+for independently rounded two-decimal provider values), then
 computes a weighted suitability score. A model response cannot introduce a new candidate, change
 caps, turn agent judgment into external grounding, or override an exclusion.
 

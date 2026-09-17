@@ -1,6 +1,6 @@
 # Jev workflow designer implementation plan
 
-Status: implemented; local validation complete, live Jev quality check pending a configured API key. Scope: optional authoring assistance, never runtime authority.
+Status: implemented; local validation complete; live smoke tests confirm nine representative selections. This is a small curated sample, not a general quality benchmark. Scope: optional authoring assistance, never runtime authority.
 
 ## User journey
 

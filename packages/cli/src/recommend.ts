@@ -19,7 +19,7 @@ export async function cmdRecommend(goal: string | undefined, flags: Record<strin
   if (out) await writeFile(out, JSON.stringify(report, null, 2) + "\n", {flag: "wx", mode: 0o600});
   console.log(flags.json ? JSON.stringify(report, null, 2) : formatRecommendation(report));
   if (out && !flags.json) console.log(`\nSaved ${out}. Next: loopc design ${out} --select <candidate-id> --id <loop-id> --out <new-directory>`);
-  return report.alternatives.length ? 0 : 2;
+  return report.recommendedId ? 0 : 2;
 }
 export async function cmdDesign(file: string | undefined, flags: Record<string, string | boolean>): Promise<number> {
   const selection = flagString(flags, "select"), id = flagString(flags, "id"), out = flagString(flags, "out");

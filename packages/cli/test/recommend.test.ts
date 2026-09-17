@@ -21,6 +21,13 @@ describe("recommend/design CLI",()=>{
       await expect(run(["design",report,"--select","recipe:dependency-guardian","--id","guard","--out",out])).rejects.toThrow();
     } finally {log.mockRestore();rmSync(root,{recursive:true,force:true});}
   });
+  it("returns a review-needed status when the offline catalog has no useful goal match",async()=>{
+    const log=vi.spyOn(console,"log").mockImplementation(()=>{});
+    try {
+      expect(await run(["recommend","zzzzzzzz","--provider","offline","--json"])).toBe(2);
+      expect(JSON.parse(log.mock.calls[0]![0]).recommendedId).toBeNull();
+    } finally {log.mockRestore();}
+  });
   it("rejects unsupported providers",async()=>{
     await expect(run(["recommend","goal","--provider","invented"])).rejects.toThrow("provider");
   });

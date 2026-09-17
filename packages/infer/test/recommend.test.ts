@@ -30,6 +30,29 @@ describe("Jev authoring orchestration",()=>{
     expect(report.alternatives[0]!.suitability).toBe(100);
     expect(report).not.toHaveProperty("safety");
   });
+  it("accepts independently rounded live probabilities without accepting inconsistent scores",()=>{
+    const raw=reply();
+    const answer=raw.answers.c0_fit!;
+    answer.score=3.02;
+    answer.probabilities={"0":0.01,"1":0.04,"2":0.12,"3":0.56,"4":0.26};
+    expect(()=>parseJevResponse(raw,candidates)).not.toThrow();
+    answer.score=3.06;
+    expect(()=>parseJevResponse(raw,candidates)).toThrow("inconsistent");
+    answer.score=3;
+    answer.probabilities={"0":0,"1":0,"2":0,"3":0.97,"4":0};
+    expect(()=>parseJevResponse(raw,candidates)).toThrow("inconsistent");
+  });
+  it("abstains when all candidates have weak fit even if simplicity raises suitability",async()=>{
+    const raw=reply();
+    for(const [key,answer] of Object.entries(raw.answers)) if(key.endsWith("_fit")) {
+      answer.score=1;
+      answer.probabilities={"0":0,"1":1,"2":0,"3":0,"4":0};
+    }
+    const report=await recommendWorkflow(brief,{provider:"jev",apiKey:"test",fetch:async()=>Response.json(raw)});
+    expect(report.alternatives.length).toBeGreaterThan(0);
+    expect(report.recommendedId).toBeNull();
+    expect(report.notices.join(" ")).toContain("Weak goal fit");
+  });
   it("offline and impossible constraints make no external call",async()=>{
     const transport=vi.fn();
     const report=await recommendWorkflow(brief,{fetch:transport});

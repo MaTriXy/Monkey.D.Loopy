@@ -84,7 +84,12 @@ export function parseJevResponse(raw: unknown, candidates: WorkflowCandidate[]) 
         if (legend[String(j)] !== levels[j]) throw new Error("Jev score legend does not match the rubric");
         sum += p; weighted += j * p;
       }
-      if (Math.abs(sum - 1) > 0.01 || Math.abs(weighted - score) > 0.03) throw new Error("Jev score is inconsistent with its probabilities");
+      // Live responses round each probability and score to two decimal places.
+      // Five independently rounded probabilities can drift by 5 × .005;
+      // the weighted sum by (0+1+2+3+4) × .005, plus .005 for the score.
+      const rounding = 0.005;
+      const epsilon = 1e-9;
+      if (Math.abs(sum - 1) > 5 * rounding + epsilon || Math.abs(weighted - score) > 11 * rounding + epsilon) throw new Error("Jev score is inconsistent with its probabilities");
       values.push(score); confidences.push(confidence);
     }
     assessments[c.id] = {fit: values[0]!, simplicity: values[1]!, confidence: Math.min(...confidences)};
@@ -159,7 +164,8 @@ export async function recommendWorkflow(rawBrief: unknown, options: RecommendOpt
   if (alternatives.length > 1 && alternatives[0]!.suitability - alternatives[1]!.suitability < 5) notices.push("Leading options are close (under 5 points); review tradeoffs before selecting.");
   return {schemaVersion: "1", factoryVersion: FACTORY_VERSION, rubricVersion: RECOMMEND_RUBRIC_VERSION,
     provider, model, brief, inputDigest: hash(brief), catalogDigest: hash([candidates, workflowCatalogSources()]), usage,
-    alternatives, excluded: candidates.filter((c) => !c.eligible), recommendedId: alternatives[0]?.id ?? null, notices};
+    alternatives, excluded: candidates.filter((c) => !c.eligible),
+    recommendedId: alternatives[0] && alternatives[0].assessment.fit >= 2 ? alternatives[0].id : null, notices};
 }
 
 export interface WorkflowDesign {
@@ -211,6 +217,7 @@ export async function writeWorkflowDesign(directory: string, report: Recommendat
 
 export function formatRecommendation(report: RecommendationReport): string {
   const lines = [`Workflow recommendations (${report.provider}${report.model ? ` / ${report.model}` : ""})`, "Suitability is separate from workflow safety."];
+  if (!report.recommendedId) lines.push("No suitable workflow recommended. Refine the goal or constraints; any listed alternatives are for review only.");
   for (const c of report.alternatives.slice(0, 3)) lines.push(`\n${c.id}: ${c.suitability}/100 suitability`, c.description, c.explanation,
     `Required inputs: ${c.requiredInputs.join(", ") || "none"}`, `Template limits: ${c.defaultCaps.max_iterations} iterations; ${JSON.stringify(c.defaultCaps.budget)}. Schedule: ${c.schedule}. Supplied caps can only tighten these.`, ...c.warnings.map((w) => `  Warning: ${w}`));
   if (report.excluded.length) lines.push("\nExcluded:", ...report.excluded.map((c) => `${c.id}: ${c.exclusions.join("; ")}`));
