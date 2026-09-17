@@ -337,12 +337,12 @@ pnpm release:pack-smoke # clean consumer installs tarballs and exercises every t
 Each package publishes its compiled `dist` (via `publishConfig`), so installed consumers run the
 `loopc` / `loopc-mcp` bins and the generated artifacts with **plain `node`** — no `tsx` required.
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
-Release `0.8.0` adds first-class Gauntlet workflows while retaining repository-to-tarball parity,
+Release `0.9.0` adds Jev workflow design and iterative refinement while retaining repository-to-tarball parity,
 a clean-room onboarding smoke, and a zero-vulnerability audit.
 
 ## Workflow recommendations with Jev
 
-Source preview, not included in published 0.8.0. Read [feature availability](docs/availability.md)
+Available starting with 0.9.0. Read [feature availability](docs/availability.md)
 and the [agent handoff guide](docs/agent-guide.md) before using these commands.
 
 Use `loopc recommend "goal" --provider jev --out decision.json` to compare catalog workflows,

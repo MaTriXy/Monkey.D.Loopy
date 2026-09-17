@@ -8,7 +8,7 @@ npm i -g @loopyc/cli
 npx --yes @loopyc/cli@latest quickstart
 ```
 
-Release `0.8.0` reports its synchronized factory version with `loopc --version`.
+Release `0.9.0` reports its synchronized factory version with `loopc --version`.
 
 All commands exit non-zero on failure (parse error, validation failure, or a failed verify).
 
@@ -238,10 +238,10 @@ loopc score    my-loop.yaml
 loopc compile  my-loop.yaml --target all --out ./out/my-loop
 ```
 
-## Jev authoring commands (source preview)
+## Jev authoring commands (0.9.0)
 
 See [availability and source setup](./availability.md) before using these commands. The following
-commands are not in the published 0.8.0 CLI.
+commands require CLI 0.9.0 or newer.
 
 | Command | Inputs and flags | Result / exit behavior |
 |---|---|---|

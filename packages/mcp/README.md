@@ -20,9 +20,9 @@ The server uses stdio. A global `npm i -g @loopyc/mcp` install and `loopc-mcp` c
 Tool reference: [docs/mcp.md](https://github.com/MaTriXy/Monkey.D.Loopy/blob/main/docs/mcp.md).
 
 
-## Jev authoring and iterative refinement (source preview)
+## Jev authoring and iterative refinement (0.9.0)
 
-These source-preview capabilities are not in published 0.8.0. See
+These capabilities are available starting with 0.9.0. See
 [availability and source setup](https://matrixy.github.io/Monkey.D.Loopy/availability) and confirm
 that the installed CLI/MCP tool list includes the feature before using it.
 

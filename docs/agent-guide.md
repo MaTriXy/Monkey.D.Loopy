@@ -7,8 +7,8 @@ the validator and runtime remain responsible for boundedness, durability, and bu
 ## Discover availability first
 
 Read [feature availability](./availability.md), then inspect the actual installed `loopc --help`
-and MCP tool list. Jev design/refinement is a source preview and is not included in published
-0.8.0 packages. Use the matching source checkout until a release explicitly includes it.
+and MCP tool list. Jev design/refinement requires CLI/MCP 0.9.0 or newer. Upgrade older installations and reconnect
+the MCP server before using the tools.
 
 | User intent | Entry point | What the agent supplies |
 |---|---|---|

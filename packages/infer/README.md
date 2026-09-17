@@ -13,9 +13,9 @@ loopc infer-scaffold ./my-poll-script.sh     # via @loopyc/cli
 
 See the [project README](https://github.com/MaTriXy/Monkey.D.Loopy#readme) for the full factory.
 
-## Jev authoring and iterative refinement (source preview)
+## Jev authoring and iterative refinement (0.9.0)
 
-These source-preview capabilities are not in published 0.8.0. See
+These capabilities are available starting with 0.9.0. See
 [availability and source setup](https://matrixy.github.io/Monkey.D.Loopy/availability) and confirm
 that the installed CLI/MCP tool list includes the feature before using it.
 
@@ -36,7 +36,7 @@ Read the [workflow designer](https://matrixy.github.io/Monkey.D.Loopy/workflow-d
 [complete agent context](https://matrixy.github.io/Monkey.D.Loopy/llms-full.txt) for exact contracts,
 setup, repeated rounds and limitations.
 
-The source-preview library exports `recommendWorkflow`, `designWorkflow`, `refineWorkflow`,
+The 0.9.0 library exports `recommendWorkflow`, `designWorkflow`, `refineWorkflow`,
 `revisionDigest`, and the non-overwriting writers `writeWorkflowDesign` / `writeWorkflowRefinement`.
 A minimal refinement caller can load the documented request JSON:
 

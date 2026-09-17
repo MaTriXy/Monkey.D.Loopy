@@ -14,8 +14,7 @@ CLI (from the repo): `pnpm exec tsx packages/cli/src/index.ts <cmd>` — shown a
 If the `loopc-mcp` server is connected, the equivalent tools are `get_loop_schema`,
 `list_blueprints`, `new_loop`, `validate_loop`, `verify_loop`, `compile_loop`, `run_loop`,
 `inspect_run`, `list_recipes`, `recommend_workflow`, `design_workflow`, and `refine_workflow`.
-Check actual tool discovery and `docs/availability.md`: the Jev tools are source-preview features,
-not present in published 0.8.0. Never infer tool availability from the package version alone.
+Check actual tool discovery and `docs/availability.md`: the Jev tools require CLI/MCP 0.9.0 or newer. Never infer tool availability from the package version alone.
 
 ## From an existing script or trace (optional step 0)
 
