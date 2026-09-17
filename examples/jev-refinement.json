@@ -1,0 +1,20 @@
+{
+  "brief": {
+    "goal": "Improve an article using supplied source documents and explicit accuracy criteria",
+    "completionEvidence": "agent"
+  },
+  "current": "loopspec: \"0.1\"\nid: draft-refine\nmeta:\n  name: draft-refine\n  description: Generate, score against a rubric, and refine until the score clears the bar.\npattern: evaluator-optimizer\n\ninputs:\n  goal: { type: string, required: true }\n\nstate:\n  store: journal\n  vars:\n    score: { type: number, init: 0 }\n    rounds: { type: int, init: 0 }\n\nbody:\n  - id: improve\n    kind: agent\n    harness: cli  # any coding agent via LOOPY_AGENT_CMD\n    prompt: \"Improve the artifact toward: ${inputs.goal}. Current score ${state.score}.\"\n    on_done: { incr: rounds }\n  - id: evaluate\n    kind: agent\n    harness: llm  # provider-agnostic; pure judgment, returns JSON\n    prompt: \"Score the artifact from 0 to 1 against the rubric for: ${inputs.goal}. Return a JSON object whose field 'score' is that number. (Supply your own rubric/oracle.)\"\n    save: { score: \"$.score\" }\n\nterminate:\n  signal: llm-judge\n  until: \"${state.score >= 0.85}\"\n\ncaps:\n  max_iterations: 8\n  budget: { tokens: 200000, usd: 5.0, wallclock: \"1h\" }\n  on_cap_exceeded: breakpoint\n",
+  "proposals": [
+    {
+      "id": "accuracy-rubric",
+      "yaml": "{\n  \"loopspec\": \"0.1\",\n  \"id\": \"draft-refine\",\n  \"meta\": {\n    \"name\": \"draft-refine\",\n    \"version\": \"0.1.0\",\n    \"description\": \"Generate, score against a rubric, and refine until the score clears the bar.\"\n  },\n  \"pattern\": \"evaluator-optimizer\",\n  \"inputs\": {\n    \"goal\": {\n      \"type\": \"string\",\n      \"required\": true\n    }\n  },\n  \"state\": {\n    \"store\": \"journal\",\n    \"vars\": {\n      \"score\": {\n        \"type\": \"number\",\n        \"init\": 0\n      },\n      \"rounds\": {\n        \"type\": \"int\",\n        \"init\": 0\n      }\n    }\n  },\n  \"body\": [\n    {\n      \"id\": \"improve\",\n      \"kind\": \"agent\",\n      \"harness\": \"cli\",\n      \"prompt\": \"Improve the artifact toward: ${inputs.goal}. Current score ${state.score}.\",\n      \"on_done\": {\n        \"incr\": \"rounds\"\n      }\n    },\n    {\n      \"id\": \"evaluate\",\n      \"kind\": \"agent\",\n      \"harness\": \"llm\",\n      \"prompt\": \"Evaluate factual accuracy against supplied sources. Check each material claim, identify missing citations, and give actionable corrections. Return JSON {score: number, failures: []}, with score between 0 and 1. Unsupported material claims cap the score at 0.5. Never invent sources.\",\n      \"save\": {\n        \"score\": \"$.score\"\n      }\n    }\n  ],\n  \"terminate\": {\n    \"signal\": \"llm-judge\",\n    \"until\": \"${state.score >= 0.85}\"\n  },\n  \"caps\": {\n    \"max_iterations\": 8,\n    \"budget\": {\n      \"tokens\": 200000,\n      \"usd\": 5,\n      \"wallclock\": \"1h\"\n    },\n    \"on_cap_exceeded\": \"breakpoint\"\n  },\n  \"target\": {\n    \"runtime\": \"standalone\",\n    \"emit\": [\n      \"cli\",\n      \"skill\",\n      \"doctor\"\n    ]\n  },\n  \"schedule\": {\n    \"mode\": \"manual\"\n  },\n  \"observe\": {\n    \"trace\": \"journal\"\n  }\n}"
+    }
+  ],
+  "feedback": "Authoring hypothesis: explicit accuracy criteria should yield more actionable reviews. This example has no measured run evidence.",
+  "evidence": [],
+  "fixtures": {
+    "agent": {
+      "score": 0.9
+    }
+  }
+}

@@ -112,3 +112,11 @@ This site is generated from the repository's canonical Markdown. Agents can cons
 [`llms.txt`](./llms.txt) index or the consolidated [`llms-full.txt`](./llms-full.txt) context file.
 For the recommended authoring sequence and MCP integration, start with
 [Using Loopy with agents](./agent-guide.md).
+
+
+## Design and refine workflows with Jev
+
+The source preview adds structured workflow selection and iterative revision comparison through
+CLI and MCP. An authoring agent drafts alternatives; Jev compares their fit; Loopy checks the
+workflow and saves a new draft with history. Start with [feature availability](./availability.md),
+then the [workflow designer](./workflow-designer.md) or [agent handoff](./agent-guide.md).

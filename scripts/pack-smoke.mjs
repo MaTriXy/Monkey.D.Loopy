@@ -44,6 +44,25 @@ try {
 
   // This is the public onboarding contract: from an empty directory, the packed CLI must prove,
   // execute, journal, inspect, and vendor a safe first loop without reaching into the repository.
+  const decision = join(consumer, "decision.json");
+  run(loopc, ["recommend", "dependency security policy", "--provider", "offline", "--out", decision], consumer);
+  const design = join(consumer, "designed-workflow");
+  run(loopc, ["design", decision, "--select", "recipe:dependency-guardian", "--id", "packed-design", "--out", design], consumer);
+  requireTruthy(existsSync(join(design, "loop.yaml")), "packed designer omitted the scaffold");
+  run(loopc, ["verify", join(design, "loop.yaml"), "--fixtures", join(design, "fixtures.json")], consumer);
+
+  const currentYaml = readFileSync(join(design, "loop.yaml"), "utf8");
+  const refinementRequest = join(consumer, "refinement.json");
+  writeFileSync(refinementRequest, JSON.stringify({brief: {goal: "Maintain dependency security"},
+    current: currentYaml, proposals: [{id: "unchanged", yaml: currentYaml}], feedback: "Check for unnecessary edits",
+    fixtures: JSON.parse(readFileSync(join(design, "fixtures.json"), "utf8"))}));
+  const refinement = join(consumer, "revision-1");
+  run(loopc, ["refine", refinementRequest, "--provider", "offline", "--out", refinement], consumer);
+  const nextRefinement = join(consumer, "revision-2");
+  run(loopc, ["refine", refinementRequest, "--provider", "offline", "--previous", join(refinement, "decision.json"), "--out", nextRefinement], consumer);
+  requireTruthy(readFileSync(join(nextRefinement, "loop.yaml"), "utf8") === currentYaml, "refinement changed incumbent bytes");
+  requireTruthy(JSON.parse(readFileSync(join(nextRefinement, "decision.json"), "utf8")).report.round === 2, "refinement lost lineage");
+
   const firstLoop = join(consumer, "first-loop");
   const onboarding = run(loopc, ["quickstart", firstLoop], consumer);
   requireTruthy(onboarding.includes("first loop complete"), "quickstart did not reach its completion handoff");

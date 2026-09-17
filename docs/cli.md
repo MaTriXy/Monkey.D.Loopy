@@ -237,3 +237,33 @@ loopc verify   my-loop.yaml --fix
 loopc score    my-loop.yaml
 loopc compile  my-loop.yaml --target all --out ./out/my-loop
 ```
+
+## Jev authoring commands (source preview)
+
+See [availability and source setup](./availability.md) before using these commands. The following
+commands are not in the published 0.8.0 CLI.
+
+| Command | Inputs and flags | Result / exit behavior |
+|---|---|---|
+| `loopc recommend ["goal"]` | `--brief <json>`, `--provider offline\|jev`, `--model <id>`, `--out <new-file>`, `--json` | Report; 0 for a recommendation, 2 for no suitable choice. Requested report is still saved for review. |
+| `loopc design <decision.json>` | Required `--select <candidate-id> --id <loop-id> --out <new-directory>` | Exact catalog selection rechecked, scaffold and handoff saved; 0 on success. |
+| `loopc refine <request.json>` | Required `--out <new-directory>`; optional `--provider offline\|jev`, `--model <id>`, `--previous <decision.json>`, `--json` | Compared revision draft and report; 0 even when current is retained. |
+
+All three return nonzero on invalid input, provider failure, or disallowed output overwrite.
+`recommend` defaults to offline lexical ranking; `refine` defaults to offline checks with no semantic
+ranking. `design` makes no provider request. The input to `design` is the bare recommendation report
+saved by `recommend`, not the decision wrapper from a design or refinement directory.
+
+For the complete brief/request schemas, data transmission, selection rules, output files, and
+multi-round examples, read the [workflow designer guide](./workflow-designer.md).
+
+From the repository root, load a local ignored credential file explicitly:
+
+```sh
+node --env-file=.env.local --import tsx packages/cli/src/index.ts \
+  recommend "Prepare dependency updates for review" --provider jev --out decision.json
+```
+
+The CLI never loads an env file implicitly. Supply secrets through process environment or Node's
+loader, not command-line key values. Workflow runtime budgets do not cap the separate Jev authoring
+request; inspect the recorded token usage.

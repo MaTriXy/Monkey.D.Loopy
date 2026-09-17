@@ -1,0 +1,10 @@
+{
+  "goal": "Prepare policy-compliant dependency updates for human review",
+  "target": "standalone",
+  "completionEvidence": "external",
+  "availableEffects": ["agent", "http"],
+  "requireExternalCompletion": true,
+  "requireRuntimeGuarantees": true,
+  "caps": {"maxIterations": 5, "tokens": 40000, "usd": 2, "wallclock": "30m"},
+  "priorities": {"fit": 3, "simplicity": 1}
+}

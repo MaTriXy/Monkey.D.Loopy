@@ -339,3 +339,19 @@ Each package publishes its compiled `dist` (via `publishConfig`), so installed c
 CI runs typecheck + tests + `pnpm eval` + build on every PR; the live skill-eval runs nightly.
 Release `0.8.0` adds first-class Gauntlet workflows while retaining repository-to-tarball parity,
 a clean-room onboarding smoke, and a zero-vulnerability audit.
+
+## Workflow recommendations with Jev
+
+Source preview, not included in published 0.8.0. Read [feature availability](docs/availability.md)
+and the [agent handoff guide](docs/agent-guide.md) before using these commands.
+
+Use `loopc recommend "goal" --provider jev --out decision.json` to compare catalog workflows,
+then `loopc design decision.json --select recipe:dependency-guardian --id dependency-watch --out ./dependency-watch`
+to create a validated scaffold and authoring handoff. Set `TYPESAFE_API_KEY` for Jev, or choose
+`--provider offline` for a local lexical baseline. Selection is explicit; suitability and workflow
+safety are separate. MCP exposes `recommend_workflow`, `design_workflow`, and `refine_workflow`.
+Use `loopc refine request.json --provider jev --out revisions/round-1` to compare concrete
+workflow revisions with feedback and run evidence; `--previous revisions/round-1/decision.json`
+links the next round. Refinement preserves protected controls and may retain the current version.
+
+See the [workflow designer guide](docs/workflow-designer.md) for briefs, constraints, privacy, limits, and examples.

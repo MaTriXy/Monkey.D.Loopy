@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Complete user and agent Jev documentation with feature availability, exact MCP/CLI contracts,
+  credential setup, iterative handoffs, recovery guidance and a runnable refinement example.
+
+- Add iterative Jev refinement: concrete proposal comparison, feedback/evidence, protected-control
+  checks, incumbent retention, and immutable parent-linked drafts through CLI and MCP.
+
+- Add optional Jev workflow recommendations with strict briefs, deterministic eligibility,
+  weighted suitability, explicit offline mode, and saved decision reports.
+- Add CLI/MCP selection and mock-verified scaffold creation with recipe provenance, tightened
+  caps, non-overwrite output, and an authoring handoff. Generated loops do not depend on Jev.
+
 ## 0.8.0 — 2026-07-30
 
 - Added the first-class `gauntlet` pattern, creative builder/critic blueprint, and recursive native

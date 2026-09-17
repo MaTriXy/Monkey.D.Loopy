@@ -5,6 +5,11 @@ dist/
 .DS_Store
 coverage/
 *.log
+# Local environment files and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
 .fidtmp-*/
 evals-report.json
 skill-eval-report.json
