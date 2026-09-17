@@ -5,8 +5,8 @@ Protocol](https://modelcontextprotocol.io) so any MCP-capable agent can author, 
 compile, run, and inspect loops conversationally. Source:
 [`packages/mcp`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp).
 
-For Jev authoring tools, check [feature availability](./availability.md) first. The published
-0.8.0 server does not include the source-preview tools below.
+For Jev authoring tools, check [feature availability](./availability.md) first. The tools below require
+server version 0.9.0 or newer.
 
 ## Register from npm
 
@@ -78,9 +78,9 @@ also embeddable in-process via the SDK's `InMemoryTransport` (see
 |---|---|---|
 | `get_loop_schema` | — | The LoopSpec authoring guide. **Read this first.** |
 | `list_recipes` | — | Verified recipes, required inputs, schedules, and safety boundaries. |
-| `recommend_workflow` | `brief`, `provider?`, `model?`, `allowExternal?` | JSON recommendation report; offline by default. Source preview. |
-| `design_workflow` | `report` (JSON string), `selection`, `id` | JSON with YAML, fixtures, verification, safety and handoff; no writes. Source preview. |
-| `refine_workflow` | `request`, `previous?` (JSON string), `provider?`, `model?`, `allowExternal?` | JSON refinement report, exact revision bytes, checks, scores and lineage; no activation. Source preview. |
+| `recommend_workflow` | `brief`, `provider?`, `model?`, `allowExternal?` | JSON recommendation report; offline by default. Since 0.9.0. |
+| `design_workflow` | `report` (JSON string), `selection`, `id` | JSON with YAML, fixtures, verification, safety and handoff; no writes. Since 0.9.0. |
+| `refine_workflow` | `request`, `previous?` (JSON string), `provider?`, `model?`, `allowExternal?` | JSON refinement report, exact revision bytes, checks, scores and lineage; no activation. Since 0.9.0. |
 | `list_blueprints` | — | The built-in blueprints (one per pattern). |
 | `new_loop` | `id`, `blueprint?`, `recipe?`, `pattern?` (including `gauntlet`) | A scaffolded LoopSpec YAML. |
 | `validate_loop` | `yaml` | Validator diagnostics; `isError` when invalid. |
@@ -126,7 +126,7 @@ links the next round. Refinement preserves protected controls and may retain the
 See the [workflow designer guide](./workflow-designer.md) for briefs, constraints, privacy, limits, and examples.
 
 
-## Jev credentials and source-preview registration
+## Jev credentials and local registration
 
 The CLI and MCP server do not automatically read `.env.local`. Export `TYPESAFE_API_KEY` into the
 server process, use the host's secret facility, or use Node's explicit env-file loader. For a local

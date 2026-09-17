@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-09-17
 
 - Complete user and agent Jev documentation with feature availability, exact MCP/CLI contracts,
   credential setup, iterative handoffs, recovery guidance and a runnable refinement example.
@@ -12,6 +12,8 @@
   weighted suitability, explicit offline mode, and saved decision reports.
 - Add CLI/MCP selection and mock-verified scaffold creation with recipe provenance, tightened
   caps, non-overwrite output, and an authoring handoff. Generated loops do not depend on Jev.
+
+- Add Omarchy bar integration and local operator controls; refresh audited build/test dependencies.
 
 ## 0.8.0 — 2026-07-30
 

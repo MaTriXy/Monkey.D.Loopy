@@ -1,6 +1,6 @@
 # Workflow designer with Jev
 
-**Source preview:** these commands/tools are not in published 0.8.0. See
+**Available in 0.9.0:** use CLI/MCP 0.9.0 or newer. See
 [availability and setup](./availability.md) before trying them.
 
 Turn a goal into a structured choice between Loopy recipes and blueprints, then create a

@@ -172,7 +172,7 @@ describe("loopc run() — dispatch + commands", () => {
   it("reports the synchronized factory version", async () => {
     const { code, out } = await capture(["--version"]);
     expect(code).toBe(0);
-    expect(out.trim()).toBe("0.8.0");
+    expect(out.trim()).toBe("0.9.0");
   });
 
   it("run: a tiny valid shell loop completes and writes a .loopy journal in the out dir", async () => {

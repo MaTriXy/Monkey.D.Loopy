@@ -116,7 +116,7 @@ For the recommended authoring sequence and MCP integration, start with
 
 ## Design and refine workflows with Jev
 
-The source preview adds structured workflow selection and iterative revision comparison through
+Release 0.9.0 adds structured workflow selection and iterative revision comparison through
 CLI and MCP. An authoring agent drafts alternatives; Jev compares their fit; Loopy checks the
 workflow and saves a new draft with history. Start with [feature availability](./availability.md),
 then the [workflow designer](./workflow-designer.md) or [agent handoff](./agent-guide.md).

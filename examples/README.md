@@ -32,7 +32,7 @@ loopc score    examples/test-green.yaml
 loopc compile  examples/test-green.yaml --target standalone --out ./out/test-green
 ```
 
-## Jev refinement example (source preview)
+## Jev refinement example (0.9.0)
 
 [`jev-refinement.json`](./jev-refinement.json) is a complete, credential-free input for
 `loopc refine`. It includes current/proposed workflow source, an authoring hypothesis, and mock
