@@ -342,6 +342,9 @@ a clean-room onboarding smoke, and a zero-vulnerability audit.
 
 ## Workflow recommendations with Jev
 
+Source preview, not included in published 0.8.0. Read [feature availability](docs/availability.md)
+and the [agent handoff guide](docs/agent-guide.md) before using these commands.
+
 Use `loopc recommend "goal" --provider jev --out decision.json` to compare catalog workflows,
 then `loopc design decision.json --select recipe:dependency-guardian --id dependency-watch --out ./dependency-watch`
 to create a validated scaffold and authoring handoff. Set `TYPESAFE_API_KEY` for Jev, or choose

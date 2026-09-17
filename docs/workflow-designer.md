@@ -1,5 +1,8 @@
 # Workflow designer with Jev
 
+**Source preview:** these commands/tools are not in published 0.8.0. See
+[availability and setup](./availability.md) before trying them.
+
 Turn a goal into a structured choice between Loopy recipes and blueprints, then create a
 validated scaffold. Jev is an optional authoring service from TypeSafe; the resulting loop
 has no Jev runtime dependency.
@@ -240,3 +243,23 @@ Deterministic tests cover API contracts, adversarial responses, hard exclusions,
 scaffolding, and packaged CLI behavior. They do not establish that Jev selects better workflows
 than another model or a human. Compare against labeled goals before tuning rubrics or making
 quality or speed claims. Live API availability and quality require separate credentialed checks.
+
+
+## Run the checked-in refinement example
+
+From a source checkout's repository root:
+
+```sh
+node --import tsx packages/cli/src/index.ts refine examples/jev-refinement.json \
+  --provider offline --out .loopy/docs-example/round-1
+node --import tsx packages/cli/src/index.ts refine examples/jev-refinement.json \
+  --provider offline --previous .loopy/docs-example/round-1/decision.json \
+  --out .loopy/docs-example/round-2
+```
+
+The example compares a generic article prompt with an explicit accuracy rubric. Its feedback is
+an authoring hypothesis, not invented run evidence. Offline rounds retain the current YAML and
+exercise validation, verification, saving and lineage. Each destination must be new. To compare
+with Jev, use a fresh output directory, `--provider jev`, and an explicitly configured environment.
+A Jev round can select a proposal, so subsequent requests must use its selected YAML as `current`;
+do not blindly reuse the original example after the selected version changes.

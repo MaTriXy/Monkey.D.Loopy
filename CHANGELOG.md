@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Complete user and agent Jev documentation with feature availability, exact MCP/CLI contracts,
+  credential setup, iterative handoffs, recovery guidance and a runnable refinement example.
+
 - Add iterative Jev refinement: concrete proposal comparison, feedback/evidence, protected-control
   checks, incumbent retention, and immutable parent-linked drafts through CLI and MCP.
 

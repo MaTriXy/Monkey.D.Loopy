@@ -13,7 +13,9 @@ let the factory emit the runnable artifact.
 CLI (from the repo): `pnpm exec tsx packages/cli/src/index.ts <cmd>` — shown as `loopc <cmd>` below.
 If the `loopc-mcp` server is connected, the equivalent tools are `get_loop_schema`,
 `list_blueprints`, `new_loop`, `validate_loop`, `verify_loop`, `compile_loop`, `run_loop`,
-`inspect_run`.
+`inspect_run`, `list_recipes`, `recommend_workflow`, `design_workflow`, and `refine_workflow`.
+Check actual tool discovery and `docs/availability.md`: the Jev tools are source-preview features,
+not present in published 0.8.0. Never infer tool availability from the package version alone.
 
 ## From an existing script or trace (optional step 0)
 
@@ -50,7 +52,7 @@ The scaffold is not a finished implementation. Read `docs/workflow-designer.md` 
    (`get_loop_schema`, or `docs/loopspec.md`). Do not guess field names.
 2. **Pick the pattern.** Match the goal to a pattern and scaffold from the closest blueprint:
    `loopc new <id> --blueprint <name>` (react · plan-execute-reflect · evaluator-optimizer ·
-   loop-until-dry · map-reduce · poll-until · cron).
+   loop-until-dry · map-reduce · poll-until · cron · gauntlet).
 3. **Draft the spec**, honoring the non-negotiables (the validator enforces these):
    - `terminate` is **required**. Choose the **strongest available exit signal**:
      `oracle` (tests/compiler/schema) > `state-predicate` (queue empty / status==green) >

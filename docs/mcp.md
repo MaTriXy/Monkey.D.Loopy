@@ -5,6 +5,9 @@ Protocol](https://modelcontextprotocol.io) so any MCP-capable agent can author, 
 compile, run, and inspect loops conversationally. Source:
 [`packages/mcp`](https://github.com/MaTriXy/Monkey.D.Loopy/tree/main/packages/mcp).
 
+For Jev authoring tools, check [feature availability](./availability.md) first. The published
+0.8.0 server does not include the source-preview tools below.
+
 ## Register from npm
 
 No repository clone or global install is required. Let the client launch the published package
@@ -74,6 +77,10 @@ also embeddable in-process via the SDK's `InMemoryTransport` (see
 | Tool | Args | Returns |
 |---|---|---|
 | `get_loop_schema` | — | The LoopSpec authoring guide. **Read this first.** |
+| `list_recipes` | — | Verified recipes, required inputs, schedules, and safety boundaries. |
+| `recommend_workflow` | `brief`, `provider?`, `model?`, `allowExternal?` | JSON recommendation report; offline by default. Source preview. |
+| `design_workflow` | `report` (JSON string), `selection`, `id` | JSON with YAML, fixtures, verification, safety and handoff; no writes. Source preview. |
+| `refine_workflow` | `request`, `previous?` (JSON string), `provider?`, `model?`, `allowExternal?` | JSON refinement report, exact revision bytes, checks, scores and lineage; no activation. Source preview. |
 | `list_blueprints` | — | The built-in blueprints (one per pattern). |
 | `new_loop` | `id`, `blueprint?`, `recipe?`, `pattern?` (including `gauntlet`) | A scaffolded LoopSpec YAML. |
 | `validate_loop` | `yaml` | Validator diagnostics; `isError` when invalid. |
@@ -117,3 +124,52 @@ workflow revisions with feedback and run evidence; `--previous revisions/round-1
 links the next round. Refinement preserves protected controls and may retain the current version.
 
 See the [workflow designer guide](./workflow-designer.md) for briefs, constraints, privacy, limits, and examples.
+
+
+## Jev credentials and source-preview registration
+
+The CLI and MCP server do not automatically read `.env.local`. Export `TYPESAFE_API_KEY` into the
+server process, use the host's secret facility, or use Node's explicit env-file loader. For a local
+checkout, a host configuration can use absolute paths:
+
+```json
+{
+  "mcpServers": {
+    "loopy": {
+      "command": "node",
+      "args": [
+        "--env-file=/ABS/PATH/MonkyDLoopy/.env.local",
+        "/ABS/PATH/MonkyDLoopy/packages/mcp/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+Keep the env file untracked and restrict its permissions. Do not paste the key into tool arguments,
+workflow YAML, reports, prompts, or host configurations committed to Git. Authorizing Jev for an
+established task scope need not be repeated every round; the host still sends `allowExternal: true`
+for each Jev tool call. Offline calls need no credential or external authorization.
+
+## Exact authoring call sequence
+
+1. Call `get_loop_schema`; use `list_recipes` and `list_blueprints` to discover what exists.
+2. Call `recommend_workflow` with `{brief: {goal: "..."}, provider: "offline"}` or with
+   `provider: "jev", allowExternal: true` for an authorized external comparison.
+3. Read the text content as JSON. A null `recommendedId` means no recommendation; do not invent
+   one. Review eligible alternatives and explicitly select a candidate.
+4. Call `design_workflow` with `report: JSON.stringify(recommendation)`, the selected candidate ID
+   as `selection`, and a kebab-case `id`. Complete goal-specific edits and required inputs.
+5. For refinement, call `refine_workflow` with the [request object](./workflow-designer.md#improve-a-workflow-over-multiple-rounds).
+   The current and proposed YAML are strings, not file paths. `request` is an object, not a JSON string.
+6. Find the returned `checks` entry whose `id` equals `selectedId`. Preserve its `yaml` bytes and
+   the complete report. For another round, use those bytes as `request.current`, supply newly
+   authored proposals/feedback, and pass `previous: JSON.stringify(priorRefinementReport)`.
+   The CLI's `decision.json` wraps that report in a `report` property; unwrap it for MCP.
+7. Review the diff, verification and safety report. Compile and execute only within the user's
+   intended effects and existing authorization.
+
+Tools return MCP text content; the three authoring tools encode JSON in that text. Check `isError`
+before parsing or proceeding. `verify_loop` also includes the safety scorecard; there is no separate
+`score_loop` tool. It currently accepts only `yaml`; for fixture-based verification use CLI
+`verify --fixtures`, or the local `fixtures` field of a refinement request.
